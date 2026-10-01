@@ -61,6 +61,27 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /api/v1/kernel/restart", func(w http.ResponseWriter, r *http.Request) {
 		s.done(w, s.D.Restart(r.Context()))
 	})
+	mux.HandleFunc("GET /api/v1/connections", func(w http.ResponseWriter, r *http.Request) {
+		conns, err := s.D.Connections(r.Context())
+		if err != nil {
+			fail(w, err)
+			return
+		}
+		writeJSON(w, conns)
+	})
+	mux.HandleFunc("DELETE /api/v1/connections/{id}", func(w http.ResponseWriter, r *http.Request) {
+		s.done(w, s.D.CloseConnection(r.Context(), r.PathValue("id")))
+	})
+	mux.HandleFunc("GET /api/v1/failed", func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, s.D.Failed())
+	})
+	mux.HandleFunc("DELETE /api/v1/failed", func(w http.ResponseWriter, r *http.Request) {
+		s.D.ClearFailed()
+		w.WriteHeader(http.StatusNoContent)
+	})
+	mux.HandleFunc("GET /api/v1/suggest", func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, daemon.Suggest(r.URL.Query().Get("host")))
+	})
 	mux.HandleFunc("GET /api/v1/events", s.events)
 	if s.Web != nil {
 		mux.Handle("GET /", http.FileServerFS(s.Web))

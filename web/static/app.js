@@ -290,6 +290,54 @@ $("#add-form").addEventListener("submit", async (e) => {
   }
 });
 
+// ---- connections ----
+
+// routeDialog asks where a host should go and adds the entry.
+async function routeDialog(host) {
+  const [suggestions] = await Promise.all([api("GET", "/suggest?host=" + encodeURIComponent(host)), outbounds.length ? null : loadOutbounds()]);
+  $("#route-dialog-host").textContent = host;
+  fill($("#route-dialog-target"), suggestions.map((s, i) => h("option", { value: s }, i === 0 && suggestions.length > 1 ? `${s}（包含所有子域名）` : s)));
+  fill($("#route-dialog-via"), outbounds.map((o) => h("option", { value: o.name }, o.kind === "builtin" ? { DIRECT: "直连", REJECT: "屏蔽" }[o.name] : o.name)));
+  const dialog = $("#route-dialog");
+  dialog.returnValue = "";
+  dialog.showModal();
+  await new Promise((r) => dialog.addEventListener("close", r, { once: true }));
+  if (dialog.returnValue !== "ok") return;
+  try {
+    await api("PUT", "/routes", { target: $("#route-dialog-target").value, via: $("#route-dialog-via").value, ttl: $("#route-dialog-ttl").value });
+  } catch (err) {
+    showError(err);
+  }
+}
+
+function renderFailed(list) {
+  fill($("#failed"), list.length ? h("table", {},
+    h("thead", {}, h("tr", {}, h("th", {}, "网站"), h("th", {}, "失败"), h("th", {}, ""))),
+    h("tbody", {}, list.map((f) => h("tr", {},
+      h("td", { class: "target" }, `${f.host}:${f.port}`),
+      h("td", {}, `${f.count} 次，经由 ${f.via}`, h("div", { class: "src", title: f.error }, f.error.slice(0, 80))),
+      h("td", {}, h("button", { onclick: () => routeDialog(f.host) }, "分流…")))))) : "还没有失败的连接");
+}
+
+function renderConns(list) {
+  fill($("#conns"), list.length ? h("table", {},
+    h("thead", {}, h("tr", {}, h("th", {}, "目标"), h("th", {}, "命中 / 出口"), h("th", {}, ""))),
+    h("tbody", {}, list.map((c) => h("tr", {},
+      h("td", { class: "target" }, `${c.host}:${c.port}`, c.process ? h("div", { class: "src" }, c.process) : null),
+      h("td", {}, c.matched, h("div", { class: "src" }, (c.via || []).join(" → ") + ` · ↑${bytes(c.upload)} ↓${bytes(c.download)}`)),
+      h("td", {}, h("div", { class: "actions" },
+        h("button", { onclick: () => routeDialog(c.host) }, "改出口"),
+        h("button", { onclick: () => api("DELETE", `/connections/${encodeURIComponent(c.id)}`).then(loadConns).catch(showError) }, "断开"))))))) : "没有连接");
+}
+
+function loadConns() {
+  api("GET", "/failed").then(renderFailed).catch(() => {});
+  api("GET", "/connections").then(renderConns).catch((err) => fill($("#conns"), err.message));
+}
+
+$("#clear-failed").addEventListener("click", () => api("DELETE", "/failed").then(loadConns).catch(showError));
+setInterval(() => { if (currentTab === "connections" && !document.hidden) loadConns(); }, 2000);
+
 // ---- logs ----
 
 const logLines = [];
@@ -304,6 +352,7 @@ function addLog(line) {
 function refresh() {
   if (currentTab === "outbounds") loadOutbounds();
   if (currentTab === "routes") { loadRoutes(); loadOutbounds(); }
+  if (currentTab === "connections") { loadConns(); loadOutbounds(); }
   if (currentTab === "logs") $("#logs").textContent = logLines.join("\n");
 }
 

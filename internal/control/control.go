@@ -39,4 +39,22 @@ type Kernel interface {
 	Delay(ctx context.Context, tag, url string, timeout time.Duration) (time.Duration, error)
 	// Traffic streams throughput until ctx is done.
 	Traffic(ctx context.Context) (<-chan Traffic, error)
+	// Connections lists open connections; ErrUnsupported if the kernel cannot.
+	Connections(ctx context.Context) ([]Connection, error)
+	CloseConnection(ctx context.Context, id string) error
+}
+
+// Connection is an open connection as the kernel reports it.
+type Connection struct {
+	ID          string    `json:"id"`
+	Network     string    `json:"network"`
+	Host        string    `json:"host"` // domain, or the IP when there is none
+	Port        string    `json:"port"`
+	Process     string    `json:"process,omitempty"`
+	Chains      []string  `json:"chains"`      // outbound first, then the groups that chose it
+	Rule        string    `json:"rule"`        // kernel rule type, e.g. DomainSuffix
+	RulePayload string    `json:"rulePayload"` // e.g. google.com
+	Upload      int64     `json:"upload"`
+	Download    int64     `json:"download"`
+	Start       time.Time `json:"start"`
 }

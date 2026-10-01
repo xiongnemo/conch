@@ -147,3 +147,43 @@ func lastLines(out []byte, n int) string {
 	}
 	return strings.Join(lines, " / ")
 }
+
+func (m *Mihomo) Connections(ctx context.Context) ([]Connection, error) {
+	var v struct {
+		Connections []struct {
+			ID       string `json:"id"`
+			Metadata struct {
+				Network string `json:"network"`
+				Host    string `json:"host"`
+				DstIP   string `json:"destinationIP"`
+				DstPort string `json:"destinationPort"`
+				Process string `json:"process"`
+			} `json:"metadata"`
+			Upload      int64     `json:"upload"`
+			Download    int64     `json:"download"`
+			Start       time.Time `json:"start"`
+			Chains      []string  `json:"chains"`
+			Rule        string    `json:"rule"`
+			RulePayload string    `json:"rulePayload"`
+		} `json:"connections"`
+	}
+	if err := m.do(ctx, http.MethodGet, "/connections", nil, &v); err != nil {
+		return nil, err
+	}
+	out := make([]Connection, 0, len(v.Connections))
+	for _, c := range v.Connections {
+		host := c.Metadata.Host
+		if host == "" {
+			host = c.Metadata.DstIP
+		}
+		out = append(out, Connection{
+			ID: c.ID, Network: c.Metadata.Network, Host: host, Port: c.Metadata.DstPort, Process: c.Metadata.Process,
+			Chains: c.Chains, Rule: c.Rule, RulePayload: c.RulePayload, Upload: c.Upload, Download: c.Download, Start: c.Start,
+		})
+	}
+	return out, nil
+}
+
+func (m *Mihomo) CloseConnection(ctx context.Context, id string) error {
+	return m.do(ctx, http.MethodDelete, "/connections/"+url.PathEscape(id), nil, nil)
+}

@@ -26,6 +26,7 @@
         <button data-tab="overview" class="active">概览</button>
         <button data-tab="outbounds">出口</button>
         <button data-tab="routes">路由</button>
+        <button data-tab="connections">连接</button>
         <button data-tab="logs">日志</button>
       </nav>
       <label class="switch" title="让系统和浏览器使用 nautilus；daemon 退出时恢复原来的设置">
@@ -86,10 +87,41 @@
         <div id="table"></div>
       </section>
 
+      <section data-page="connections" hidden>
+        <div class="card">
+          <h2>加载失败的网站 <button id="clear-failed" class="link">清空</button></h2>
+          <div id="failed" class="muted">还没有失败的连接</div>
+        </div>
+        <div class="card">
+          <h2>当前连接</h2>
+          <div id="conns" class="muted">没有连接</div>
+        </div>
+      </section>
+
       <section data-page="logs" hidden>
         <div class="card"><pre id="logs"></pre></div>
       </section>
     </main>
   </div>
+
+  <dialog id="route-dialog">
+    <form id="route-dialog-form" method="dialog">
+      <h2>让这个网站走……</h2>
+      <p class="muted" id="route-dialog-host"></p>
+      <label>目标 <select id="route-dialog-target"></select></label>
+      <label>出口 <select id="route-dialog-via"></select></label>
+      <label>有效期
+        <select id="route-dialog-ttl">
+          <option value="">永久</option>
+          <option value="1h">1 小时</option>
+          <option value="8h">8 小时</option>
+        </select>
+      </label>
+      <div class="row">
+        <button value="cancel" formnovalidate>取消</button>
+        <button id="route-dialog-ok" value="ok">添加条目</button>
+      </div>
+    </form>
+  </dialog>
 </body>
 </html>

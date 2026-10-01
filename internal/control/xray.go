@@ -129,3 +129,8 @@ func sumTraffic(out []byte) (Traffic, error) {
 	}
 	return t, nil
 }
+
+// xray's API has no list of open connections.
+func (*Xray) Connections(context.Context) ([]Connection, error) { return nil, ErrUnsupported }
+
+func (*Xray) CloseConnection(context.Context, string) error { return ErrUnsupported }

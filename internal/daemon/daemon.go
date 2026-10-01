@@ -68,6 +68,8 @@ type Daemon struct {
 	subInfo     map[string]*subscription.Info
 	managedHash [32]byte
 	stopTraffic context.CancelFunc
+
+	failures failures
 }
 
 var backends = map[string]backend.Router{"mihomo": mihomo.Backend{}, "xray": xray.Backend{}}
@@ -121,7 +123,10 @@ func New(opts Options) (*Daemon, error) {
 	case "xray":
 		d.ctl = &control.Xray{Bin: d.bin, Socket: d.socket}
 	}
-	d.sup.OnLine = func(l string) { d.Events.Publish(Event{Type: "log", Data: l}) }
+	d.sup.OnLine = func(l string) {
+		d.failures.observe(l, time.Now())
+		d.Events.Publish(Event{Type: "log", Data: l})
+	}
 	return d, nil
 }
 
