@@ -147,6 +147,27 @@ type Delay struct {
 // Delay measures latency through an outbound. For chains it also
 // measures each hop, and a failed end-to-end test is reported in the
 // result rather than as an error.
+func (c *Client) SetChain(ctx context.Context, name string, hops []string) error {
+	return c.do(ctx, http.MethodPut, "/api/v1/chains/"+url.PathEscape(name), map[string][]string{"hops": hops}, nil)
+}
+
+func (c *Client) DeleteChain(ctx context.Context, name string) error {
+	return c.do(ctx, http.MethodDelete, "/api/v1/chains/"+url.PathEscape(name), nil, nil)
+}
+
+// AddNode adds a node from a share link and returns its name.
+func (c *Client) AddNode(ctx context.Context, link string) (string, error) {
+	var v struct {
+		Name string `json:"name"`
+	}
+	err := c.do(ctx, http.MethodPost, "/api/v1/nodes", map[string]string{"link": link}, &v)
+	return v.Name, err
+}
+
+func (c *Client) DeleteNode(ctx context.Context, name string) error {
+	return c.do(ctx, http.MethodDelete, "/api/v1/nodes/"+url.PathEscape(name), nil, nil)
+}
+
 func (c *Client) Delay(ctx context.Context, name string) (Delay, error) {
 	var v Delay
 	err := c.do(ctx, http.MethodPost, "/api/v1/delay", map[string]string{"name": name}, &v)

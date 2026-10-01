@@ -28,6 +28,10 @@ type Client interface {
 	SetRoute(ctx context.Context, target, via string, ttl time.Duration) error
 	DeleteRoute(ctx context.Context, target string) error
 	Select(ctx context.Context, group, member string) error
+	SetChain(ctx context.Context, name string, hops []string) error
+	DeleteChain(ctx context.Context, name string) error
+	AddNode(ctx context.Context, link string) (string, error)
+	DeleteNode(ctx context.Context, name string) error
 	Delay(ctx context.Context, name string) (api.Delay, error)
 	SetMode(ctx context.Context, mode string) error
 	SetSysProxy(ctx context.Context, on bool) error
@@ -607,7 +611,7 @@ func (m *Model) pageHints() string {
 	case pageOverview:
 		return "m 切换模式 · s 系统代理 · t TUN · u 更新订阅 · R 重启内核"
 	case pageOutbounds:
-		return "enter 展开/选择 · t 测速"
+		return "enter 展开/选择 · t 测速 · n 添加节点 · c 新建链 · e 改链 · d 删除"
 	case pageRoutes:
 		return "/ 这个地址怎么走 · a 添加 · e 改出口 · d 删除"
 	case pageConns:
@@ -634,6 +638,7 @@ func (m *Model) helpView(h int) string {
 		"  m 切换分流模式 · s 开关系统代理 · t 开关 TUN · u 更新选中的订阅 · R 重启内核",
 		titleStyle.Render("出口"),
 		"  enter 展开出口组或选择成员 · t 测速（出口组：测所有成员；链：逐跳测速）",
+		"  n 粘贴分享链接添加节点 · c 新建链 · e 修改选中的链 · d 删除用 nautilus 添加的节点或链",
 		titleStyle.Render("路由"),
 		"  / 查询一个地址会怎么走 · a 添加条目 · e 修改选中条目的出口 · d 删除选中的条目",
 		titleStyle.Render("连接"),

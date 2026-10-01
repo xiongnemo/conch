@@ -221,6 +221,15 @@ function hopLabel(name) {
   return g && g.now ? `${name}[${g.now}]` : name;
 }
 
+// removeButton deletes an outbound added from the UIs.
+function removeButton(kind, name) {
+  return h("button", { class: "link remove", title: "删除", onclick: (e) => {
+    e.stopPropagation();
+    if (!confirm(`删除${kind === "chains" ? "链" : "节点"} ${name}？`)) return;
+    api("DELETE", `/${kind}/${encodeURIComponent(name)}`).then(loadOutbounds).catch(showError);
+  } }, "×");
+}
+
 function chainRow(c) {
   const hopDelays = c.hops.map(() => h("span", { class: "hop-delay" }));
   const hops = c.hops.flatMap((hop, i) => [i ? " → " : null, hopLabel(hop), hopDelays[i]]);
@@ -231,8 +240,48 @@ function chainRow(c) {
       hopDelays[i].textContent = r.error ? " 失败" : ` ${r.delay} ms`;
       hopDelays[i].className = "hop-delay " + (r.error ? "bad" : "");
       hopDelays[i].title = r.error ? r.error : `经由前 ${i + 1} 跳的延迟`;
-    }))));
+    }))),
+    c.managed ? removeButton("chains", c.name) : h("span", { class: "src", title: "写在 profile.yaml 里，请在那里修改" }, " " + (c.source || "")));
 }
+
+// hopSelect picks one hop of a new chain: the first may be a group or a
+// chain, later ones must be nodes.
+function hopSelect(first) {
+  const usable = outbounds.filter((o) => o.kind === "node" || (first && (o.kind === "group" || o.kind === "chain") && o.name !== "GLOBAL"));
+  return h("select", { class: "hop" }, usable.map((o) => h("option", { value: o.name }, o.kind === "node" ? o.name : `${o.name}（${o.kind === "group" ? "出口组" : "链"}）`)));
+}
+
+function resetChainForm() {
+  fill($("#chain-hops"), hopSelect(true), " → ", hopSelect(false));
+}
+
+$("#chain-add-hop").addEventListener("click", () => $("#chain-hops").append(" → ", hopSelect(false)));
+
+$("#chain-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const name = $("#chain-name").value.trim();
+  const hops = [...document.querySelectorAll("#chain-hops select")].map((s) => s.value);
+  try {
+    await api("PUT", `/chains/${encodeURIComponent(name)}`, { hops });
+    $("#chain-name").value = "";
+    resetChainForm();
+    loadOutbounds();
+  } catch (err) {
+    showError(err);
+  }
+});
+
+$("#node-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  try {
+    const { name } = await api("POST", "/nodes", { link: $("#node-link").value.trim() });
+    $("#node-link").value = "";
+    await loadOutbounds();
+    alert(`已添加节点 ${name}`);
+  } catch (err) {
+    showError(err);
+  }
+});
 
 function renderOutbounds(list) {
   outbounds = list;
@@ -252,7 +301,8 @@ function renderOutbounds(list) {
   const chains = list.filter((o) => o.kind === "chain");
   fill($("#chains"), ...(chains.length ? chains.map(chainRow) : ["没有链"]));
   const nodes = list.filter((o) => o.kind === "node");
-  fill($("#nodes"), h("div", { class: "chips" }, nodes.map((n) => h("span", { class: "chip", title: `${n.type} ${n.server}${n.udp ? "，支持 UDP" : ""}` }, n.name, delayButton(n.name)))));
+  fill($("#nodes"), h("div", { class: "chips" }, nodes.map((n) => h("span", { class: "chip", title: `${n.type} ${n.server}${n.udp ? "，支持 UDP" : ""}` }, n.name, delayButton(n.name), n.managed ? removeButton("nodes", n.name) : null))));
+  if (!document.querySelector("#chain-hops select")) resetChainForm();
   fill($("#add-via"), ...list.map((o) => h("option", { value: o.name }, o.kind === "builtin" ? { DIRECT: "直连", REJECT: "屏蔽" }[o.name] : o.name)));
 }
 

@@ -61,11 +61,11 @@ func (f *fake) Outbounds(context.Context) ([]daemon.Outbound, error) {
 		{Name: "DIRECT", Kind: "builtin", UDP: true}, {Name: "REJECT", Kind: "builtin"},
 		{Name: "节点选择", Kind: "group", Type: "select", Members: []string{"HK 01", "JP 01"}, Selected: "HK 01", Now: "HK 01"},
 		{Name: "香港自动", Kind: "group", Type: "url-test", Members: []string{"HK 01", "HK 02"}, Now: "HK 02"},
-		{Name: "AI-Exit", Kind: "chain", Hops: []string{"香港自动", "home"}, UDP: true},
-		{Name: "HK 01", Kind: "node", Type: "vmess", Server: "1.2.3.4:443", UDP: true},
+		{Name: "AI-Exit", Kind: "chain", Hops: []string{"香港自动", "home"}, UDP: true, Managed: true, Source: "/home/u/managed.yaml:3"},
+		{Name: "HK 01", Kind: "node", Type: "vmess", Server: "1.2.3.4:443", UDP: true, Source: "/home/u/profile.yaml:3"},
 		{Name: "HK 02", Kind: "node", Type: "trojan", Server: "1.2.3.5:443"},
 		{Name: "JP 01", Kind: "node", Type: "ss", Server: "1.2.3.6:8388"},
-		{Name: "home", Kind: "node", Type: "socks5", Server: "5.6.7.8:1080"},
+		{Name: "home", Kind: "node", Type: "socks5", Server: "5.6.7.8:1080", Managed: true},
 	}, nil
 }
 
@@ -102,6 +102,26 @@ func (f *fake) DeleteRoute(_ context.Context, target string) error {
 
 func (f *fake) Select(_ context.Context, group, member string) error {
 	f.record("select %s %s", group, member)
+	return nil
+}
+
+func (f *fake) SetChain(_ context.Context, name string, hops []string) error {
+	f.record("chain %s %s", name, strings.Join(hops, ">"))
+	return nil
+}
+
+func (f *fake) DeleteChain(_ context.Context, name string) error {
+	f.record("delete chain %s", name)
+	return nil
+}
+
+func (f *fake) AddNode(_ context.Context, link string) (string, error) {
+	f.record("add node %s", link)
+	return "JP 02", nil
+}
+
+func (f *fake) DeleteNode(_ context.Context, name string) error {
+	f.record("delete node %s", name)
 	return nil
 }
 
@@ -240,6 +260,10 @@ func (h *harness) keys(keys ...string) {
 			h.send(tea.KeyPressMsg{Code: code})
 			continue
 		}
+		if k == "ctrl+s" {
+			h.send(tea.KeyPressMsg{Code: 's', Mod: tea.ModCtrl})
+			continue
+		}
 		for _, r := range k {
 			h.send(tea.KeyPressMsg{Code: r, Text: string(r)})
 		}
@@ -318,6 +342,32 @@ func TestOutbounds(t *testing.T) {
 	// Groups that pick members themselves cannot be chosen from.
 	h.keys("up", "up", "up", "enter", "down", "enter")
 	h.see("自动最快出口组，由内核自动挑选成员")
+}
+
+func TestManagedOutbounds(t *testing.T) {
+	h := start(t)
+	h.keys("2", "n", "vless://x@example.com:443#JP 02", "enter")
+	h.wantCall("add node vless://x@example.com:443#JP 02")
+	h.see("已添加节点 JP 02")
+
+	// A new chain: a group first, then nodes; backspace takes a hop back.
+	h.keys("c", "Exit2", "enter", "香港", "enter", "HK 02", "enter", "backspace", "home", "enter")
+	h.see("香港自动 → home")
+	h.keys("ctrl+s")
+	h.wantCall("chain Exit2 香港自动>home")
+
+	// Only what nautilus added can be changed or deleted.
+	h.keys("down", "down") // the chain AI-Exit
+	h.cursorOn("AI-Exit")
+	h.keys("e")
+	h.see("修改链 AI-Exit", "香港自动 → home")
+	h.keys("backspace", "JP", "enter", "ctrl+s")
+	h.wantCall("chain AI-Exit 香港自动>JP 01")
+	h.keys("down") // HK 01, from profile.yaml
+	h.keys("d")
+	h.see("写在 profile.yaml:3")
+	h.keys("down", "down", "down", "d", "y") // home
+	h.wantCall("delete node home")
 }
 
 func TestRoutes(t *testing.T) {

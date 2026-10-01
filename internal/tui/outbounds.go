@@ -117,6 +117,9 @@ func (m *Model) outboundRows(w int) []row {
 		if c.UDP {
 			left += udp
 		}
+		if c.Managed {
+			left += muted.Render(" · 可修改")
+		}
 		rows = append(rows, row{text: spread(left, m.delayCell(c.Name), w), item: chainItem{c.Name}})
 	}
 	if len(nodes) > 0 {
@@ -134,6 +137,48 @@ func (m *Model) outboundRows(w int) []row {
 
 func (m *Model) outboundsKey(key string, item any) tea.Cmd {
 	switch key {
+	case "n":
+		m.dialog = newLinkDialog()
+		return nil
+	case "c":
+		m.dialog = newChainDialog(m, "", nil)
+		return nil
+	case "e":
+		if it, ok := item.(chainItem); ok {
+			if c := m.outbound(it.name); c != nil && c.Managed {
+				m.dialog = newChainDialog(m, c.Name, c.Hops)
+			} else if c != nil {
+				m.note(fmt.Sprintf("链 %s 写在 %s，请在那里修改", c.Name, shortSource(c.Source)), true)
+			}
+		}
+		return nil
+	case "d", "delete":
+		var kind, name string
+		switch it := item.(type) {
+		case chainItem:
+			kind, name = "链", it.name
+		case nodeItem:
+			kind, name = "节点", it.name
+		default:
+			return nil
+		}
+		o := m.outbound(name)
+		if o == nil {
+			return nil
+		}
+		if !o.Managed {
+			m.note(fmt.Sprintf("%s %s 写在 %s，nautilus 不会改动你手写的文件", kind, name, shortSource(o.Source)), true)
+			return nil
+		}
+		remove := m.c.DeleteNode
+		if kind == "链" {
+			remove = m.c.DeleteChain
+		}
+		m.dialog = &confirmDialog{
+			question: fmt.Sprintf("删除%s %s？", kind, name),
+			yes:      m.do("已删除"+kind+" "+name, func(ctx context.Context) error { return remove(ctx, name) }),
+		}
+		return nil
 	case "enter", "space", "right", "left", "l", "h":
 		switch it := item.(type) {
 		case groupItem:

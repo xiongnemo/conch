@@ -12,6 +12,7 @@ import (
 
 	"nautilus/internal/compile"
 	"nautilus/internal/control"
+	"nautilus/internal/diag"
 	"nautilus/internal/explain"
 	"nautilus/internal/kernel"
 	"nautilus/internal/lists"
@@ -85,7 +86,9 @@ type Outbound struct {
 	Now      string   `json:"now,omitempty"` // the member a group uses right now, where known
 	Hops     []string `json:"hops,omitempty"`
 	Server   string   `json:"server,omitempty"`
-	UDP      bool     `json:"udp,omitempty"` // UDP traffic gets through (nodes and chains)
+	UDP      bool     `json:"udp,omitempty"`     // UDP traffic gets through (nodes and chains)
+	Source   string   `json:"source,omitempty"`  // file:line it is written at
+	Managed  bool     `json:"managed,omitempty"` // added from the UIs; they can remove it
 }
 
 // Outbounds lists the outbounds with the members groups use right now.
@@ -124,20 +127,25 @@ func (d *Daemon) outbounds() []Outbound {
 	if d.res == nil {
 		return out
 	}
+	managedFile := d.managedPath()
+	at := func(o Outbound, pos diag.Pos) Outbound {
+		o.Source, o.Managed = pos.String(), pos.File == managedFile
+		return o
+	}
 	for _, g := range d.res.Groups {
 		o := Outbound{Name: g.Name, Kind: "group", Type: g.Type, Members: g.Members}
 		if g.Type == "select" {
 			o.Selected = cmpOr(d.state.Selections[g.Name], g.Selected, first(g.Members))
 		}
-		out = append(out, o)
+		out = append(out, at(o, g.Pos))
 	}
 	for _, c := range d.res.Chains {
-		out = append(out, Outbound{Name: c.Name, Kind: "chain", Hops: c.Path, UDP: d.res.RelaysUDP(c.Name)})
+		out = append(out, at(Outbound{Name: c.Name, Kind: "chain", Hops: c.Path, UDP: d.res.RelaysUDP(c.Name)}, c.Pos))
 	}
 	for _, p := range d.res.Proxies {
 		if p.Kind == compile.ProxyNode {
-			out = append(out, Outbound{Name: p.Name, Kind: "node", Type: p.Node.View.Type,
-				Server: net.JoinHostPort(p.Node.View.Server, fmt.Sprint(p.Node.View.Port)), UDP: d.res.RelaysUDP(p.Name)})
+			out = append(out, at(Outbound{Name: p.Name, Kind: "node", Type: p.Node.View.Type,
+				Server: net.JoinHostPort(p.Node.View.Server, fmt.Sprint(p.Node.View.Port)), UDP: d.res.RelaysUDP(p.Name)}, p.Node.Pos))
 		}
 	}
 	return out
@@ -327,10 +335,10 @@ func (d *Daemon) SetRoute(ctx context.Context, key, via string, ttl time.Duratio
 			return &ErrUserFile{What: fmt.Sprintf("条目 %q ", key), Where: pos.String()}
 		}
 	}
-	if err := d.editManaged(func(m *managed) { m.set(key, via) }); err != nil {
-		return err
-	}
-	return d.Reconcile(ctx)
+	return d.changeManaged(ctx, func(m *managed) error {
+		m.set(key, via)
+		return nil
+	})
 }
 
 // DeleteRoute removes a temporary or daemon-managed route.

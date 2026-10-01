@@ -12,6 +12,7 @@ import (
 
 	"nautilus/internal/auth"
 	"nautilus/internal/daemon"
+	"nautilus/internal/diag"
 	"nautilus/internal/explain"
 	"nautilus/internal/view"
 )
@@ -41,6 +42,34 @@ func (s *Server) Handler() http.Handler {
 		writeJSON(w, s.D.Outbounds(r.Context()))
 	})
 	mux.HandleFunc("PUT /api/v1/groups/{name}", s.selectGroup)
+	mux.HandleFunc("PUT /api/v1/chains/{name}", func(w http.ResponseWriter, r *http.Request) {
+		var body struct {
+			Hops []string `json:"hops"`
+		}
+		if decode(w, r, &body) {
+			s.done(w, s.D.SetChain(r.Context(), r.PathValue("name"), body.Hops))
+		}
+	})
+	mux.HandleFunc("DELETE /api/v1/chains/{name}", func(w http.ResponseWriter, r *http.Request) {
+		s.done(w, s.D.DeleteChain(r.Context(), r.PathValue("name")))
+	})
+	mux.HandleFunc("POST /api/v1/nodes", func(w http.ResponseWriter, r *http.Request) {
+		var body struct {
+			Link string `json:"link"` // a share link: vmess://, vless://, ss://, trojan://, …
+		}
+		if !decode(w, r, &body) {
+			return
+		}
+		name, err := s.D.AddNode(r.Context(), body.Link)
+		if err != nil {
+			fail(w, err)
+			return
+		}
+		writeJSON(w, map[string]string{"name": name})
+	})
+	mux.HandleFunc("DELETE /api/v1/nodes/{name}", func(w http.ResponseWriter, r *http.Request) {
+		s.done(w, s.D.DeleteNode(r.Context(), r.PathValue("name")))
+	})
 	mux.HandleFunc("POST /api/v1/delay", s.delay)
 	mux.HandleFunc("GET /api/v1/routes", s.routes)
 	mux.HandleFunc("PUT /api/v1/routes", s.setRoute)
@@ -332,9 +361,11 @@ func fail(w http.ResponseWriter, err error) {
 	case errors.As(err, &userFile):
 		code, body.Where = http.StatusConflict, userFile.Where
 	case errors.As(err, &config):
-		code = http.StatusUnprocessableEntity
+		code, body.Error = http.StatusUnprocessableEntity, "配置有错误，没有生效："
 		for _, d := range config.Diags {
-			body.Diagnostics = append(body.Diagnostics, d.String())
+			if d.Severity == diag.Error {
+				body.Diagnostics = append(body.Diagnostics, d.String())
+			}
 		}
 	case errors.Is(err, daemon.ErrNotFound):
 		code = http.StatusNotFound

@@ -71,8 +71,25 @@
 
       <section data-page="outbounds" hidden>
         <div id="groups"></div>
-        <div class="card"><h2>链</h2><div id="chains" class="muted">没有链</div></div>
-        <div class="card"><h2>节点</h2><div id="nodes"></div></div>
+        <div class="card">
+          <h2>链</h2>
+          <div id="chains" class="muted">没有链</div>
+          <form id="chain-form" class="row">
+            <input id="chain-name" placeholder="新链的名字" required>
+            <span id="chain-hops" class="row"></span>
+            <button type="button" id="chain-add-hop" class="link">+ 加一跳</button>
+            <button type="submit">保存链</button>
+          </form>
+          <p class="muted small">流量从第一跳进去，依次经过每一跳，从最后一跳出来。第一跳可以是出口组，后面的跳需要是节点。</p>
+        </div>
+        <div class="card">
+          <h2>节点</h2>
+          <div id="nodes"></div>
+          <form id="node-form" class="row">
+            <input id="node-link" placeholder="粘贴分享链接添加节点：vmess://、vless://、ss://、trojan://、hysteria2://……" required>
+            <button type="submit">添加节点</button>
+          </form>
+        </div>
       </section>
 
       <section data-page="routes" hidden>

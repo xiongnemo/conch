@@ -275,9 +275,11 @@ func (d *Daemon) build(ctx context.Context) (*compile.Result, *backend.Artifact,
 	return res, art, diags, nil
 }
 
-// mergeEntries adds daemon-owned routes to the profile. Temporary routes
-// override other routes for the same target while they last.
+// mergeEntries adds daemon-owned nodes, chains and routes to the profile.
+// Temporary routes override other routes for the same target while they last.
 func mergeEntries(p *model.Profile, m *managed, temp []TempRoute, managedPath string) {
+	p.Nodes = append(p.Nodes, m.Nodes...)
+	p.Chains = append(p.Chains, m.Chains...)
 	add := func(key, via string, pos diag.Pos) {
 		p.Routes.Entries = append(p.Routes.Entries, &model.Entry{Key: key, Via: model.Via{Name: via}, Pos: pos})
 	}
@@ -290,8 +292,12 @@ func mergeEntries(p *model.Profile, m *managed, temp []TempRoute, managedPath st
 		}
 		p.Routes.Entries = kept
 	}
-	for i, e := range m.Entries {
-		add(e[0], e[1], diag.Pos{File: managedPath, Line: i + 1})
+	for _, e := range m.Entries {
+		pos := e.Pos
+		if pos.File == "" {
+			pos.File = managedPath
+		}
+		add(e.Key, e.Via, pos)
 	}
 	for _, t := range temp {
 		drop(t.Key)

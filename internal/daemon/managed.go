@@ -1,10 +1,12 @@
 package daemon
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"go.yaml.in/yaml/v3"
@@ -14,17 +16,25 @@ import (
 	"nautilus/internal/route"
 )
 
-const managedHeader = "# 由 nautilus 维护：通过 Web UI、TUI、浏览器扩展或 nautilus route add 添加的条目。\n" +
-	"# 可以手动修改；写法和 profile.yaml 的 routes.entries 一样。\n"
+const managedHeader = "# 由 nautilus 维护：通过 Web UI、TUI、浏览器扩展或 nautilus 命令添加的节点、链和条目。\n" +
+	"# 可以手动修改；写法和 profile.yaml 一样。\n"
 
 // ManagedPath is managed.yaml next to the profile.
 func ManagedPath(profile string) string {
 	return filepath.Join(filepath.Dir(profile), "managed.yaml")
 }
 
-// managed is the daemon-owned file. Only route entries live here for now.
+// managed is the daemon-owned file: nodes, chains and route entries added
+// from the UIs, kept in the order they were added.
 type managed struct {
-	Entries [][2]string // key, via; kept in insertion order
+	Nodes   []*model.Node
+	Chains  []*model.Chain
+	Entries []managedEntry
+}
+
+type managedEntry struct {
+	Key, Via string
+	Pos      diag.Pos
 }
 
 func loadManaged(path string) (*managed, error) {
@@ -44,25 +54,51 @@ func loadManaged(path string) (*managed, error) {
 		if e.Via.Chain != nil {
 			return nil, fmt.Errorf("%s：managed.yaml 里的条目只能指向一个出口名", e.Pos)
 		}
-		m.Entries = append(m.Entries, [2]string{e.Key, e.Via.Name})
+		m.Entries = append(m.Entries, managedEntry{e.Key, e.Via.Name, e.Pos})
 	}
+	m.Nodes, m.Chains = p.Nodes, p.Chains
 	return m, nil
 }
 
 func (m *managed) save(path string) error {
+	doc := &yaml.Node{Kind: yaml.MappingNode}
+	if len(m.Nodes) > 0 {
+		nodes := &yaml.Node{Kind: yaml.SequenceNode}
+		for _, n := range m.Nodes {
+			raw := *n.Raw
+			raw.Style = yaml.FlowStyle // one node per line
+			nodes.Content = append(nodes.Content, &raw)
+		}
+		doc.Content = append(doc.Content, model.Str("nodes"), nodes)
+	}
+	if len(m.Chains) > 0 {
+		chains := &yaml.Node{Kind: yaml.MappingNode}
+		for _, c := range m.Chains {
+			hops := &yaml.Node{Kind: yaml.SequenceNode, Style: yaml.FlowStyle}
+			for _, h := range c.Hops {
+				hops.Content = append(hops.Content, model.Str(h))
+			}
+			chains.Content = append(chains.Content, model.Str(c.Name), hops)
+		}
+		doc.Content = append(doc.Content, model.Str("chains"), chains)
+	}
 	entries := &yaml.Node{Kind: yaml.MappingNode}
 	for _, e := range m.Entries {
-		entries.Content = append(entries.Content, model.Str(e[0]), model.Str(e[1]))
+		entries.Content = append(entries.Content, model.Str(e.Key), model.Str(e.Via))
 	}
-	doc := &yaml.Node{Kind: yaml.MappingNode, Content: []*yaml.Node{
-		model.Str("routes"), {Kind: yaml.MappingNode, Content: []*yaml.Node{model.Str("entries"), entries}},
-	}}
-	data, err := yaml.Marshal(doc)
-	if err != nil {
+	doc.Content = append(doc.Content, model.Str("routes"), &yaml.Node{Kind: yaml.MappingNode, Content: []*yaml.Node{model.Str("entries"), entries}})
+	var buf bytes.Buffer
+	buf.WriteString(managedHeader)
+	enc := yaml.NewEncoder(&buf)
+	enc.SetIndent(2)
+	if err := enc.Encode(doc); err != nil {
+		return err
+	}
+	if err := enc.Close(); err != nil {
 		return err
 	}
 	tmp := path + ".part"
-	if err := os.WriteFile(tmp, append([]byte(managedHeader), data...), 0o600); err != nil {
+	if err := os.WriteFile(tmp, buf.Bytes(), 0o600); err != nil {
 		return err
 	}
 	return os.Rename(tmp, path)
@@ -72,22 +108,45 @@ func (m *managed) save(path string) error {
 // way the routing table does ("Google.com" and "*.google.com" are one).
 func (m *managed) set(key, via string) {
 	for i, e := range m.Entries {
-		if sameTarget(e[0], key) {
-			m.Entries[i] = [2]string{key, via}
+		if sameTarget(e.Key, key) {
+			m.Entries[i] = managedEntry{Key: key, Via: via}
 			return
 		}
 	}
-	m.Entries = append(m.Entries, [2]string{key, via})
+	m.Entries = append(m.Entries, managedEntry{Key: key, Via: via})
 }
 
 func (m *managed) remove(key string) bool {
 	for i, e := range m.Entries {
-		if sameTarget(e[0], key) {
+		if sameTarget(e.Key, key) {
 			m.Entries = append(m.Entries[:i], m.Entries[i+1:]...)
 			return true
 		}
 	}
 	return false
+}
+
+// setChain adds or replaces a chain.
+func (m *managed) setChain(name string, hops []string) {
+	for _, c := range m.Chains {
+		if c.Name == name {
+			c.Hops = hops
+			return
+		}
+	}
+	m.Chains = append(m.Chains, &model.Chain{Name: name, Hops: hops})
+}
+
+func (m *managed) removeChain(name string) bool {
+	n := len(m.Chains)
+	m.Chains = slices.DeleteFunc(m.Chains, func(c *model.Chain) bool { return c.Name == name })
+	return len(m.Chains) != n
+}
+
+func (m *managed) removeNode(name string) bool {
+	n := len(m.Nodes)
+	m.Nodes = slices.DeleteFunc(m.Nodes, func(x *model.Node) bool { return x.Name == name })
+	return len(m.Nodes) != n
 }
 
 func sameTarget(a, b string) bool {
