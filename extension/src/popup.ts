@@ -3,7 +3,7 @@
 // subscriptions and are untrusted, so the DOM is built with text only.
 
 import { APIError, Daemon, defaultBase, loadPairing, pair, savePairing, type Explanation, type Outbound, type Pairing } from "./api.ts";
-import { describe, hostOf, newestFirst, tabKey, type TabFailures } from "./failures.ts";
+import { describe, hostOf, newestFirst, rejects, tabKey, type TabFailures } from "./failures.ts";
 
 type Child = Node | string | null | undefined | false | Child[];
 
@@ -221,14 +221,24 @@ async function showFailures(d: Daemon, page: Page, site: Element, into: Element)
   }
   const key = tabKey(page.tabId ?? -1);
   const failures = ((await chrome.storage.session.get(key))[key] ?? {}) as TabFailures;
-  const list = newestFirst(failures);
-  fill(into, h("h2", {}, "本页加载失败的网站"), list.length ? h("ul", { class: "failures" }, list.map((f) => {
+  // Hosts the user's rules block (ads, usually) fail on purpose: say so,
+  // and list them after the real failures.
+  const outbounds = await d.outbounds().catch(() => []);
+  const list = await Promise.all(newestFirst(failures).map(async (f) => {
+    const ex = await d.explain(f.host).catch(() => null);
+    return { f, blocked: ex && rejects(ex.target, outbounds) ? ex.matched : "" };
+  }));
+  list.sort((a, b) => Number(!!a.blocked) - Number(!!b.blocked));
+  fill(into, h("h2", {}, "本页加载失败的网站"), list.length ? h("ul", { class: "failures" }, list.map(({ f, blocked }) => {
     const route = h("button", { type: "button", class: "small-button" }, "分流…");
     route.addEventListener("click", () => {
       showSite(d, f.host, site);
       site.scrollIntoView();
     });
-    return h("li", {}, h("span", { class: "host", title: f.url }, f.host), h("span", { class: "muted small", title: f.error }, `${describe(f.error)} · ${f.count} 次`), route);
+    const why = blocked
+      ? h("span", { class: "muted small", title: "命中：" + blocked }, `按规则屏蔽 · ${f.count} 次`)
+      : h("span", { class: "muted small", title: f.error }, `${describe(f.error)} · ${f.count} 次`);
+    return h("li", {}, h("span", { class: "host", title: f.url }, f.host), why, route);
   })) : h("p", { class: "muted small" }, "没有加载失败的请求。"));
 }
 

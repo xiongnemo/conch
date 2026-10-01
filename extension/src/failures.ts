@@ -58,3 +58,28 @@ export function describe(error: string): string {
   for (const [re, text] of descriptions) if (re.test(error)) return text;
   return error;
 }
+
+// An outbound as far as following group selections needs.
+export interface Choice {
+  name: string;
+  kind: string;
+  now?: string; // what an automatic group uses
+  selected?: string; // what a manual group uses
+}
+
+// rejects follows group selections from target to where traffic ends up and
+// reports whether that is REJECT: the user's own rules block the host, so its
+// failing to load is no news.
+export function rejects(target: string, outbounds: Choice[]): boolean {
+  const byName = new Map(outbounds.map((o) => [o.name, o]));
+  const seen = new Set<string>();
+  while (!seen.has(target)) {
+    if (target === "REJECT" || target === "REJECT-DROP") return true;
+    seen.add(target);
+    const o = byName.get(target);
+    const next = o?.kind === "group" ? o.now || o.selected : undefined;
+    if (!next) return false;
+    target = next;
+  }
+  return false;
+}

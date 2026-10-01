@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { countsAsFailure, describe, hostOf, newestFirst, record } from "../src/failures.ts";
+import { countsAsFailure, describe, hostOf, newestFirst, record, rejects } from "../src/failures.ts";
 
 test("network errors count, cancelled requests do not", () => {
   assert.equal(countsAsFailure("net::ERR_CONNECTION_RESET", "https://cdn.example.com/a.js"), true);
@@ -32,4 +32,19 @@ test("errors are described in a few words", () => {
   assert.equal(describe("net::ERR_CONNECTION_TIMED_OUT"), "连接超时");
   assert.equal(describe("NS_ERROR_UNKNOWN_HOST"), "域名解析失败");
   assert.equal(describe("net::ERR_SOMETHING_NEW"), "net::ERR_SOMETHING_NEW");
+});
+
+test("hosts the rules block are told apart from failures", () => {
+  const outbounds = [
+    { name: "🛑 拦截", kind: "group", selected: "REJECT" },
+    { name: "广告", kind: "group", selected: "🛑 拦截" },
+    { name: "自动", kind: "group", now: "HK" },
+    { name: "HK", kind: "node" },
+    { name: "环", kind: "group", selected: "环" },
+  ];
+  assert.equal(rejects("REJECT", outbounds), true);
+  assert.equal(rejects("广告", outbounds), true);
+  assert.equal(rejects("自动", outbounds), false);
+  assert.equal(rejects("DIRECT", outbounds), false);
+  assert.equal(rejects("环", outbounds), false);
 });
