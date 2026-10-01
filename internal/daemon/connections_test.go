@@ -99,3 +99,20 @@ func TestConnectionsInMergedRules(t *testing.T) {
 		t.Errorf("connections = %q, want %q", got, want)
 	}
 }
+
+// A subscription repeating one of the user's entries does not take the
+// credit for connections the entry routed: the first rule matches.
+func TestConnectionsFirstRuleWins(t *testing.T) {
+	res := &compile.Result{Settings: compile.Settings{Mode: "rule"}, Rules: []route.Rule{
+		{Match: route.MatchDomainSuffix, Value: "google.com", Target: "A", Origin: route.Origin{Tier: route.TierDomain, Key: "google.com"}},
+		{Match: route.MatchDomainSuffix, Value: "google.com", Target: "B", Origin: route.Origin{Key: "机场", Imported: true}},
+	}}
+	art := &backend.Artifact{Manifest: &backend.Manifest{Rules: []backend.ManifestRule{
+		{Index: 0, Rule: "DOMAIN-SUFFIX,google.com,A"}, {Index: 1, Rule: "DOMAIN-SUFFIX,google.com,B"},
+	}}}
+	d := &Daemon{ctl: fakeConns{conns: []control.Connection{{ID: "1", Host: "www.google.com", Rule: "DomainSuffix", RulePayload: "google.com", Chains: []string{"A"}}}}, res: res, art: art}
+	conns, err := d.Connections(context.Background())
+	if err != nil || len(conns) != 1 || conns[0].Matched != "手动条目 google.com" {
+		t.Errorf("connections = %+v, %v", conns, err)
+	}
+}

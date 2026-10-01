@@ -396,7 +396,7 @@ func (d *Daemon) apply(ctx context.Context, res *compile.Result, art *backend.Ar
 
 // waitReady waits until the kernel API answers and the proxy port accepts.
 func (d *Daemon) waitReady(ctx context.Context, port int) error {
-	deadline := time.Now().Add(15 * time.Second)
+	deadline := time.Now().Add(60 * time.Second) // big configs on routers start slowly
 	for {
 		if d.ctl.Ready(ctx) {
 			if c, err := net.DialTimeout("tcp", net.JoinHostPort("127.0.0.1", strconv.Itoa(port)), time.Second); err == nil {
@@ -408,7 +408,7 @@ func (d *Daemon) waitReady(ctx context.Context, port int) error {
 			return fmt.Errorf("内核启动失败（%s）：%s", st.LastExit, lastLog(d.sup.Logs.Lines()))
 		}
 		if time.Now().After(deadline) {
-			return fmt.Errorf("内核 15 秒内没有就绪：%s", lastLog(d.sup.Logs.Lines()))
+			return fmt.Errorf("内核 60 秒内没有就绪：%s", lastLog(d.sup.Logs.Lines()))
 		}
 		select {
 		case <-ctx.Done():

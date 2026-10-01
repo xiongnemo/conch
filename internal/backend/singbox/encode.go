@@ -200,7 +200,10 @@ func (e *encoder) rules() []rule {
 		return out // global and direct only use the final outbound
 	}
 	resolved := false
-	descs := map[string]int{} // description → compiled rule, -1 when ambiguous
+	// description → compiled rule, -1 when ambiguous. Of rules that read
+	// the same, the first is the one connections match; only a cut
+	// description ("[a b c...]") may stand for different rules.
+	descs := map[string]int{}
 	type emitted struct {
 		index int
 		rule  rule
@@ -248,10 +251,10 @@ func (e *encoder) rules() []rule {
 			setTarget(&x, r.Target)
 			user = append(user, emitted{i, x})
 			d := describe(x)
-			if old, ok := descs[d]; ok && old != i {
-				descs[d] = -1
-			} else {
+			if old, ok := descs[d]; !ok {
 				descs[d] = i
+			} else if old != i && strings.Contains(d, "...]") {
+				descs[d] = -1
 			}
 		}
 	}

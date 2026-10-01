@@ -48,8 +48,11 @@ func (d *Daemon) Connections(ctx context.Context) ([]Connection, error) {
 		if max(mr.Index, mr.Last) >= len(res.Rules) {
 			continue
 		}
+		// Of rules that read the same, the first is the one that matches.
 		if mr.Tag != "" {
-			byTag[mr.Tag] = [2]int{mr.Index, max(mr.Last, mr.Index)}
+			if _, dup := byTag[mr.Tag]; !dup {
+				byTag[mr.Tag] = [2]int{mr.Index, max(mr.Last, mr.Index)}
+			}
 			continue
 		}
 		fields := strings.Split(mr.Rule, ",")
@@ -57,7 +60,9 @@ func (d *Daemon) Connections(ctx context.Context) ([]Connection, error) {
 		if len(fields) > 2 {
 			payload = fields[1]
 		}
-		byLine[ruleKey(fields[0], payload)] = mr.Index
+		if _, dup := byLine[ruleKey(fields[0], payload)]; !dup {
+			byLine[ruleKey(fields[0], payload)] = mr.Index
+		}
 	}
 	final := slices.IndexFunc(res.Rules, func(r route.Rule) bool { return r.Match == route.MatchFinal })
 	names := kernelNames(art)

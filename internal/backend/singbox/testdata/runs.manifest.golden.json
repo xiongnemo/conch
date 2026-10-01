@@ -16,6 +16,7 @@
     {
       "index": 0,
       "rule": "{\"domain_suffix\":[\"a.example\"],\"action\":\"route\",\"outbound\":\"DIRECT\"}",
+      "tag": "domain_suffix=a.example",
       "tier": "domain",
       "key": "a.example",
       "source": "../testdata/runs.profile.yaml:9"
