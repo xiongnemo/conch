@@ -64,6 +64,46 @@
       "upstream": "两跳"
     },
     {
+      "name": "中间组›1›落地",
+      "kind": "chain-hop",
+      "node": "落地",
+      "chain": "中间组",
+      "hop": 1,
+      "upstream": "入口， A"
+    },
+    {
+      "name": "中间组›1›手写链",
+      "kind": "chain-hop",
+      "node": "手写链",
+      "chain": "中间组",
+      "hop": 1,
+      "upstream": "入口， A"
+    },
+    {
+      "name": "中间组",
+      "kind": "chain-exit",
+      "node": "落地",
+      "chain": "中间组",
+      "hop": 2,
+      "upstream": "中间组›1›出口选择"
+    },
+    {
+      "name": "末尾组›1›落地",
+      "kind": "chain-hop",
+      "node": "落地",
+      "chain": "末尾组",
+      "hop": 1,
+      "upstream": "入口， A"
+    },
+    {
+      "name": "末尾组›1›手写链",
+      "kind": "chain-hop",
+      "node": "手写链",
+      "chain": "末尾组",
+      "hop": 1,
+      "upstream": "入口， A"
+    },
+    {
       "name": "入口组→落地",
       "kind": "chain-exit",
       "node": "落地",
@@ -79,7 +119,7 @@
       "tag": "#0 a.example",
       "tier": "domain",
       "key": "a.example",
-      "source": "../testdata/chains.profile.yaml:21"
+      "source": "../testdata/chains.profile.yaml:25"
     },
     {
       "index": 1,
@@ -87,27 +127,27 @@
       "tag": "#1 b.example",
       "tier": "domain",
       "key": "b.example",
-      "source": "../testdata/chains.profile.yaml:22"
+      "source": "../testdata/chains.profile.yaml:26"
     },
     {
       "index": 2,
-      "rule": "{\"domain\":[\"domain:home.arpa\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#2 lan\"}",
-      "tag": "#2 lan",
+      "rule": "{\"domain\":[\"domain:c.example\"],\"outboundTag\":\"中间组»\",\"ruleTag\":\"#2 c.example\"}",
+      "tag": "#2 c.example",
       "tier": "domain",
-      "key": "lan",
-      "builtin": true
+      "key": "c.example",
+      "source": "../testdata/chains.profile.yaml:27"
     },
     {
       "index": 3,
-      "rule": "{\"domain\":[\"domain:lan\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#3 lan\"}",
-      "tag": "#3 lan",
+      "rule": "{\"domain\":[\"domain:d.example\"],\"balancerTag\":\"末尾组\",\"ruleTag\":\"#3 d.example\"}",
+      "tag": "#3 d.example",
       "tier": "domain",
-      "key": "lan",
-      "builtin": true
+      "key": "d.example",
+      "source": "../testdata/chains.profile.yaml:28"
     },
     {
       "index": 4,
-      "rule": "{\"domain\":[\"domain:local\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#4 lan\"}",
+      "rule": "{\"domain\":[\"domain:home.arpa\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#4 lan\"}",
       "tag": "#4 lan",
       "tier": "domain",
       "key": "lan",
@@ -115,7 +155,7 @@
     },
     {
       "index": 5,
-      "rule": "{\"domain\":[\"domain:localhost\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#5 lan\"}",
+      "rule": "{\"domain\":[\"domain:lan\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#5 lan\"}",
       "tag": "#5 lan",
       "tier": "domain",
       "key": "lan",
@@ -123,23 +163,23 @@
     },
     {
       "index": 6,
-      "rule": "{\"ip\":[\"::1/128\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#6 lan\"}",
+      "rule": "{\"domain\":[\"domain:local\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#6 lan\"}",
       "tag": "#6 lan",
-      "tier": "ip",
+      "tier": "domain",
       "key": "lan",
       "builtin": true
     },
     {
       "index": 7,
-      "rule": "{\"ip\":[\"255.255.255.255/32\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#7 lan\"}",
+      "rule": "{\"domain\":[\"domain:localhost\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#7 lan\"}",
       "tag": "#7 lan",
-      "tier": "ip",
+      "tier": "domain",
       "key": "lan",
       "builtin": true
     },
     {
       "index": 8,
-      "rule": "{\"ip\":[\"169.254.0.0/16\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#8 lan\"}",
+      "rule": "{\"ip\":[\"::1/128\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#8 lan\"}",
       "tag": "#8 lan",
       "tier": "ip",
       "key": "lan",
@@ -147,7 +187,7 @@
     },
     {
       "index": 9,
-      "rule": "{\"ip\":[\"192.168.0.0/16\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#9 lan\"}",
+      "rule": "{\"ip\":[\"255.255.255.255/32\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#9 lan\"}",
       "tag": "#9 lan",
       "tier": "ip",
       "key": "lan",
@@ -155,7 +195,7 @@
     },
     {
       "index": 10,
-      "rule": "{\"ip\":[\"172.16.0.0/12\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#10 lan\"}",
+      "rule": "{\"ip\":[\"169.254.0.0/16\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#10 lan\"}",
       "tag": "#10 lan",
       "tier": "ip",
       "key": "lan",
@@ -163,7 +203,7 @@
     },
     {
       "index": 11,
-      "rule": "{\"ip\":[\"100.64.0.0/10\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#11 lan\"}",
+      "rule": "{\"ip\":[\"192.168.0.0/16\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#11 lan\"}",
       "tag": "#11 lan",
       "tier": "ip",
       "key": "lan",
@@ -171,7 +211,7 @@
     },
     {
       "index": 12,
-      "rule": "{\"ip\":[\"fe80::/10\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#12 lan\"}",
+      "rule": "{\"ip\":[\"172.16.0.0/12\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#12 lan\"}",
       "tag": "#12 lan",
       "tier": "ip",
       "key": "lan",
@@ -179,7 +219,7 @@
     },
     {
       "index": 13,
-      "rule": "{\"ip\":[\"0.0.0.0/8\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#13 lan\"}",
+      "rule": "{\"ip\":[\"100.64.0.0/10\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#13 lan\"}",
       "tag": "#13 lan",
       "tier": "ip",
       "key": "lan",
@@ -187,7 +227,7 @@
     },
     {
       "index": 14,
-      "rule": "{\"ip\":[\"10.0.0.0/8\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#14 lan\"}",
+      "rule": "{\"ip\":[\"fe80::/10\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#14 lan\"}",
       "tag": "#14 lan",
       "tier": "ip",
       "key": "lan",
@@ -195,7 +235,7 @@
     },
     {
       "index": 15,
-      "rule": "{\"ip\":[\"127.0.0.0/8\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#15 lan\"}",
+      "rule": "{\"ip\":[\"0.0.0.0/8\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#15 lan\"}",
       "tag": "#15 lan",
       "tier": "ip",
       "key": "lan",
@@ -203,7 +243,7 @@
     },
     {
       "index": 16,
-      "rule": "{\"ip\":[\"ff00::/8\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#16 lan\"}",
+      "rule": "{\"ip\":[\"10.0.0.0/8\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#16 lan\"}",
       "tag": "#16 lan",
       "tier": "ip",
       "key": "lan",
@@ -211,7 +251,7 @@
     },
     {
       "index": 17,
-      "rule": "{\"ip\":[\"fc00::/7\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#17 lan\"}",
+      "rule": "{\"ip\":[\"127.0.0.0/8\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#17 lan\"}",
       "tag": "#17 lan",
       "tier": "ip",
       "key": "lan",
@@ -219,8 +259,24 @@
     },
     {
       "index": 18,
-      "rule": "{\"ip\":[\"224.0.0.0/4\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#18 lan\"}",
+      "rule": "{\"ip\":[\"ff00::/8\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#18 lan\"}",
       "tag": "#18 lan",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 19,
+      "rule": "{\"ip\":[\"fc00::/7\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#19 lan\"}",
+      "tag": "#19 lan",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 20,
+      "rule": "{\"ip\":[\"224.0.0.0/4\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#20 lan\"}",
+      "tag": "#20 lan",
       "tier": "ip",
       "key": "lan",
       "builtin": true
@@ -229,6 +285,8 @@
   "tags": {
     "REJECT": "REJECT»",
     "三跳": "三跳»",
-    "入口组": "入口组»"
+    "中间组": "中间组»",
+    "入口组": "入口组»",
+    "末尾组": "末尾组»"
   }
 }

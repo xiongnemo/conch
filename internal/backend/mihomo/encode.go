@@ -214,6 +214,9 @@ func groupNode(g *compile.Group) *yaml.Node {
 	if g.Type == "load-balance" && g.Strategy != "" {
 		m.set("strategy", str(g.Strategy))
 	}
+	if g.Chain != "" {
+		m.set("hidden", boolNode(true)) // a copy carrying a chain hop
+	}
 	return m.node
 }
 

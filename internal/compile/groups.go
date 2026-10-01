@@ -89,7 +89,9 @@ func (c *compiler) applyFilter(grp *Group, expr string) {
 func (c *compiler) addGlobal() {
 	g := &Group{Name: GlobalGroup, Type: "select"}
 	for _, grp := range c.res.Groups {
-		g.Members = append(g.Members, grp.Name)
+		if grp.Chain == "" {
+			g.Members = append(g.Members, grp.Name)
+		}
 	}
 	for _, ch := range c.res.Chains {
 		g.Members = append(g.Members, ch.Name)

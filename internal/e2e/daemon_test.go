@@ -47,7 +47,7 @@ func testDaemon(t *testing.T, hopBin string, c client) {
 		return start(t, name, hopBin, "config.yaml", fmt.Sprintf(`
 mode: direct
 log-level: info
-hosts: { echo.test: 127.0.0.1 }
+hosts: { echo.test: 127.0.0.1, echo2.test: 127.0.0.1 }
 listeners:
   - { name: in, type: socks, listen: 127.0.0.1, port: %d, udp: true }
 `, port), mihomoArgs, port), port
@@ -68,8 +68,11 @@ groups:
   - { name: 选择, type: select, members: [A, B] }
 chains:
   AB: [A, B]
+  经A到组: [A, 选择]
 routes:
   default: 选择
+  entries:
+    echo2.test: 经A到组
 %s
 inbound: { mixed-port: %d }
 `, portA, portB, extra, mixed)
@@ -132,6 +135,13 @@ inbound: { mixed-port: %d }
 	if got := via("after select"); got != "B" {
 		t.Fatalf("after selecting B, traffic goes via %s", got)
 	}
+	// The copy of 选择 inside the chain follows the selection: A, then B.
+	if got := tryGet(mixed, fmt.Sprintf("http://echo2.test:%d/", echoPort)); got != "ok" {
+		t.Fatalf("request through 经A到组 returned %q", got)
+	}
+	waitFor(t, "A to forward to B and B to reach echo2.test", func() bool {
+		return strings.Contains(hopA.out.String(), fmt.Sprintf("--> 127.0.0.1:%d", portB)) && strings.Contains(hopB.out.String(), fmt.Sprintf("echo2.test:%d", echoPort))
+	})
 	if err := d.SetRoute(ctx, "echo.test", "A", time.Hour); err != nil {
 		t.Fatal(err)
 	}
@@ -153,7 +163,7 @@ inbound: { mixed-port: %d }
 	}
 	// Fixing the file is picked up without any API call. The selection
 	// is still B, so an entry sending the target to A shows the edit applied.
-	write("  entries:\n    echo.test: A\n")
+	write("    echo.test: A\n")
 	waitFor(t, "the fix to be applied", func() bool { return d.Status().Error == "" })
 	if got := via("fixed profile"); got != "A" {
 		t.Fatalf("after adding echo.test: A, traffic goes via %s", got)

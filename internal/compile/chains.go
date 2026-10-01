@@ -36,8 +36,15 @@ func (c *compiler) checkHops(ch *Chain) bool {
 			c.d.Errorf(ch.Pos, "链 %q 的第 %d 跳不能是 %s", ch.Name, i+1, h)
 			ok = false
 		case i > 0 && e.kind == kGroup:
-			c.d.Errorf(ch.Pos, "链 %q 的第 %d 跳 %q 是出口组；目前出口组只能放在链的第一跳", ch.Name, i+1, h)
-			ok = false
+			// Its members are copied to dial through the hop before, so
+			// they must be nodes.
+			for _, m := range e.group.Members {
+				if c.names[m] == nil || c.names[m].kind != kNode {
+					c.d.Errorf(ch.Pos, "链 %q 的第 %d 跳是出口组 %q，但它的成员 %q 不是节点；放在第一跳以后的出口组只能由节点组成", ch.Name, i+1, h, m)
+					ok = false
+					break
+				}
+			}
 		}
 	}
 	return ok
@@ -141,23 +148,53 @@ func (c *compiler) checkCycles() {
 // expandChains emits one proxy per hop after the first. Each dials through
 // the previous hop; the last one carries the chain's name, so routes and
 // latency tests that target the chain cover the whole path.
+//
+// A group after the first hop is copied: each member gets a copy dialing
+// through the previous hop, and a copy of the group picks among those.
 func (c *compiler) expandChains() {
 	for _, ch := range c.res.Chains {
 		prev := ch.Path[0]
 		for i := 1; i < len(ch.Path); i++ {
-			node := c.names[ch.Path[i]].node
-			p := &Proxy{Name: ch.Name, Node: node, Upstream: prev, Kind: ProxyChainExit, Chain: ch.Name, Hop: i}
-			if i < len(ch.Path)-1 {
-				p.Name = ch.Name + HopSep + strconv.Itoa(i) + HopSep + node.Name
-				p.Kind = ProxyChainHop
+			last := i == len(ch.Path)-1
+			e := c.names[ch.Path[i]]
+			if e.kind == kGroup {
+				prev = c.copyGroup(ch, i, e.group, prev, last)
+				continue
 			}
-			if node.View.DialerProxy != "" {
-				c.d.Warnf(node.Pos, "节点 %q 自带 dialer-proxy，在链 %q 中会改为经由 %q 连接", node.Name, ch.Name, prev)
+			p := c.hopProxy(ch, i, e.node, prev)
+			if last {
+				p.Name, p.Kind = ch.Name, ProxyChainExit
 			}
 			c.res.Proxies = append(c.res.Proxies, p)
 			prev = p.Name
 		}
 	}
+}
+
+func (c *compiler) hopProxy(ch *Chain, i int, node *model.Node, prev string) *Proxy {
+	if node.View.DialerProxy != "" {
+		c.d.Warnf(node.Pos, "节点 %q 自带 dialer-proxy，在链 %q 中会改为经由 %q 连接", node.Name, ch.Name, prev)
+	}
+	return &Proxy{Name: ch.Name + HopSep + strconv.Itoa(i) + HopSep + node.Name, Node: node, Upstream: prev, Kind: ProxyChainHop, Chain: ch.Name, Hop: i}
+}
+
+// copyGroup emits group orig as hop i of chain ch and returns the copy's name.
+func (c *compiler) copyGroup(ch *Chain, i int, orig *Group, prev string, last bool) string {
+	cp := *orig
+	cp.Name, cp.Chain, cp.Hop, cp.Follows, cp.Members, cp.Selected = ch.Name+HopSep+strconv.Itoa(i)+HopSep+orig.Name, ch.Name, i, orig.Name, nil, ""
+	if last {
+		cp.Name = ch.Name
+	}
+	for _, m := range orig.Members {
+		p := c.hopProxy(ch, i, c.names[m].node, prev)
+		c.res.Proxies = append(c.res.Proxies, p)
+		cp.Members = append(cp.Members, p.Name)
+	}
+	if cp.Type == "select" {
+		cp.Selected = c.res.FollowingMember(&cp, orig.Selected)
+	}
+	c.res.Groups = append(c.res.Groups, &cp)
+	return cp.Name
 }
 
 // Protocols that run over UDP (QUIC or WireGuard) need the previous hop to
@@ -179,19 +216,20 @@ func relaysUDP(n *model.Node) bool {
 func (c *compiler) checkUDP() {
 	for _, ch := range c.res.Chains {
 		for i := 1; i < len(ch.Path); i++ {
-			node := c.names[ch.Path[i]].node
-			if !udpTransport[strings.ToLower(node.View.Type)] {
-				continue
-			}
-			var bad []string
-			for _, leaf := range c.leaves(ch.Path[i-1]) {
-				if !relaysUDP(leaf) {
-					bad = append(bad, leaf.Name)
+			for _, node := range c.leaves(ch.Path[i]) {
+				if !udpTransport[strings.ToLower(node.View.Type)] {
+					continue
 				}
-			}
-			if len(bad) > 0 {
-				c.d.Warnf(ch.Pos, "链 %q 的第 %d 跳 %q 是基于 UDP 的 %s，需要前一跳能转发 UDP；但 %s 没有开启 udp: true 或不支持 UDP，这条链很可能连不通",
-					ch.Name, i+1, node.Name, node.View.Type, strings.Join(bad, "、"))
+				var bad []string
+				for _, leaf := range c.leaves(ch.Path[i-1]) {
+					if !relaysUDP(leaf) {
+						bad = append(bad, leaf.Name)
+					}
+				}
+				if len(bad) > 0 {
+					c.d.Warnf(ch.Pos, "链 %q 的第 %d 跳 %q 是基于 UDP 的 %s，需要前一跳能转发 UDP；但 %s 没有开启 udp: true 或不支持 UDP，这条链很可能连不通",
+						ch.Name, i+1, node.Name, node.View.Type, strings.Join(bad, "、"))
+				}
 			}
 		}
 	}

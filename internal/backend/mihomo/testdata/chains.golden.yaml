@@ -68,6 +68,34 @@ proxies:
     port: 3
     udp: true
     dialer-proxy: 两跳
+  - name: 中间组›1›落地
+    type: socks5
+    server: 192.0.2.3
+    port: 3
+    udp: true
+    dialer-proxy: 入口， A
+  - name: 中间组›1›手写链
+    type: socks5
+    server: 192.0.2.4
+    port: 4
+    dialer-proxy: 入口， A
+  - name: 中间组
+    type: socks5
+    server: 192.0.2.3
+    port: 3
+    udp: true
+    dialer-proxy: 中间组›1›出口选择
+  - name: 末尾组›1›落地
+    type: socks5
+    server: 192.0.2.3
+    port: 3
+    udp: true
+    dialer-proxy: 入口， A
+  - name: 末尾组›1›手写链
+    type: socks5
+    server: 192.0.2.4
+    port: 4
+    dialer-proxy: 入口， A
   - name: 入口组→落地
     type: socks5
     server: 192.0.2.3
@@ -83,13 +111,43 @@ proxy-groups:
     url: https://www.gstatic.com/generate_204
     interval: 300
     strategy: round-robin
+  - name: 出口选择
+    type: select
+    proxies:
+      - 落地
+      - 手写链
+  - name: 出口自动
+    type: url-test
+    proxies:
+      - 落地
+      - 手写链
+    url: https://www.gstatic.com/generate_204
+    interval: 300
+  - name: 中间组›1›出口选择
+    type: select
+    proxies:
+      - 中间组›1›落地
+      - 中间组›1›手写链
+    hidden: true
+  - name: 末尾组
+    type: url-test
+    proxies:
+      - 末尾组›1›落地
+      - 末尾组›1›手写链
+    url: https://www.gstatic.com/generate_204
+    interval: 300
+    hidden: true
   - name: GLOBAL
     type: select
     proxies:
       - 入口组
+      - 出口选择
+      - 出口自动
       - 两跳
       - 三跳
       - 接力
+      - 中间组
+      - 末尾组
       - 入口组→落地
       - 入口， A
       - 中转
@@ -99,6 +157,8 @@ proxy-groups:
 rules:
   - DOMAIN-SUFFIX,a.example,接力
   - DOMAIN-SUFFIX,b.example,入口组→落地
+  - DOMAIN-SUFFIX,c.example,中间组
+  - DOMAIN-SUFFIX,d.example,末尾组
   - DOMAIN-SUFFIX,home.arpa,DIRECT
   - DOMAIN-SUFFIX,lan,DIRECT
   - DOMAIN-SUFFIX,local,DIRECT

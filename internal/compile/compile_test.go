@@ -123,12 +123,56 @@ routes:
 	}
 }
 
+// A group after the first hop is copied with members that dial through
+// the hop before; a select copy follows the original's selection.
+func TestGroupAfterFirstHop(t *testing.T) {
+	res := mustCompile(t, `
+groups:
+  - { name: G, type: select, members: [b, c] }
+  - { name: Auto, type: url-test, members: [b, c], url: "https://example.com/", interval: 300 }
+chains:
+  Mid: [a, G, c]
+  End: [a, Auto]
+routes:
+  default: Mid
+`)
+	byName := map[string]*Group{}
+	for _, g := range res.Groups {
+		byName[g.Name] = g
+	}
+	mid := byName["Mid›1›G"]
+	if mid == nil || mid.Chain != "Mid" || mid.Hop != 1 || mid.Follows != "G" || !slices.Equal(mid.Members, []string{"Mid›1›b", "Mid›1›c"}) {
+		t.Fatalf("copy of G = %+v", mid)
+	}
+	// The exit of a chain that ends in a group is the group copy itself.
+	end := byName["End"]
+	if end == nil || end.Type != "url-test" || end.URL != "https://example.com/" || !slices.Equal(end.Members, []string{"End›1›b", "End›1›c"}) {
+		t.Fatalf("End = %+v", end)
+	}
+	ups := map[string]string{}
+	for _, p := range res.Proxies {
+		ups[p.Name] = p.Upstream
+	}
+	if ups["Mid›1›b"] != "a" || ups["Mid›1›c"] != "a" || ups["Mid"] != "Mid›1›G" || ups["End›1›b"] != "a" {
+		t.Errorf("upstreams = %v", ups)
+	}
+	global := byName[GlobalGroup]
+	if slices.Contains(global.Members, "Mid›1›G") || !slices.Contains(global.Members, "End") {
+		t.Errorf("GLOBAL = %v", global.Members)
+	}
+
+	res.Select(map[string]string{"G": "c", "Mid›1›G": "Mid›1›b"})
+	if mid.Selected != "Mid›1›c" {
+		t.Errorf("the copy must follow G's selection, got %q", mid.Selected)
+	}
+}
+
 func TestChainErrors(t *testing.T) {
 	cases := []struct{ name, src, want string }{
 		{"single hop", "chains:\n  X: [a]\n", "至少需要两跳"},
 		{"unknown hop", "chains:\n  X: [a, nope]\n", "不存在"},
 		{"builtin hop", "chains:\n  X: [DIRECT, a]\n", "不能是 DIRECT"},
-		{"group after first", "groups:\n  - { name: G, type: select, members: [a] }\nchains:\n  X: [a, G]\n", "只能放在链的第一跳"},
+		{"group of groups after first", "groups:\n  - { name: G, type: select, members: [a] }\n  - { name: H, type: select, members: [G, b] }\nchains:\n  X: [a, H]\n", "只能由节点组成"},
 		{"nested chain starting with group",
 			"groups:\n  - { name: G, type: select, members: [a] }\nchains:\n  In: [G, b]\n  X: [c, In]\n", "只能由节点组成"},
 		{"self nesting", "chains:\n  X: [a, Y]\n  Y: [b, X]\n", "嵌套引用"},

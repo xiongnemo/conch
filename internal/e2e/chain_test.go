@@ -160,8 +160,8 @@ func getVia(t *testing.T, proxyPort int, target string) string {
 // TestChainTraversesHopsInOrder checks, for every client kernel, that
 // traffic routed to a chain enters the first hop, reaches the second hop
 // through the first and only then the destination; that a group works as
-// a chain's first hop and as the default route; and that other traffic
-// bypasses the chain.
+// a chain's first hop, as its last hop and as the default route; and that
+// other traffic bypasses the chain.
 func TestChainTraversesHopsInOrder(t *testing.T) {
 	hopBin := hopServerBin(t)
 	for _, c := range clients() {
@@ -196,6 +196,7 @@ hosts:
   echo-chain.test: 127.0.0.1
   echo-group.test: 127.0.0.1
   echo-default.test: 127.0.0.1
+  echo-exitgroup.test: 127.0.0.1
 listeners:
   - { name: hop2-in, type: shadowsocks, listen: 127.0.0.1, port: %d, cipher: aes-128-gcm, password: test-pass, udp: true }
 `, hop2Port), mihomoArgs, hop2Port)
@@ -206,19 +207,22 @@ nodes:
   - { name: hop2, type: ss, server: 127.0.0.1, port: %d, cipher: aes-128-gcm, password: test-pass, udp: true }
 groups:
   - { name: 入口组, type: select, members: [hop1] }
+  - { name: 出口组, type: select, members: [hop2] }
   - { name: 默认组, type: select, members: [测试链, DIRECT] }
 chains:
   测试链: [hop1, hop2]
   组链: [入口组, hop2]
+  组在后: [hop1, 出口组]
 routes:
   default: 默认组
   entries:
     echo-chain.test: 测试链
     echo-group.test: 组链
+    echo-exitgroup.test: 组在后
 inbound: { mixed-port: %d }
 `, hop1Port, hop2Port, mixedPort)), c.args, mixedPort)
 
-	hosts := []string{"echo-chain.test", "echo-group.test", "echo-default.test"}
+	hosts := []string{"echo-chain.test", "echo-group.test", "echo-default.test", "echo-exitgroup.test"}
 	for _, host := range hosts {
 		if got := getVia(t, mixedPort, fmt.Sprintf("http://%s:%d/%s", host, echoPort, host)); got != "echo /"+host {
 			t.Fatalf("request to %s returned %q", host, got)
@@ -230,7 +234,7 @@ inbound: { mixed-port: %d }
 	}
 
 	// Each chained request is a new connection from hop1 to hop2.
-	waitFor(t, "hop1 to forward three connections to hop2", func() bool {
+	waitFor(t, "hop1 to forward every chained connection to hop2", func() bool {
 		return strings.Count(hop1.out.String(), fmt.Sprintf("--> 127.0.0.1:%d", hop2Port)) >= len(hosts)
 	})
 	for _, host := range hosts {

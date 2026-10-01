@@ -1,4 +1,4 @@
-# 链的各种写法：嵌套链、链作为第一跳、手写的 dialer-proxy、YAML 锚点与合并键、需要消毒的名字
+# 链的各种写法：嵌套链、链作为第一跳、出口组在中间或最后一跳、手写的 dialer-proxy、YAML 锚点与合并键、需要消毒的名字
 x-ss: &ss { type: ss, cipher: aes-128-gcm, password: x, udp: true }
 
 nodes:
@@ -9,14 +9,20 @@ nodes:
 
 groups:
   - { name: 入口组, type: load-balance, members: ["入口, A", 中转], strategy: round-robin }
+  - { name: 出口选择, type: select, members: [落地, 手写链] }
+  - { name: 出口自动, type: url-test, members: [落地, 手写链], url: "https://www.gstatic.com/generate_204", interval: 300 }
 
 chains:
   两跳: ["入口, A", 中转]
   三跳: [入口组, 两跳, 落地]
   接力: [两跳, 落地]
+  中间组: ["入口, A", 出口选择, 落地]
+  末尾组: ["入口, A", 出口自动]
 
 routes:
   default: 三跳
   entries:
     a.example: 接力
     b.example: [入口组, 落地]
+    c.example: 中间组
+    d.example: 末尾组

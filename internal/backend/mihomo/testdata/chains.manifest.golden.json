@@ -64,6 +64,46 @@
       "upstream": "两跳"
     },
     {
+      "name": "中间组›1›落地",
+      "kind": "chain-hop",
+      "node": "落地",
+      "chain": "中间组",
+      "hop": 1,
+      "upstream": "入口， A"
+    },
+    {
+      "name": "中间组›1›手写链",
+      "kind": "chain-hop",
+      "node": "手写链",
+      "chain": "中间组",
+      "hop": 1,
+      "upstream": "入口， A"
+    },
+    {
+      "name": "中间组",
+      "kind": "chain-exit",
+      "node": "落地",
+      "chain": "中间组",
+      "hop": 2,
+      "upstream": "中间组›1›出口选择"
+    },
+    {
+      "name": "末尾组›1›落地",
+      "kind": "chain-hop",
+      "node": "落地",
+      "chain": "末尾组",
+      "hop": 1,
+      "upstream": "入口， A"
+    },
+    {
+      "name": "末尾组›1›手写链",
+      "kind": "chain-hop",
+      "node": "手写链",
+      "chain": "末尾组",
+      "hop": 1,
+      "upstream": "入口， A"
+    },
+    {
       "name": "入口组→落地",
       "kind": "chain-exit",
       "node": "落地",
@@ -78,140 +118,154 @@
       "rule": "DOMAIN-SUFFIX,a.example,接力",
       "tier": "domain",
       "key": "a.example",
-      "source": "../testdata/chains.profile.yaml:21"
+      "source": "../testdata/chains.profile.yaml:25"
     },
     {
       "index": 1,
       "rule": "DOMAIN-SUFFIX,b.example,入口组→落地",
       "tier": "domain",
       "key": "b.example",
-      "source": "../testdata/chains.profile.yaml:22"
+      "source": "../testdata/chains.profile.yaml:26"
     },
     {
       "index": 2,
+      "rule": "DOMAIN-SUFFIX,c.example,中间组",
+      "tier": "domain",
+      "key": "c.example",
+      "source": "../testdata/chains.profile.yaml:27"
+    },
+    {
+      "index": 3,
+      "rule": "DOMAIN-SUFFIX,d.example,末尾组",
+      "tier": "domain",
+      "key": "d.example",
+      "source": "../testdata/chains.profile.yaml:28"
+    },
+    {
+      "index": 4,
       "rule": "DOMAIN-SUFFIX,home.arpa,DIRECT",
       "tier": "domain",
       "key": "lan",
       "builtin": true
     },
     {
-      "index": 3,
+      "index": 5,
       "rule": "DOMAIN-SUFFIX,lan,DIRECT",
       "tier": "domain",
       "key": "lan",
       "builtin": true
     },
     {
-      "index": 4,
+      "index": 6,
       "rule": "DOMAIN-SUFFIX,local,DIRECT",
       "tier": "domain",
       "key": "lan",
       "builtin": true
     },
     {
-      "index": 5,
+      "index": 7,
       "rule": "DOMAIN-SUFFIX,localhost,DIRECT",
       "tier": "domain",
       "key": "lan",
       "builtin": true
     },
     {
-      "index": 6,
+      "index": 8,
       "rule": "IP-CIDR6,::1/128,DIRECT,no-resolve",
       "tier": "ip",
       "key": "lan",
       "builtin": true
     },
     {
-      "index": 7,
+      "index": 9,
       "rule": "IP-CIDR,255.255.255.255/32,DIRECT,no-resolve",
       "tier": "ip",
       "key": "lan",
       "builtin": true
     },
     {
-      "index": 8,
+      "index": 10,
       "rule": "IP-CIDR,169.254.0.0/16,DIRECT,no-resolve",
       "tier": "ip",
       "key": "lan",
       "builtin": true
     },
     {
-      "index": 9,
+      "index": 11,
       "rule": "IP-CIDR,192.168.0.0/16,DIRECT,no-resolve",
       "tier": "ip",
       "key": "lan",
       "builtin": true
     },
     {
-      "index": 10,
+      "index": 12,
       "rule": "IP-CIDR,172.16.0.0/12,DIRECT,no-resolve",
       "tier": "ip",
       "key": "lan",
       "builtin": true
     },
     {
-      "index": 11,
+      "index": 13,
       "rule": "IP-CIDR,100.64.0.0/10,DIRECT,no-resolve",
       "tier": "ip",
       "key": "lan",
       "builtin": true
     },
     {
-      "index": 12,
+      "index": 14,
       "rule": "IP-CIDR6,fe80::/10,DIRECT,no-resolve",
       "tier": "ip",
       "key": "lan",
       "builtin": true
     },
     {
-      "index": 13,
+      "index": 15,
       "rule": "IP-CIDR,0.0.0.0/8,DIRECT,no-resolve",
       "tier": "ip",
       "key": "lan",
       "builtin": true
     },
     {
-      "index": 14,
+      "index": 16,
       "rule": "IP-CIDR,10.0.0.0/8,DIRECT,no-resolve",
       "tier": "ip",
       "key": "lan",
       "builtin": true
     },
     {
-      "index": 15,
+      "index": 17,
       "rule": "IP-CIDR,127.0.0.0/8,DIRECT,no-resolve",
       "tier": "ip",
       "key": "lan",
       "builtin": true
     },
     {
-      "index": 16,
+      "index": 18,
       "rule": "IP-CIDR6,ff00::/8,DIRECT,no-resolve",
       "tier": "ip",
       "key": "lan",
       "builtin": true
     },
     {
-      "index": 17,
+      "index": 19,
       "rule": "IP-CIDR6,fc00::/7,DIRECT,no-resolve",
       "tier": "ip",
       "key": "lan",
       "builtin": true
     },
     {
-      "index": 18,
+      "index": 20,
       "rule": "IP-CIDR,224.0.0.0/4,DIRECT,no-resolve",
       "tier": "ip",
       "key": "lan",
       "builtin": true
     },
     {
-      "index": 19,
+      "index": 21,
       "rule": "MATCH,三跳",
       "tier": "default",
       "key": "default",
-      "source": "../testdata/chains.profile.yaml:19"
+      "source": "../testdata/chains.profile.yaml:23"
     }
   ]
 }

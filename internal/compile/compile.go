@@ -57,6 +57,13 @@ type Group struct {
 	Strategy  string
 	Selected  string // select groups: the chosen member; empty means the first
 	Pos       diag.Pos
+	// A group at a later hop of a chain is emitted as a copy whose members
+	// dial through the hop before. Chain and Hop say where it belongs;
+	// such copies are not user-visible. Follows is the group it copies,
+	// whose selection a select copy mirrors.
+	Chain   string
+	Hop     int
+	Follows string
 }
 
 // Chain is a resolved chain.
@@ -135,12 +142,36 @@ func Compile(p *model.Profile) *Result {
 func (r *Result) Select(choices map[string]string) map[string]string {
 	applied := map[string]string{}
 	for _, g := range r.Groups {
-		if m, ok := choices[g.Name]; ok && g.Type == "select" && slices.Contains(g.Members, m) {
+		if m, ok := choices[g.Name]; ok && g.Type == "select" && g.Chain == "" && slices.Contains(g.Members, m) {
 			g.Selected = m
 			applied[g.Name] = m
 		}
 	}
+	for _, g := range r.Groups {
+		if g.Follows != "" && g.Type == "select" {
+			g.Selected = r.FollowingMember(g, r.group(g.Follows).Selected)
+		}
+	}
 	return applied
+}
+
+func (r *Result) group(name string) *Group {
+	for _, g := range r.Groups {
+		if g.Name == name {
+			return g
+		}
+	}
+	return &Group{}
+}
+
+// FollowingMember is the member of a copied group that stands for member
+// of the original; empty for the first.
+func (r *Result) FollowingMember(copy *Group, member string) string {
+	i := slices.Index(r.group(copy.Follows).Members, member)
+	if i < 0 || i >= len(copy.Members) {
+		return ""
+	}
+	return copy.Members[i]
 }
 
 // sanitize makes a name safe for every backend: Clash rule lines split on

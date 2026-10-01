@@ -153,6 +153,71 @@
       }
     },
     {
+      "tag": "中间组›1›落地",
+      "protocol": "socks",
+      "settings": {
+        "address": "192.0.2.3",
+        "port": 3
+      },
+      "streamSettings": {
+        "sockopt": {
+          "dialerProxy": "入口， A"
+        }
+      }
+    },
+    {
+      "tag": "中间组›1›手写链",
+      "protocol": "socks",
+      "settings": {
+        "address": "192.0.2.4",
+        "port": 4
+      },
+      "streamSettings": {
+        "sockopt": {
+          "dialerProxy": "入口， A"
+        }
+      }
+    },
+    {
+      "tag": "中间组»",
+      "protocol": "socks",
+      "settings": {
+        "address": "192.0.2.3",
+        "port": 3
+      },
+      "streamSettings": {
+        "sockopt": {
+          "dialerProxy": "中间组›1›出口选择"
+        }
+      }
+    },
+    {
+      "tag": "末尾组›1›落地",
+      "protocol": "socks",
+      "settings": {
+        "address": "192.0.2.3",
+        "port": 3
+      },
+      "streamSettings": {
+        "sockopt": {
+          "dialerProxy": "入口， A"
+        }
+      }
+    },
+    {
+      "tag": "末尾组›1›手写链",
+      "protocol": "socks",
+      "settings": {
+        "address": "192.0.2.4",
+        "port": 4
+      },
+      "streamSettings": {
+        "sockopt": {
+          "dialerProxy": "入口， A"
+        }
+      }
+    },
+    {
       "tag": "入口组→落地",
       "protocol": "socks",
       "settings": {
@@ -173,6 +238,34 @@
       }
     },
     {
+      "tag": "出口选择",
+      "protocol": "loopback",
+      "settings": {
+        "inboundTag": "›group›出口选择"
+      }
+    },
+    {
+      "tag": "出口自动",
+      "protocol": "loopback",
+      "settings": {
+        "inboundTag": "›group›出口自动"
+      }
+    },
+    {
+      "tag": "中间组›1›出口选择",
+      "protocol": "loopback",
+      "settings": {
+        "inboundTag": "›group›中间组›1›出口选择"
+      }
+    },
+    {
+      "tag": "末尾组»",
+      "protocol": "loopback",
+      "settings": {
+        "inboundTag": "›group›末尾组"
+      }
+    },
+    {
       "tag": "GLOBAL",
       "protocol": "loopback",
       "settings": {
@@ -188,6 +281,30 @@
           "›group›入口组"
         ],
         "balancerTag": "入口组"
+      },
+      {
+        "inboundTag": [
+          "›group›出口选择"
+        ],
+        "balancerTag": "出口选择"
+      },
+      {
+        "inboundTag": [
+          "›group›出口自动"
+        ],
+        "balancerTag": "出口自动"
+      },
+      {
+        "inboundTag": [
+          "›group›中间组›1›出口选择"
+        ],
+        "balancerTag": "中间组›1›出口选择"
+      },
+      {
+        "inboundTag": [
+          "›group›末尾组"
+        ],
+        "balancerTag": "末尾组"
       },
       {
         "inboundTag": [
@@ -211,122 +328,136 @@
       },
       {
         "domain": [
+          "domain:c.example"
+        ],
+        "outboundTag": "中间组»",
+        "ruleTag": "#2 c.example"
+      },
+      {
+        "domain": [
+          "domain:d.example"
+        ],
+        "balancerTag": "末尾组",
+        "ruleTag": "#3 d.example"
+      },
+      {
+        "domain": [
           "domain:home.arpa"
-        ],
-        "outboundTag": "DIRECT",
-        "ruleTag": "#2 lan"
-      },
-      {
-        "domain": [
-          "domain:lan"
-        ],
-        "outboundTag": "DIRECT",
-        "ruleTag": "#3 lan"
-      },
-      {
-        "domain": [
-          "domain:local"
         ],
         "outboundTag": "DIRECT",
         "ruleTag": "#4 lan"
       },
       {
         "domain": [
-          "domain:localhost"
+          "domain:lan"
         ],
         "outboundTag": "DIRECT",
         "ruleTag": "#5 lan"
       },
       {
-        "ip": [
-          "::1/128"
+        "domain": [
+          "domain:local"
         ],
         "outboundTag": "DIRECT",
         "ruleTag": "#6 lan"
       },
       {
-        "ip": [
-          "255.255.255.255/32"
+        "domain": [
+          "domain:localhost"
         ],
         "outboundTag": "DIRECT",
         "ruleTag": "#7 lan"
       },
       {
         "ip": [
-          "169.254.0.0/16"
+          "::1/128"
         ],
         "outboundTag": "DIRECT",
         "ruleTag": "#8 lan"
       },
       {
         "ip": [
-          "192.168.0.0/16"
+          "255.255.255.255/32"
         ],
         "outboundTag": "DIRECT",
         "ruleTag": "#9 lan"
       },
       {
         "ip": [
-          "172.16.0.0/12"
+          "169.254.0.0/16"
         ],
         "outboundTag": "DIRECT",
         "ruleTag": "#10 lan"
       },
       {
         "ip": [
-          "100.64.0.0/10"
+          "192.168.0.0/16"
         ],
         "outboundTag": "DIRECT",
         "ruleTag": "#11 lan"
       },
       {
         "ip": [
-          "fe80::/10"
+          "172.16.0.0/12"
         ],
         "outboundTag": "DIRECT",
         "ruleTag": "#12 lan"
       },
       {
         "ip": [
-          "0.0.0.0/8"
+          "100.64.0.0/10"
         ],
         "outboundTag": "DIRECT",
         "ruleTag": "#13 lan"
       },
       {
         "ip": [
-          "10.0.0.0/8"
+          "fe80::/10"
         ],
         "outboundTag": "DIRECT",
         "ruleTag": "#14 lan"
       },
       {
         "ip": [
-          "127.0.0.0/8"
+          "0.0.0.0/8"
         ],
         "outboundTag": "DIRECT",
         "ruleTag": "#15 lan"
       },
       {
         "ip": [
-          "ff00::/8"
+          "10.0.0.0/8"
         ],
         "outboundTag": "DIRECT",
         "ruleTag": "#16 lan"
       },
       {
         "ip": [
-          "fc00::/7"
+          "127.0.0.0/8"
         ],
         "outboundTag": "DIRECT",
         "ruleTag": "#17 lan"
       },
       {
         "ip": [
-          "224.0.0.0/4"
+          "ff00::/8"
         ],
         "outboundTag": "DIRECT",
         "ruleTag": "#18 lan"
+      },
+      {
+        "ip": [
+          "fc00::/7"
+        ],
+        "outboundTag": "DIRECT",
+        "ruleTag": "#19 lan"
+      },
+      {
+        "ip": [
+          "224.0.0.0/4"
+        ],
+        "outboundTag": "DIRECT",
+        "ruleTag": "#20 lan"
       }
     ],
     "balancers": [
@@ -342,6 +473,46 @@
         "fallbackTag": "入口， A"
       },
       {
+        "tag": "出口选择",
+        "selector": [
+          "落地"
+        ],
+        "strategy": {
+          "type": "random"
+        }
+      },
+      {
+        "tag": "出口自动",
+        "selector": [
+          "落地",
+          "手写链"
+        ],
+        "strategy": {
+          "type": "leastPing"
+        },
+        "fallbackTag": "落地"
+      },
+      {
+        "tag": "中间组›1›出口选择",
+        "selector": [
+          "中间组›1›落地"
+        ],
+        "strategy": {
+          "type": "random"
+        }
+      },
+      {
+        "tag": "末尾组",
+        "selector": [
+          "末尾组›1›落地",
+          "末尾组›1›手写链"
+        ],
+        "strategy": {
+          "type": "leastPing"
+        },
+        "fallbackTag": "末尾组›1›落地"
+      },
+      {
         "tag": "GLOBAL",
         "selector": [
           "入口组»"
@@ -355,7 +526,11 @@
   "observatory": {
     "subjectSelector": [
       "入口， A",
-      "中转"
+      "中转",
+      "落地",
+      "手写链",
+      "末尾组›1›落地",
+      "末尾组›1›手写链"
     ],
     "probeURL": "https://www.gstatic.com/generate_204",
     "probeInterval": "300s",

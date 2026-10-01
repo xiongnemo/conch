@@ -133,6 +133,9 @@ func (d *Daemon) outbounds() []Outbound {
 		return o
 	}
 	for _, g := range d.res.Groups {
+		if g.Chain != "" {
+			continue // a copy carrying a chain hop
+		}
 		o := Outbound{Name: g.Name, Kind: "group", Type: g.Type, Members: g.Members}
 		if g.Type == "select" {
 			o.Selected = cmpOr(d.state.Selections[g.Name], g.Selected, first(g.Members))
@@ -181,11 +184,27 @@ func (d *Daemon) Select(ctx context.Context, groupName, member string) error {
 	if g.Type != "select" {
 		return fmt.Errorf("出口组 %q 是%s，不能手动选择", groupName, groupType(g.Type))
 	}
+	if g.Follows != "" {
+		return fmt.Errorf("%q 是链 %s 里 %s 的副本，会跟着 %s 的选择走", groupName, g.Chain, g.Follows, g.Follows)
+	}
 	if !slices.Contains(g.Members, member) {
 		return fmt.Errorf("%q 不是出口组 %q 的成员", member, groupName)
 	}
 	if err := d.ctl.Select(ctx, groupName, d.tag(member)); err != nil {
 		return err
+	}
+	// Copies of the group at later chain hops follow it.
+	res := d.Result()
+	for _, cp := range res.Groups {
+		if cp.Follows == groupName && cp.Type == "select" {
+			m := res.FollowingMember(cp, member)
+			if err := d.ctl.Select(ctx, cp.Name, d.tag(m)); err != nil {
+				return err
+			}
+			d.mu.Lock()
+			cp.Selected = m
+			d.mu.Unlock()
+		}
 	}
 	d.mu.Lock()
 	d.state.Selections[groupName] = member
@@ -257,11 +276,18 @@ func (d *Daemon) ChainDelay(ctx context.Context, name string) ([]HopDelay, error
 	// that dial through the hops before them, the last one being the chain.
 	targets := []string{chain.Path[0]}
 	for i := 1; i < len(chain.Path); i++ {
-		for _, p := range res.Proxies {
-			if p.Chain == name && p.Hop == i && (p.Kind == compile.ProxyChainHop || p.Kind == compile.ProxyChainExit) {
-				targets = append(targets, p.Name)
+		target := ""
+		for _, g := range res.Groups {
+			if g.Chain == name && g.Hop == i {
+				target = g.Name // a group at this hop, copied
 			}
 		}
+		for _, p := range res.Proxies {
+			if target == "" && p.Chain == name && p.Hop == i {
+				target = p.Name
+			}
+		}
+		targets = append(targets, target)
 	}
 	out := make([]HopDelay, len(targets))
 	var wg sync.WaitGroup
