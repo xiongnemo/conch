@@ -1,0 +1,63 @@
+# 由 nautilus 生成，请不要手动修改；需要改动时请编辑 profile.yaml
+
+mixed-port: 7890
+allow-lan: false
+mode: rule
+log-level: info
+profile:
+  store-selected: true
+proxies:
+  - name: n1
+    type: vmess
+    server: 192.0.2.1
+    port: 443
+    uuid: 00000000-0000-0000-0000-000000000000
+    alterId: 0
+    cipher: auto
+proxy-groups:
+  - name: GLOBAL
+    type: select
+    proxies:
+      - n1
+      - DIRECT
+rule-providers:
+  geosite-category-ai-!cn:
+    type: http
+    behavior: domain
+    format: mrs
+    url: https://cdn.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@meta/geo/geosite/category-ai-!cn.mrs
+    interval: 86400
+  list-streaming:
+    type: http
+    behavior: classical
+    format: yaml
+    url: https://example.com/rules/streaming.yaml
+    interval: 86400
+  list-cn-ip:
+    type: http
+    behavior: ipcidr
+    format: mrs
+    url: https://example.com/rules/cn-ip.mrs
+    interval: 86400
+  list-streaming-2:
+    type: http
+    behavior: domain
+    format: text
+    url: https://example.com/rules/streaming.txt
+    interval: 86400
+  geoip-private:
+    type: http
+    behavior: ipcidr
+    format: mrs
+    url: https://cdn.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@meta/geo/geoip/private.mrs
+    interval: 86400
+rules:
+  - DOMAIN-KEYWORD,tracker,REJECT
+  - RULE-SET,geosite-category-ai-!cn,n1
+  - RULE-SET,list-streaming,n1
+  - RULE-SET,list-cn-ip,DIRECT
+  - RULE-SET,list-streaming-2,n1
+  - AND,((NETWORK,UDP),(DST-PORT,443)),REJECT
+  - DST-PORT,22,DIRECT
+  - RULE-SET,geoip-private,DIRECT
+  - MATCH,n1

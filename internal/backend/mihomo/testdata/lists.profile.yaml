@@ -1,0 +1,17 @@
+# 规则列表：预设、geosite/geoip、URL 列表、镜像、原始 Clash 规则
+nodes:
+  - { name: n1, type: vmess, server: 192.0.2.1, port: 443, uuid: 00000000-0000-0000-0000-000000000000, alterId: 0, cipher: auto }
+
+routes:
+  default: n1
+  list-mirror: jsdelivr
+  entries:
+    lan: off
+    ~tracker: REJECT
+  lists:
+    - { list: ai, via: n1 }
+    - { list: https://example.com/rules/streaming.yaml, via: n1 }
+    - { list: https://example.com/rules/cn-ip.mrs, behavior: ipcidr, via: DIRECT }
+    - { list: https://example.com/rules/streaming.txt, behavior: domain, via: n1 }
+    - { clash: ["AND,((NETWORK,UDP),(DST-PORT,443)),REJECT", "DST-PORT,22,DIRECT"] }
+    - { list: geoip:private, via: DIRECT }

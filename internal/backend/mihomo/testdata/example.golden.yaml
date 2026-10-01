@@ -1,0 +1,139 @@
+# 由 nautilus 生成，请不要手动修改；需要改动时请编辑 profile.yaml
+
+mixed-port: 7890
+allow-lan: false
+mode: rule
+log-level: info
+profile:
+  store-selected: true
+proxies:
+  - name: 香港 01
+    type: ss
+    server: hk1.example.com
+    port: 8388
+    cipher: aes-128-gcm
+    password: pass
+    udp: true
+  - name: 香港 02
+    type: trojan
+    server: hk2.example.com
+    port: 443
+    password: pass
+    sni: hk2.example.com
+    udp: true
+  - name: 日本 01
+    type: vless
+    server: jp1.example.com
+    port: 443
+    uuid: 00000000-0000-0000-0000-000000000000
+    network: tcp
+    tls: true
+    flow: xtls-rprx-vision
+    servername: www.example.com
+    reality-opts:
+      public-key: BkDN6JhDpzeaKaAuy4k_dgzzDOrjd5dJdm8KtB-vHSc
+      short-id: "01"
+    client-fingerprint: chrome
+    udp: true
+  - name: home
+    type: socks5
+    server: 203.0.113.10
+    port: 1080
+    username: u
+    password: p
+  - name: AI-Exit
+    type: socks5
+    server: 203.0.113.10
+    port: 1080
+    username: u
+    password: p
+    dialer-proxy: 香港自动
+  - name: 日本 01→home
+    type: socks5
+    server: 203.0.113.10
+    port: 1080
+    username: u
+    password: p
+    dialer-proxy: 日本 01
+proxy-groups:
+  - name: 香港自动
+    type: url-test
+    proxies:
+      - 香港 01
+      - 香港 02
+    url: https://www.gstatic.com/generate_204
+    interval: 300
+  - name: 节点选择
+    type: select
+    proxies:
+      - 香港自动
+      - 日本 01
+      - AI-Exit
+      - DIRECT
+  - name: GLOBAL
+    type: select
+    proxies:
+      - 香港自动
+      - 节点选择
+      - AI-Exit
+      - 日本 01→home
+      - 香港 01
+      - 香港 02
+      - 日本 01
+      - home
+      - DIRECT
+rule-providers:
+  geosite-category-ads-all:
+    type: http
+    behavior: domain
+    format: mrs
+    url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/category-ads-all.mrs
+    interval: 86400
+  geosite-gfw:
+    type: http
+    behavior: domain
+    format: mrs
+    url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/gfw.mrs
+    interval: 86400
+  geosite-cn:
+    type: http
+    behavior: domain
+    format: mrs
+    url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/cn.mrs
+    interval: 86400
+  geoip-cn:
+    type: http
+    behavior: ipcidr
+    format: mrs
+    url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geoip/cn.mrs
+    interval: 86400
+rules:
+  - PROCESS-NAME,Telegram,香港自动
+  - DOMAIN,api.example.com,DIRECT
+  - DOMAIN-SUFFIX,mail.google.com,DIRECT
+  - DOMAIN-SUFFIX,claude.ai,日本 01→home
+  - DOMAIN-SUFFIX,google.com,节点选择
+  - DOMAIN-SUFFIX,home.arpa,DIRECT
+  - DOMAIN-SUFFIX,openai.com,AI-Exit
+  - DOMAIN-SUFFIX,lan,DIRECT
+  - DOMAIN-SUFFIX,local,DIRECT
+  - DOMAIN-SUFFIX,localhost,DIRECT
+  - IP-CIDR6,::1/128,DIRECT,no-resolve
+  - IP-CIDR,255.255.255.255/32,DIRECT,no-resolve
+  - IP-CIDR,149.154.160.0/20,香港自动
+  - IP-CIDR,169.254.0.0/16,DIRECT,no-resolve
+  - IP-CIDR,192.168.0.0/16,DIRECT,no-resolve
+  - IP-CIDR,172.16.0.0/12,DIRECT,no-resolve
+  - IP-CIDR,100.64.0.0/10,DIRECT,no-resolve
+  - IP-CIDR6,fe80::/10,DIRECT,no-resolve
+  - IP-CIDR,0.0.0.0/8,DIRECT,no-resolve
+  - IP-CIDR,10.0.0.0/8,DIRECT,no-resolve
+  - IP-CIDR,127.0.0.0/8,DIRECT,no-resolve
+  - IP-CIDR6,ff00::/8,DIRECT,no-resolve
+  - IP-CIDR6,fc00::/7,DIRECT,no-resolve
+  - IP-CIDR,224.0.0.0/4,DIRECT,no-resolve
+  - RULE-SET,geosite-category-ads-all,REJECT
+  - RULE-SET,geosite-gfw,节点选择
+  - RULE-SET,geosite-cn,DIRECT
+  - RULE-SET,geoip-cn,DIRECT
+  - MATCH,节点选择

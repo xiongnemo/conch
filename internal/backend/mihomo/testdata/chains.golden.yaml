@@ -1,0 +1,119 @@
+# 由 nautilus 生成，请不要手动修改；需要改动时请编辑 profile.yaml
+
+mixed-port: 7890
+allow-lan: false
+mode: rule
+log-level: info
+profile:
+  store-selected: true
+proxies:
+  - name: 入口， A
+    server: 192.0.2.1
+    port: 1
+    type: ss
+    cipher: aes-128-gcm
+    password: x
+    udp: true
+  - name: 中转
+    server: 192.0.2.2
+    port: 2
+    type: ss
+    cipher: aes-128-gcm
+    password: x
+    udp: true
+    dialer-proxy: 落地
+  - name: 落地
+    type: socks5
+    server: 192.0.2.3
+    port: 3
+    udp: true
+  - name: 手写链
+    type: socks5
+    server: 192.0.2.4
+    port: 4
+    dialer-proxy: 入口， A
+  - name: 两跳
+    server: 192.0.2.2
+    port: 2
+    type: ss
+    cipher: aes-128-gcm
+    password: x
+    udp: true
+    dialer-proxy: 入口， A
+  - name: 三跳›1›入口， A
+    server: 192.0.2.1
+    port: 1
+    type: ss
+    cipher: aes-128-gcm
+    password: x
+    udp: true
+    dialer-proxy: 入口组
+  - name: 三跳›2›中转
+    server: 192.0.2.2
+    port: 2
+    type: ss
+    cipher: aes-128-gcm
+    password: x
+    udp: true
+    dialer-proxy: 三跳›1›入口， A
+  - name: 三跳
+    type: socks5
+    server: 192.0.2.3
+    port: 3
+    udp: true
+    dialer-proxy: 三跳›2›中转
+  - name: 接力
+    type: socks5
+    server: 192.0.2.3
+    port: 3
+    udp: true
+    dialer-proxy: 两跳
+  - name: 入口组→落地
+    type: socks5
+    server: 192.0.2.3
+    port: 3
+    udp: true
+    dialer-proxy: 入口组
+proxy-groups:
+  - name: 入口组
+    type: load-balance
+    proxies:
+      - 入口， A
+      - 中转
+    url: https://www.gstatic.com/generate_204
+    interval: 300
+    strategy: round-robin
+  - name: GLOBAL
+    type: select
+    proxies:
+      - 入口组
+      - 两跳
+      - 三跳
+      - 接力
+      - 入口组→落地
+      - 入口， A
+      - 中转
+      - 落地
+      - 手写链
+      - DIRECT
+rules:
+  - DOMAIN-SUFFIX,a.example,接力
+  - DOMAIN-SUFFIX,b.example,入口组→落地
+  - DOMAIN-SUFFIX,home.arpa,DIRECT
+  - DOMAIN-SUFFIX,lan,DIRECT
+  - DOMAIN-SUFFIX,local,DIRECT
+  - DOMAIN-SUFFIX,localhost,DIRECT
+  - IP-CIDR6,::1/128,DIRECT,no-resolve
+  - IP-CIDR,255.255.255.255/32,DIRECT,no-resolve
+  - IP-CIDR,169.254.0.0/16,DIRECT,no-resolve
+  - IP-CIDR,192.168.0.0/16,DIRECT,no-resolve
+  - IP-CIDR,172.16.0.0/12,DIRECT,no-resolve
+  - IP-CIDR,100.64.0.0/10,DIRECT,no-resolve
+  - IP-CIDR6,fe80::/10,DIRECT,no-resolve
+  - IP-CIDR,0.0.0.0/8,DIRECT,no-resolve
+  - IP-CIDR,10.0.0.0/8,DIRECT,no-resolve
+  - IP-CIDR,127.0.0.0/8,DIRECT,no-resolve
+  - IP-CIDR6,ff00::/8,DIRECT,no-resolve
+  - IP-CIDR6,fc00::/7,DIRECT,no-resolve
+  - IP-CIDR,224.0.0.0/4,DIRECT,no-resolve
+  - MATCH,三跳

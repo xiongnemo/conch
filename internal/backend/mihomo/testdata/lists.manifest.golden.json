@@ -1,0 +1,75 @@
+{
+  "backend": "mihomo",
+  "proxies": [
+    {
+      "name": "n1",
+      "kind": "node",
+      "node": "n1"
+    }
+  ],
+  "rules": [
+    {
+      "index": 0,
+      "rule": "DOMAIN-KEYWORD,tracker,REJECT",
+      "tier": "domain",
+      "key": "~tracker",
+      "source": "testdata/lists.profile.yaml:10"
+    },
+    {
+      "index": 1,
+      "rule": "RULE-SET,geosite-category-ai-!cn,n1",
+      "tier": "list",
+      "key": "ai",
+      "source": "testdata/lists.profile.yaml:12"
+    },
+    {
+      "index": 2,
+      "rule": "RULE-SET,list-streaming,n1",
+      "tier": "list",
+      "key": "https://example.com/rules/streaming.yaml",
+      "source": "testdata/lists.profile.yaml:13"
+    },
+    {
+      "index": 3,
+      "rule": "RULE-SET,list-cn-ip,DIRECT",
+      "tier": "list",
+      "key": "https://example.com/rules/cn-ip.mrs",
+      "source": "testdata/lists.profile.yaml:14"
+    },
+    {
+      "index": 4,
+      "rule": "RULE-SET,list-streaming-2,n1",
+      "tier": "list",
+      "key": "https://example.com/rules/streaming.txt",
+      "source": "testdata/lists.profile.yaml:15"
+    },
+    {
+      "index": 5,
+      "rule": "AND,((NETWORK,UDP),(DST-PORT,443)),REJECT",
+      "tier": "list",
+      "key": "clash",
+      "source": "testdata/lists.profile.yaml:16"
+    },
+    {
+      "index": 6,
+      "rule": "DST-PORT,22,DIRECT",
+      "tier": "list",
+      "key": "clash",
+      "source": "testdata/lists.profile.yaml:16"
+    },
+    {
+      "index": 7,
+      "rule": "RULE-SET,geoip-private,DIRECT",
+      "tier": "list",
+      "key": "geoip:private",
+      "source": "testdata/lists.profile.yaml:17"
+    },
+    {
+      "index": 8,
+      "rule": "MATCH,n1",
+      "tier": "default",
+      "key": "default",
+      "source": "testdata/lists.profile.yaml:6"
+    }
+  ]
+}

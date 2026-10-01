@@ -1,0 +1,22 @@
+# 链的各种写法：嵌套链、链作为第一跳、手写的 dialer-proxy、YAML 锚点与合并键、需要消毒的名字
+x-ss: &ss { type: ss, cipher: aes-128-gcm, password: x, udp: true }
+
+nodes:
+  - { <<: *ss, name: "入口, A", server: 192.0.2.1, port: 1 }
+  - { <<: *ss, name: 中转, server: 192.0.2.2, port: 2, Dialer_Proxy: 落地 }
+  - { name: 落地, type: socks5, server: 192.0.2.3, port: 3, udp: true }
+  - { name: 手写链, type: socks5, server: 192.0.2.4, port: 4, dialer-proxy: "入口, A" }
+
+groups:
+  - { name: 入口组, type: load-balance, members: ["入口, A", 中转], strategy: round-robin }
+
+chains:
+  两跳: ["入口, A", 中转]
+  三跳: [入口组, 两跳, 落地]
+  接力: [两跳, 落地]
+
+routes:
+  default: 三跳
+  entries:
+    a.example: 接力
+    b.example: [入口组, 落地]

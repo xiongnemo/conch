@@ -1,0 +1,37 @@
+# nautilus 示例 profile。编译：nautilus compile -p examples/profile.yaml
+
+nodes:
+  - { name: 香港 01, type: ss, server: hk1.example.com, port: 8388, cipher: aes-128-gcm, password: pass, udp: true }
+  - { name: 香港 02, type: trojan, server: hk2.example.com, port: 443, password: pass, sni: hk2.example.com, udp: true }
+  - { name: 日本 01, type: vless, server: jp1.example.com, port: 443, uuid: 00000000-0000-0000-0000-000000000000,
+      network: tcp, tls: true, flow: xtls-rprx-vision, servername: www.example.com,
+      reality-opts: { public-key: BkDN6JhDpzeaKaAuy4k_dgzzDOrjd5dJdm8KtB-vHSc, short-id: "01" },
+      client-fingerprint: chrome, udp: true }
+  # 自己的落地（住宅 IP），链式代理的出口
+  - { name: home, type: socks5, server: 203.0.113.10, port: 1080, username: u, password: p }
+
+groups:
+  - { name: 香港自动, type: url-test, filter: "香港|HK" }
+  - { name: 节点选择, type: select, members: [香港自动, 日本 01, AI-Exit, DIRECT] }
+
+chains:
+  AI-Exit: [香港自动, home]              # 入口 → … → 出口，顺序即串联顺序
+
+routes:
+  default: 节点选择                      # 默认出口，相当于 0.0.0.0/0
+  entries:                               # 手动条目：越具体越优先，与书写顺序无关
+    openai.com: AI-Exit                  # 包含所有子域名
+    claude.ai: [日本 01, home]           # 也可以直接写链
+    google.com: 节点选择
+    mail.google.com: DIRECT              # 比 google.com 更具体，所以优先
+    =api.example.com: DIRECT             # 精确匹配，不含子域名
+    10.0.0.0/8: DIRECT                   # IP 条目默认只匹配"直接用 IP 访问"的流量
+    149.154.160.0/20: { via: 香港自动, resolve: true }
+    app:Telegram: 香港自动               # 应用条目
+  lists:                                 # 规则列表：只有这里讲顺序
+    - { list: ads, via: REJECT }
+    - { list: gfwlist, via: 节点选择 }
+    - { list: geosite:cn, via: DIRECT }
+    - { list: geoip:cn, via: DIRECT }
+
+inbound: { mixed-port: 7890 }

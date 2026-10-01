@@ -1,0 +1,246 @@
+{
+  "backend": "mihomo",
+  "proxies": [
+    {
+      "name": "香港 01",
+      "kind": "node",
+      "node": "香港 01"
+    },
+    {
+      "name": "香港 02",
+      "kind": "node",
+      "node": "香港 02"
+    },
+    {
+      "name": "日本 01",
+      "kind": "node",
+      "node": "日本 01"
+    },
+    {
+      "name": "home",
+      "kind": "node",
+      "node": "home"
+    },
+    {
+      "name": "AI-Exit",
+      "kind": "chain-exit",
+      "node": "home",
+      "chain": "AI-Exit",
+      "hop": 1,
+      "upstream": "香港自动"
+    },
+    {
+      "name": "日本 01→home",
+      "kind": "chain-exit",
+      "node": "home",
+      "chain": "日本 01→home",
+      "hop": 1,
+      "upstream": "日本 01"
+    }
+  ],
+  "rules": [
+    {
+      "index": 0,
+      "rule": "PROCESS-NAME,Telegram,香港自动",
+      "tier": "app",
+      "key": "app:Telegram",
+      "source": "../../../examples/profile.yaml:30"
+    },
+    {
+      "index": 1,
+      "rule": "DOMAIN,api.example.com,DIRECT",
+      "tier": "domain",
+      "key": "=api.example.com",
+      "source": "../../../examples/profile.yaml:27"
+    },
+    {
+      "index": 2,
+      "rule": "DOMAIN-SUFFIX,mail.google.com,DIRECT",
+      "tier": "domain",
+      "key": "mail.google.com",
+      "source": "../../../examples/profile.yaml:26"
+    },
+    {
+      "index": 3,
+      "rule": "DOMAIN-SUFFIX,claude.ai,日本 01→home",
+      "tier": "domain",
+      "key": "claude.ai",
+      "source": "../../../examples/profile.yaml:24"
+    },
+    {
+      "index": 4,
+      "rule": "DOMAIN-SUFFIX,google.com,节点选择",
+      "tier": "domain",
+      "key": "google.com",
+      "source": "../../../examples/profile.yaml:25"
+    },
+    {
+      "index": 5,
+      "rule": "DOMAIN-SUFFIX,home.arpa,DIRECT",
+      "tier": "domain",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 6,
+      "rule": "DOMAIN-SUFFIX,openai.com,AI-Exit",
+      "tier": "domain",
+      "key": "openai.com",
+      "source": "../../../examples/profile.yaml:23"
+    },
+    {
+      "index": 7,
+      "rule": "DOMAIN-SUFFIX,lan,DIRECT",
+      "tier": "domain",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 8,
+      "rule": "DOMAIN-SUFFIX,local,DIRECT",
+      "tier": "domain",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 9,
+      "rule": "DOMAIN-SUFFIX,localhost,DIRECT",
+      "tier": "domain",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 10,
+      "rule": "IP-CIDR6,::1/128,DIRECT,no-resolve",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 11,
+      "rule": "IP-CIDR,255.255.255.255/32,DIRECT,no-resolve",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 12,
+      "rule": "IP-CIDR,149.154.160.0/20,香港自动",
+      "tier": "ip",
+      "key": "149.154.160.0/20",
+      "source": "../../../examples/profile.yaml:29"
+    },
+    {
+      "index": 13,
+      "rule": "IP-CIDR,169.254.0.0/16,DIRECT,no-resolve",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 14,
+      "rule": "IP-CIDR,192.168.0.0/16,DIRECT,no-resolve",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 15,
+      "rule": "IP-CIDR,172.16.0.0/12,DIRECT,no-resolve",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 16,
+      "rule": "IP-CIDR,100.64.0.0/10,DIRECT,no-resolve",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 17,
+      "rule": "IP-CIDR6,fe80::/10,DIRECT,no-resolve",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 18,
+      "rule": "IP-CIDR,0.0.0.0/8,DIRECT,no-resolve",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 19,
+      "rule": "IP-CIDR,10.0.0.0/8,DIRECT,no-resolve",
+      "tier": "ip",
+      "key": "10.0.0.0/8",
+      "source": "../../../examples/profile.yaml:28"
+    },
+    {
+      "index": 20,
+      "rule": "IP-CIDR,127.0.0.0/8,DIRECT,no-resolve",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 21,
+      "rule": "IP-CIDR6,ff00::/8,DIRECT,no-resolve",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 22,
+      "rule": "IP-CIDR6,fc00::/7,DIRECT,no-resolve",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 23,
+      "rule": "IP-CIDR,224.0.0.0/4,DIRECT,no-resolve",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 24,
+      "rule": "RULE-SET,geosite-category-ads-all,REJECT",
+      "tier": "list",
+      "key": "ads",
+      "source": "../../../examples/profile.yaml:32"
+    },
+    {
+      "index": 25,
+      "rule": "RULE-SET,geosite-gfw,节点选择",
+      "tier": "list",
+      "key": "gfwlist",
+      "source": "../../../examples/profile.yaml:33"
+    },
+    {
+      "index": 26,
+      "rule": "RULE-SET,geosite-cn,DIRECT",
+      "tier": "list",
+      "key": "geosite:cn",
+      "source": "../../../examples/profile.yaml:34"
+    },
+    {
+      "index": 27,
+      "rule": "RULE-SET,geoip-cn,DIRECT",
+      "tier": "list",
+      "key": "geoip:cn",
+      "source": "../../../examples/profile.yaml:35"
+    },
+    {
+      "index": 28,
+      "rule": "MATCH,节点选择",
+      "tier": "default",
+      "key": "default",
+      "source": "../../../examples/profile.yaml:21"
+    }
+  ]
+}

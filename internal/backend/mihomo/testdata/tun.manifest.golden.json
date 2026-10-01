@@ -1,0 +1,138 @@
+{
+  "backend": "mihomo",
+  "proxies": [
+    {
+      "name": "n1",
+      "kind": "node",
+      "node": "n1"
+    }
+  ],
+  "rules": [
+    {
+      "index": 0,
+      "rule": "DOMAIN-SUFFIX,home.arpa,DIRECT",
+      "tier": "domain",
+      "key": "lan",
+      "source": "testdata/tun.profile.yaml:9"
+    },
+    {
+      "index": 1,
+      "rule": "DOMAIN-SUFFIX,lan,DIRECT",
+      "tier": "domain",
+      "key": "lan",
+      "source": "testdata/tun.profile.yaml:9"
+    },
+    {
+      "index": 2,
+      "rule": "DOMAIN-SUFFIX,local,DIRECT",
+      "tier": "domain",
+      "key": "lan",
+      "source": "testdata/tun.profile.yaml:9"
+    },
+    {
+      "index": 3,
+      "rule": "DOMAIN-SUFFIX,localhost,DIRECT",
+      "tier": "domain",
+      "key": "lan",
+      "source": "testdata/tun.profile.yaml:9"
+    },
+    {
+      "index": 4,
+      "rule": "IP-CIDR6,::1/128,DIRECT",
+      "tier": "ip",
+      "key": "lan",
+      "source": "testdata/tun.profile.yaml:9"
+    },
+    {
+      "index": 5,
+      "rule": "IP-CIDR,255.255.255.255/32,DIRECT",
+      "tier": "ip",
+      "key": "lan",
+      "source": "testdata/tun.profile.yaml:9"
+    },
+    {
+      "index": 6,
+      "rule": "IP-CIDR,169.254.0.0/16,DIRECT",
+      "tier": "ip",
+      "key": "lan",
+      "source": "testdata/tun.profile.yaml:9"
+    },
+    {
+      "index": 7,
+      "rule": "IP-CIDR,192.168.0.0/16,DIRECT",
+      "tier": "ip",
+      "key": "lan",
+      "source": "testdata/tun.profile.yaml:9"
+    },
+    {
+      "index": 8,
+      "rule": "IP-CIDR,172.16.0.0/12,DIRECT",
+      "tier": "ip",
+      "key": "lan",
+      "source": "testdata/tun.profile.yaml:9"
+    },
+    {
+      "index": 9,
+      "rule": "IP-CIDR,100.64.0.0/10,DIRECT",
+      "tier": "ip",
+      "key": "lan",
+      "source": "testdata/tun.profile.yaml:9"
+    },
+    {
+      "index": 10,
+      "rule": "IP-CIDR6,fe80::/10,DIRECT",
+      "tier": "ip",
+      "key": "lan",
+      "source": "testdata/tun.profile.yaml:9"
+    },
+    {
+      "index": 11,
+      "rule": "IP-CIDR,0.0.0.0/8,DIRECT",
+      "tier": "ip",
+      "key": "lan",
+      "source": "testdata/tun.profile.yaml:9"
+    },
+    {
+      "index": 12,
+      "rule": "IP-CIDR,10.0.0.0/8,DIRECT",
+      "tier": "ip",
+      "key": "lan",
+      "source": "testdata/tun.profile.yaml:9"
+    },
+    {
+      "index": 13,
+      "rule": "IP-CIDR,127.0.0.0/8,DIRECT",
+      "tier": "ip",
+      "key": "lan",
+      "source": "testdata/tun.profile.yaml:9"
+    },
+    {
+      "index": 14,
+      "rule": "IP-CIDR6,ff00::/8,DIRECT",
+      "tier": "ip",
+      "key": "lan",
+      "source": "testdata/tun.profile.yaml:9"
+    },
+    {
+      "index": 15,
+      "rule": "IP-CIDR6,fc00::/7,DIRECT",
+      "tier": "ip",
+      "key": "lan",
+      "source": "testdata/tun.profile.yaml:9"
+    },
+    {
+      "index": 16,
+      "rule": "IP-CIDR,224.0.0.0/4,DIRECT",
+      "tier": "ip",
+      "key": "lan",
+      "source": "testdata/tun.profile.yaml:9"
+    },
+    {
+      "index": 17,
+      "rule": "MATCH,Proxy",
+      "tier": "default",
+      "key": "default",
+      "source": "testdata/tun.profile.yaml:7"
+    }
+  ]
+}

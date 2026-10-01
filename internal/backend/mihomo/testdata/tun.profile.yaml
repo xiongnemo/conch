@@ -1,0 +1,13 @@
+# TUN 模式：自动开启 DNS（fake-ip），显式写出 stack
+nodes:
+  - { name: n1, type: trojan, server: 192.0.2.1, port: 443, password: x, udp: true }
+groups:
+  - { name: Proxy, type: fallback, members: [n1, DIRECT], interval: 120, lazy: true }
+routes:
+  default: Proxy
+  entries:
+    lan: { via: DIRECT, resolve: true }
+inbound: { mixed-port: 7891, allow-lan: true, bind-address: 192.168.1.2 }
+tun: { enable: true, stack: gvisor, strict-route: true }
+mode: global
+log-level: debug

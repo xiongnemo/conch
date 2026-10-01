@@ -1,0 +1,5 @@
+/nautilus
+/nautilus.exe
+/dist/
+*.part
+.env
