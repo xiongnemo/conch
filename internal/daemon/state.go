@@ -17,6 +17,14 @@ type State struct {
 	TUN        *bool             `json:"tun,omitempty"`        // overrides the profile's tun.enable
 	Temp       []TempRoute       `json:"temp,omitempty"`
 	SysProxy   *SysProxyState    `json:"sysproxy,omitempty"`
+	DNS        *DNSState         `json:"dns,omitempty"`
+}
+
+// DNSState remembers the system resolver settings nautilus replaced for
+// TUN, so a crash can be repaired on the next start.
+type DNSState struct {
+	Applied  bool   `json:"applied"`
+	Previous string `json:"previous,omitempty"`
 }
 
 // TempRoute is a manual route that expires, e.g. "this site via X for 2h".

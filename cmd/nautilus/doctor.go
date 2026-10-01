@@ -102,6 +102,15 @@ func newDoctorCmd() *cobra.Command {
 						d.bad("系统代理还指向 127.0.0.1:%d，但 nautilus 没有在运行，会导致无法上网；运行 nautilus doctor --fix 恢复", p)
 					}
 				}
+				if fix {
+					if repaired, err := daemon.RepairDNS(paths.DataDir()); err != nil {
+						d.bad("系统 DNS 还指向 TUN 用的地址，恢复失败：%v", err)
+					} else if repaired {
+						d.ok("已恢复系统 DNS 设置（之前为 TUN 改过）")
+					}
+				} else if daemon.DNSLeftover(paths.DataDir()) {
+					d.bad("系统 DNS 还是 nautilus 为 TUN 改过的设置；运行 nautilus doctor --fix 恢复")
+				}
 				for _, addr := range []string{net.JoinHostPort("127.0.0.1", strconv.Itoa(port)), settings.Listen} {
 					if port == 0 || addr == "" {
 						continue
@@ -120,7 +129,7 @@ func newDoctorCmd() *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().BoolVar(&fix, "fix", false, "修复能自动修复的问题（目前是残留的系统代理）")
+	cmd.Flags().BoolVar(&fix, "fix", false, "修复能自动修复的问题（残留的系统代理和系统 DNS）")
 	cmd.Flags().StringVarP(&pl.profilePath, "profile", "p", "", "profile 文件")
 	return cmd
 }

@@ -209,6 +209,7 @@ func (d *Daemon) Reconcile(ctx context.Context) error {
 		d.lastErr = err.Error()
 	}
 	d.mu.Unlock()
+	d.syncDNS()
 	d.Events.Publish(Event{Type: "state", Data: d.Status()})
 	return err
 }
