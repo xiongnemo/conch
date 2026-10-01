@@ -35,7 +35,8 @@ func Cases(t *testing.T) map[string]string {
 		t.Fatal(err)
 	}
 	for _, f := range files {
-		cases[strings.TrimSuffix(filepath.Base(f), ".profile.yaml")] = f
+		// Slashes on every OS: the paths end up in the diagnostics goldens.
+		cases[strings.TrimSuffix(filepath.Base(f), ".profile.yaml")] = filepath.ToSlash(f)
 	}
 	return cases
 }

@@ -2,76 +2,188 @@ name: ci
 
 on:
   push:
+    branches: ["**"]
   pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  # Superseded runs on branches are cancelled; every commit on main gets a result.
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
-  test:
+  lint:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-go@v6
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
-      - run: go vet ./...
-      - run: go test ./...
+      - name: gofmt
+        run: |
+          files=$(gofmt -l .)
+          test -z "$files" || { echo "Run gofmt -w on:"; echo "$files"; exit 1; }
+      - name: go.mod and go.sum are tidy
+        run: go mod tidy -diff
+      - name: go vet, for every OS and for the lite build
+        run: |
+          for os in linux darwin windows freebsd; do
+            echo "GOOS=$os"
+            GOOS=$os go vet ./...
+          done
+          go vet -tags lite ./...
       - name: Goldens are up to date
         run: |
           go test ./internal/backend/... -run TestGolden -update
           test -z "$(git status --porcelain)" || { git status --porcelain; git diff; exit 1; }
+
+  test:
+    name: test (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+      - name: go test
+        shell: bash
+        # -race needs cgo; Linux and macOS cover it, Windows runs the plain tests.
+        run: go test ${{ runner.os != 'Windows' && '-race' || '' }} ./...
+
+  e2e:
+    name: e2e (real kernels and Chrome)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: extension/package-lock.json
+      - name: Build the browser extension
+        working-directory: extension
+        run: |
+          npm ci
+          npm run build
       - name: Install mihomo, xray, sing-box and trojan-go, verified against the embedded checksums
         run: |
           go build -o /tmp/nautilus ./cmd/nautilus
           /tmp/nautilus kernel install mihomo
           /tmp/nautilus kernel install xray --geodata
-          /tmp/nautilus kernel install trojan-go
           /tmp/nautilus kernel install sing-box
+          /tmp/nautilus kernel install trojan-go
           {
             echo "NAUTILUS_MIHOMO=$(/tmp/nautilus kernel path mihomo)"
             echo "NAUTILUS_XRAY=$(/tmp/nautilus kernel path xray)"
-            echo "NAUTILUS_TROJAN_GO=$(/tmp/nautilus kernel path trojan-go)"
-            echo "NAUTILUS_SING_BOX=$(/tmp/nautilus kernel path sing-box)"
             echo "NAUTILUS_XRAY_ASSETS=$HOME/.local/share/nautilus/home/xray"
+            echo "NAUTILUS_SING_BOX=$(/tmp/nautilus kernel path sing-box)"
+            echo "NAUTILUS_TROJAN_GO=$(/tmp/nautilus kernel path trojan-go)"
+            echo "NAUTILUS_CHROME=$(command -v google-chrome)"
+            echo "NAUTILUS_EXTENSION=$PWD/extension/dist/chrome"
           } >> "$GITHUB_ENV"
-      - uses: actions/setup-node@v5
+      - name: Kernels accept every golden config; daemon, API, sidecars and extension work end to end
+        shell: bash
+        run: |
+          go test -race -count=1 -v ./internal/backend/... ./internal/e2e ./internal/sidecar | tee e2e.log
+          # Tests skip when a kernel or the browser is missing; here that is a failure.
+          if grep -- '--- SKIP' e2e.log; then exit 1; fi
+
+  extension:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
-      - name: Browser extension builds and its tests pass
+          cache: npm
+          cache-dependency-path: extension/package-lock.json
+      - name: Type check, test and build
         working-directory: extension
         run: |
           npm ci
           npm run check
           npm test
           npm run build
-      - name: Kernels accept every golden config; daemon, API and extension work end to end
-        run: |
-          export NAUTILUS_CHROME="$(command -v google-chrome)" NAUTILUS_EXTENSION="$PWD/extension/dist/chrome"
-          go test ./internal/backend/... ./internal/e2e -count=1 -v
+      # Unzip and load chrome/ (Chrome, Edge) or firefox/ as an unpacked extension.
+      - uses: actions/upload-artifact@v7
+        with:
+          name: nautilus-extension
+          path: extension/dist/
+          retention-days: 14
 
-  cross:
-    runs-on: ubuntu-latest
+  # Binaries of this commit for trying it out, one artifact per platform.
+  build:
+    name: build (${{ matrix.goos }}/${{ matrix.goarch }}${{ matrix.lite && ', lite' || '' }})
     strategy:
       matrix:
-        target:
-          - linux/amd64
-          - linux/arm64
-          - linux/arm
-          - linux/mipsle
-          - darwin/amd64
-          - darwin/arm64
-          - windows/amd64
-          - windows/arm64
+        include:
+          - { goos: linux, goarch: amd64 }
+          - { goos: linux, goarch: arm64 }
+          - { goos: darwin, goarch: amd64 }
+          - { goos: darwin, goarch: arm64 }
+          - { goos: windows, goarch: amd64 }
+          - { goos: windows, goarch: arm64 }
+          - { goos: linux, goarch: arm64, lite: true }
+          - { goos: linux, goarch: mipsle, lite: true }
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-go@v6
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
-      - name: Build ${{ matrix.target }}
-        shell: bash
+      - name: Build
+        id: build
         env:
-          TARGET: ${{ matrix.target }}
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
           CGO_ENABLED: "0"
-          GOARM: "7"
           GOMIPS: softfloat
+          TAGS: ${{ matrix.lite && 'lite' || '' }}
         run: |
-          export GOOS=${TARGET%/*} GOARCH=${TARGET#*/}
-          go build -trimpath -ldflags "-s -w" -o /tmp/nautilus ./cmd/nautilus
+          name=nautilus${TAGS:+-$TAGS}_${GOOS}_${GOARCH}
+          if [ "$GOOS" = windows ]; then name=$name.exe; fi
+          go build -trimpath -tags "$TAGS" -ldflags "-s -w -X main.version=dev-${GITHUB_SHA::7}" -o "out/$name" ./cmd/nautilus
+          echo "file=out/$name" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v7
+        with:
+          path: ${{ steps.build.outputs.file }}
+          archive: false
+          retention-days: 14
+
+  # What the release workflow does on a tag, without signing or publishing:
+  # every target, the lite builds, packages and the extension zips.
+  release:
+    name: release dry run
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - uses: goreleaser/goreleaser-action@v7
+        with:
+          version: "~> v2"
+          install-only: true
+      - run: goreleaser check
+      - run: goreleaser release --snapshot --clean --skip=sign

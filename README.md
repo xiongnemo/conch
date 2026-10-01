@@ -1,5 +1,7 @@
 # Nautilus
 
+[![ci](https://github.com/xiongnemo/nautilus/actions/workflows/ci.yml/badge.svg)](https://github.com/xiongnemo/nautilus/actions/workflows/ci.yml)
+
 路由表式分流 + 多跳链式代理的外壳。它把一份好读的 `profile.yaml` 编译成 mihomo、xray 或 sing-box 的配置，替你托管内核进程，并提供 Web UI、TUI、浏览器扩展和命令行。
 
 - **路由表，指哪打哪**：手动条目越具体越优先，与书写顺序无关；只有规则列表之间讲顺序。
@@ -10,13 +12,22 @@
 
 ## 安装
 
-从 Releases 下载对应系统的压缩包，或者 deb / rpm / apk / Arch 软件包。路由器（OpenWrt 等）用 `nautilus-lite`，它没有 TUI，内存占用更小。
+从 [Releases](https://github.com/xiongnemo/nautilus/releases) 下载对应系统的压缩包，或者 deb / rpm / apk / Arch 软件包。路由器（OpenWrt 等）用 `nautilus-lite`，它没有 TUI，内存占用更小。
 
 内核不需要自己装：第一次运行 `nautilus daemon` 时会自动下载并校验（每个 nautilus 版本都内置了测试过的内核版本和 sha256）。也可以手动安装：
 
 ```sh
 nautilus kernel install mihomo          # 或 xray --geodata、sing-box、trojan-go
 nautilus kernel install mihomo --mirror https://your-mirror/   # 通过镜像下载，同样会校验
+```
+
+下载的文件可以用 `checksums.txt` 校验；`checksums.txt` 带有发布时由 GitHub Actions 生成的 Sigstore 签名：
+
+```sh
+cosign verify-blob --bundle checksums.txt.sigstore.json \
+  --certificate-identity-regexp '^https://github\.com/xiongnemo/nautilus/\.github/workflows/release\.yml@refs/tags/v' \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com checksums.txt
+sha256sum --check --ignore-missing checksums.txt
 ```
 
 ## 快速开始
@@ -84,7 +95,7 @@ routes:
 
 - **Web UI**：daemon 自带，地址和密码见上文。密码在 `.env` 的 `NAUTILUS_PASSWORD` 里，`nautilus passwd` 可以修改；`NAUTILUS_AUTH=off` 关闭登录（只允许本机访问）。
 - **TUI**：`nautilus tui`，按 `?` 查看按键。
-- **浏览器扩展**：在 `extension/` 里运行 `npm ci && npm run build`，Chrome / Edge 加载 `dist/chrome`，Firefox 加载 `dist/firefox`。然后用 `nautilus pair` 或 Web UI 里的「配对浏览器扩展」拿到配对码，填进扩展弹窗。扩展只能查看和修改路由。
+- **浏览器扩展**：还没有上架商店。从 Releases 下载 `nautilus-extension-chrome-*.zip` 并解压（或者在 `extension/` 里运行 `npm ci && npm run build`，得到 `dist/chrome`），在 Chrome / Edge 的扩展页面打开开发者模式，选「加载已解压的扩展程序」。Firefox 在 `about:debugging` 里临时载入 `nautilus-extension-firefox-*.zip`，重启后要重新载入。然后用 `nautilus pair` 或 Web UI 里的「配对浏览器扩展」拿到配对码，填进扩展弹窗。扩展只能查看和修改路由。
 
 ## 系统服务与 TUN
 
@@ -135,3 +146,5 @@ export NAUTILUS_MIHOMO=$(nautilus kernel path mihomo) NAUTILUS_XRAY=$(nautilus k
        NAUTILUS_SING_BOX=$(nautilus kernel path sing-box) NAUTILUS_TROJAN_GO=$(nautilus kernel path trojan-go)
 go test ./internal/e2e -count=1
 ```
+
+每次推送，CI 会在 Linux、macOS 和 Windows 上跑单元测试，在 Linux 上用真实内核和 Chrome 跑端到端测试，并把这次提交的各平台二进制和浏览器扩展放在 Actions 运行页面的 Artifacts 里，方便试用。

@@ -1,0 +1,2 @@
+# Check out LF everywhere, also on Windows: goldens and gofmt depend on it.
+* text=auto eol=lf

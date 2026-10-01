@@ -5,10 +5,18 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
 )
+
+// private reports whether only the owner can read the file. Windows has no
+// Unix permission bits (Go reports 0666 for every writable file), so the
+// check only applies elsewhere.
+func private(fi os.FileInfo) bool {
+	return runtime.GOOS == "windows" || fi.Mode().Perm() == 0o600
+}
 
 func TestLoadPrecedence(t *testing.T) {
 	cwd, cfg := t.TempDir(), t.TempDir()
@@ -45,7 +53,7 @@ func TestEnsureAndSetPassword(t *testing.T) {
 	}
 	st, _ := os.Stat(file)
 	data, _ := os.ReadFile(file)
-	if st.Mode().Perm() != 0o600 || !strings.Contains(string(data), "OTHER=1\nNAUTILUS_PASSWORD="+s.Password) {
+	if !private(st) || !strings.Contains(string(data), "OTHER=1\nNAUTILUS_PASSWORD="+s.Password) {
 		t.Errorf("file mode %v, content %q", st.Mode().Perm(), data)
 	}
 	if err := SetPassword(file, "new"); err != nil {

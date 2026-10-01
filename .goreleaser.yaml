@@ -69,20 +69,21 @@ checksum:
 nfpms:
   - package_name: nautilus
     ids: [nautilus]
-    maintainer: Nautilus <maintainers@nautilus.invalid>
-    description: Routing-table proxy shell with multi-hop chains, for the mihomo and xray kernels.
+    maintainer: Nemo Xiong <nemo@anzupop.com>
+    homepage: https://github.com/xiongnemo/nautilus
+    description: Routing-table proxy shell with multi-hop chains, for the mihomo, xray and sing-box kernels.
     formats: [deb, rpm, apk, archlinux]
     bindir: /usr/bin
     contents:
       - src: examples/profile.yaml
         dst: /usr/share/doc/nautilus/profile.example.yaml
 
-# Keyless signatures (Sigstore) for the checksums, which cover every artifact.
+# A keyless signature (Sigstore) for the checksums, which cover every
+# artifact; the README shows how to verify it.
 signs:
   - cmd: cosign
-    signature: "${artifact}.sig"
-    certificate: "${artifact}.pem"
-    args: ["sign-blob", "--output-signature=${signature}", "--output-certificate=${certificate}", "${artifact}", "--yes"]
+    signature: "${artifact}.sigstore.json"
+    args: ["sign-blob", "--bundle=${signature}", "${artifact}", "--yes"]
     artifacts: checksum
 
 release:

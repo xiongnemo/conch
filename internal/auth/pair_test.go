@@ -47,7 +47,7 @@ func TestPairing(t *testing.T) {
 
 	// Pairings survive restarts, and the token is not stored.
 	data, _ := os.ReadFile(path)
-	if fi, _ := os.Stat(path); fi.Mode().Perm() != 0o600 {
+	if fi, _ := os.Stat(path); !private(fi) {
 		t.Errorf("pairings.json mode %v", fi.Mode().Perm())
 	}
 	if len(data) == 0 || strings.Contains(string(data), token) {
