@@ -43,8 +43,9 @@ type Status struct {
 
 // Supervisor keeps one kernel process running.
 type Supervisor struct {
-	// OnLine receives every line the kernel prints. It must not block.
-	OnLine func(string)
+	// OnLine receives every line the kernel prints and says whether to
+	// keep it in Logs. It must not block.
+	OnLine func(string) bool
 	// Logs keeps the most recent lines.
 	Logs *Ring
 
@@ -206,9 +207,8 @@ func (s *Supervisor) pump(r io.Reader) {
 }
 
 func (s *Supervisor) line(l string) {
-	s.Logs.Add(l)
-	if s.OnLine != nil {
-		s.OnLine(l)
+	if s.OnLine == nil || s.OnLine(l) {
+		s.Logs.Add(l)
 	}
 }
 

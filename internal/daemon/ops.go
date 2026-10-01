@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/netip"
 	"slices"
+	"sync"
 	"time"
 
 	"nautilus/internal/compile"
@@ -43,12 +44,13 @@ type Status struct {
 	Diagnostics   []string                      `json:"diagnostics,omitempty"`
 	Subscriptions map[string]*subscription.Info `json:"subscriptions,omitempty"`
 	SysProxy      bool                          `json:"sysproxy"` // the user wants the system proxy on
+	Caps          control.Caps                  `json:"caps"`
 }
 
 func (d *Daemon) Status() Status {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	s := Status{Backend: d.backend.Name(), Kernel: d.sup.Status(), Profile: d.opts.ProfilePath, Error: d.lastErr, Subscriptions: d.subInfo}
+	s := Status{Backend: d.backend.Name(), Kernel: d.sup.Status(), Profile: d.opts.ProfilePath, Error: d.lastErr, Subscriptions: d.subInfo, Caps: d.ctl.Caps()}
 	if d.res != nil {
 		s.Mode, s.MixedPort = d.res.Settings.Mode, d.res.Settings.MixedPort
 	}
@@ -70,14 +72,45 @@ type Outbound struct {
 	Type     string   `json:"type,omitempty"` // protocol, or group type
 	Members  []string `json:"members,omitempty"`
 	Selected string   `json:"selected,omitempty"`
+	Now      string   `json:"now,omitempty"` // the member a group uses right now, where known
 	Hops     []string `json:"hops,omitempty"`
 	Server   string   `json:"server,omitempty"`
+	UDP      bool     `json:"udp,omitempty"` // UDP traffic gets through (nodes and chains)
 }
 
-func (d *Daemon) Outbounds() []Outbound {
+// Outbounds lists the outbounds with the members groups use right now.
+func (d *Daemon) Outbounds(ctx context.Context) []Outbound {
+	out := d.outbounds()
+	d.mu.Lock()
+	art := d.art
+	d.mu.Unlock()
+	if art == nil {
+		return out
+	}
+	groups := map[string]string{}
+	for _, o := range out {
+		if o.Kind == "group" {
+			groups[d.tag(o.Name)] = o.Type
+		}
+	}
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+	picks, _ := d.ctl.Picks(ctx, groups)
+	names := kernelNames(art)
+	for i, o := range out {
+		if pick, ok := picks[d.tag(o.Name)]; ok {
+			out[i].Now = names(pick)
+		} else if o.Kind == "group" {
+			out[i].Now = o.Selected
+		}
+	}
+	return out
+}
+
+func (d *Daemon) outbounds() []Outbound {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	out := []Outbound{{Name: "DIRECT", Kind: "builtin"}, {Name: "REJECT", Kind: "builtin"}}
+	out := []Outbound{{Name: "DIRECT", Kind: "builtin", UDP: true}, {Name: "REJECT", Kind: "builtin"}}
 	if d.res == nil {
 		return out
 	}
@@ -89,12 +122,12 @@ func (d *Daemon) Outbounds() []Outbound {
 		out = append(out, o)
 	}
 	for _, c := range d.res.Chains {
-		out = append(out, Outbound{Name: c.Name, Kind: "chain", Hops: c.Path})
+		out = append(out, Outbound{Name: c.Name, Kind: "chain", Hops: c.Path, UDP: d.res.RelaysUDP(c.Name)})
 	}
 	for _, p := range d.res.Proxies {
 		if p.Kind == compile.ProxyNode {
 			out = append(out, Outbound{Name: p.Name, Kind: "node", Type: p.Node.View.Type,
-				Server: net.JoinHostPort(p.Node.View.Server, fmt.Sprint(p.Node.View.Port))})
+				Server: net.JoinHostPort(p.Node.View.Server, fmt.Sprint(p.Node.View.Port)), UDP: d.res.RelaysUDP(p.Name)})
 		}
 	}
 	return out
@@ -149,13 +182,89 @@ func groupType(t string) string {
 	return map[string]string{"url-test": "自动最快", "fallback": "故障转移", "load-balance": "负载均衡"}[t]
 }
 
+// DelayURL is where delay tests send their request.
+const DelayURL = "https://www.gstatic.com/generate_204"
+
 // Delay measures latency through an outbound, end to end for chains.
 func (d *Daemon) Delay(ctx context.Context, name string) (time.Duration, error) {
-	dl, err := d.ctl.Delay(ctx, d.tag(name), "https://www.gstatic.com/generate_204", 5*time.Second)
-	if errors.Is(err, control.ErrUnsupported) {
-		return 0, fmt.Errorf("%s 内核暂不支持即时测速", d.backend.Name())
+	if !d.hasOutbound(name) && !d.isChainHop(name) {
+		return 0, fmt.Errorf("出口 %q %w", name, ErrNotFound)
+	}
+	dl, err := d.delay(ctx, name)
+	if err != nil && !errors.Is(err, control.ErrUnsupported) {
+		return 0, fmt.Errorf("经由 %s 测速%w", name, err)
 	}
 	return dl, err
+}
+
+const delayTimeout = 5 * time.Second
+
+// delay measures an outbound, with errors short enough to stand next to it.
+func (d *Daemon) delay(ctx context.Context, name string) (time.Duration, error) {
+	dl, err := d.ctl.Delay(ctx, d.tag(name), cmpOr(d.opts.DelayURL, DelayURL), delayTimeout)
+	switch {
+	case errors.Is(err, control.ErrUnsupported):
+		return 0, fmt.Errorf("%s 内核暂不支持即时测速：%w", d.backend.Name(), err)
+	case errors.Is(err, control.ErrTimeout) || errors.Is(err, context.DeadlineExceeded):
+		return 0, fmt.Errorf("超时（%s 内没有响应）", delayTimeout)
+	case err != nil:
+		return 0, fmt.Errorf("失败：%w", err)
+	}
+	return dl, nil
+}
+
+// HopDelay is the delay through a chain up to and including one hop.
+type HopDelay struct {
+	Name  string `json:"name"`            // the hop as the chain lists it
+	Delay int64  `json:"delay,omitempty"` // milliseconds
+	Error string `json:"error,omitempty"`
+}
+
+// ChainDelay measures each prefix of a chain, so a chain that does not
+// connect shows which hop breaks it.
+func (d *Daemon) ChainDelay(ctx context.Context, name string) ([]HopDelay, error) {
+	res := d.Result()
+	var chain *compile.Chain
+	if res != nil {
+		for _, c := range res.Chains {
+			if c.Name == name {
+				chain = c
+			}
+		}
+	}
+	if chain == nil {
+		return nil, fmt.Errorf("链 %q %w", name, ErrNotFound)
+	}
+	// The first hop is an outbound of its own; later hops are the clones
+	// that dial through the hops before them, the last one being the chain.
+	targets := []string{chain.Path[0]}
+	for i := 1; i < len(chain.Path); i++ {
+		for _, p := range res.Proxies {
+			if p.Chain == name && p.Hop == i && (p.Kind == compile.ProxyChainHop || p.Kind == compile.ProxyChainExit) {
+				targets = append(targets, p.Name)
+			}
+		}
+	}
+	out := make([]HopDelay, len(targets))
+	var wg sync.WaitGroup
+	for i, t := range targets {
+		out[i].Name = chain.Path[i]
+		wg.Go(func() {
+			dl, err := d.delay(ctx, t)
+			if err != nil {
+				out[i].Error = err.Error()
+				return
+			}
+			out[i].Delay = max(dl.Milliseconds(), 1)
+		})
+	}
+	wg.Wait()
+	return out, nil
+}
+
+func (d *Daemon) isChainHop(name string) bool {
+	res := d.Result()
+	return res != nil && isHop(res, name)
 }
 
 // Explain says where traffic for target goes and why.
@@ -257,7 +366,7 @@ func (d *Daemon) editManaged(edit func(*managed)) error {
 }
 
 func (d *Daemon) hasOutbound(name string) bool {
-	return slices.ContainsFunc(d.Outbounds(), func(o Outbound) bool { return o.Name == name })
+	return slices.ContainsFunc(d.outbounds(), func(o Outbound) bool { return o.Name == name })
 }
 
 // SetMode switches between rule, global and direct.

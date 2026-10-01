@@ -28,6 +28,9 @@ func TestDaemon(t *testing.T) {
 
 func testDaemon(t *testing.T, hopBin string, c client) {
 	echo := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodHead {
+			time.Sleep(5 * time.Millisecond) // a delay test; mihomo reports 0 ms as a failure
+		}
 		fmt.Fprint(w, "ok")
 	})}
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
@@ -63,6 +66,8 @@ nodes:
   - { name: B, type: socks5, server: 127.0.0.1, port: %d, udp: true }
 groups:
   - { name: 选择, type: select, members: [A, B] }
+chains:
+  AB: [A, B]
 routes:
   default: 选择
 %s
@@ -74,7 +79,8 @@ inbound: { mixed-port: %d }
 	}
 	write("")
 
-	d, err := daemon.New(daemon.Options{ProfilePath: profile, DataDir: filepath.Join(dir, "data"), Backend: c.name, KernelBin: c.bin, Offline: true})
+	d, err := daemon.New(daemon.Options{ProfilePath: profile, DataDir: filepath.Join(dir, "data"), Backend: c.name, KernelBin: c.bin, Offline: true,
+		DelayURL: fmt.Sprintf("http://127.0.0.1:%d/", echoPort)})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -151,6 +157,26 @@ inbound: { mixed-port: %d }
 	waitFor(t, "the fix to be applied", func() bool { return d.Status().Error == "" })
 	if got := via("fixed profile"); got != "A" {
 		t.Fatalf("after adding echo.test: A, traffic goes via %s", got)
+	}
+
+	// UIs show which member a group uses, as the kernel reports it.
+	for _, o := range d.Outbounds(ctx) {
+		if o.Name == "选择" && o.Now != "B" {
+			t.Errorf("group now uses %q, want B", o.Now)
+		}
+		if o.Name == "AB" && !o.UDP {
+			t.Error("chain of UDP-capable socks nodes not marked UDP")
+		}
+	}
+	// A chain's delay is measured hop by hop.
+	hops, err := d.ChainDelay(ctx, "AB")
+	if err != nil || len(hops) != 2 || hops[0].Name != "A" || hops[1].Name != "B" {
+		t.Fatalf("chain delay = %+v, %v", hops, err)
+	}
+	for _, h := range hops {
+		if h.Error != "" || h.Delay <= 0 {
+			t.Errorf("hop %s: %+v", h.Name, h)
+		}
 	}
 }
 

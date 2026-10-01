@@ -203,6 +203,28 @@ routes:
 	}
 }
 
+// UIs mark outbounds that carry UDP traffic: every node on the way must
+// relay it.
+func TestRelaysUDP(t *testing.T) {
+	res := compileSrc(t, `
+groups:
+  - { name: G, type: select, members: [a, h] }
+  - { name: U, type: select, members: [a, q] }
+chains:
+  AQ: [a, q]
+  BQ: [b, q]
+  UQ: [U, q]
+  GQ: [G, q]
+routes:
+  default: DIRECT
+`)
+	for name, want := range map[string]bool{"a": true, "b": false, "q": true, "h": false, "AQ": true, "BQ": false, "UQ": true, "GQ": false, "G": false, "DIRECT": true, "REJECT": false} {
+		if got := res.RelaysUDP(name); got != want {
+			t.Errorf("RelaysUDP(%s) = %v, want %v", name, got, want)
+		}
+	}
+}
+
 func TestSanitizedNames(t *testing.T) {
 	p, err := model.Parse([]byte(`
 nodes:

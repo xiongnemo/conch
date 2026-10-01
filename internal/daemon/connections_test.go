@@ -4,19 +4,20 @@ import (
 	"slices"
 	"testing"
 	"time"
+
+	"nautilus/internal/control"
 )
 
 func TestFailures(t *testing.T) {
 	var f failures
 	now := time.Now()
-	line := `time="2026-10-01T22:41:46+10:00" level=warning msg="[TCP] dial dead (match DomainSuffix/example.com) 127.0.0.1:46178 --> www.example.com:80 error: connect: connection refused"`
+	dial := control.DialFailure{Source: "127.0.0.1:46178", Via: "dead", Host: "www.example.com", Port: "80", Error: "connect: connection refused"}
 	for range 5 { // the kernel retries one connection several times
-		f.observe(line, now)
+		f.add(dial, now)
 	}
-	f.observe(`msg="[TCP] dial dead (match DomainSuffix/example.com) 127.0.0.1:46200 --> www.example.com:80 error: timeout"`, now.Add(time.Second))
-	f.observe(`msg="[TCP] 127.0.0.1:1 --> ok.example:443 match Match using DIRECT"`, now) // not a failure
-	// With the process known, the source has spaces in it.
-	f.observe(`level=warning msg="[TCP] dial AI-Exit (match DomainSuffix/openai.com) 127.0.0.1:46812(curl, uid=1000) --> chat.openai.com:80 error: refused"`, now.Add(2*time.Second))
+	dial.Source, dial.Error = "127.0.0.1:46200", "timeout"
+	f.add(dial, now.Add(time.Second))
+	f.add(control.DialFailure{Source: "127.0.0.1:46812", Via: "AI-Exit", Host: "chat.openai.com", Port: "80", Error: "refused"}, now.Add(2*time.Second))
 	got := f.list()
 	if len(got) != 2 || got[0].Host != "chat.openai.com" || got[0].Via != "AI-Exit" || got[0].Error != "refused" {
 		t.Fatalf("failures = %+v", got)
@@ -27,6 +28,22 @@ func TestFailures(t *testing.T) {
 	f.clear()
 	if len(f.list()) != 0 {
 		t.Error("clear did not forget failures")
+	}
+}
+
+// The log follows the profile's log-level even when the kernel runs
+// more verbosely for nautilus's sake.
+func TestShown(t *testing.T) {
+	for _, c := range []struct {
+		level, setting string
+		want           bool
+	}{
+		{"debug", "info", false}, {"info", "info", true}, {"warning", "info", true},
+		{"info", "warning", false}, {"error", "warning", true}, {"", "error", true}, {"debug", "", true},
+	} {
+		if got := shown(c.level, c.setting); got != c.want {
+			t.Errorf("shown(%q, %q) = %v", c.level, c.setting, got)
+		}
 	}
 }
 

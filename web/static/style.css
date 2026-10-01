@@ -85,3 +85,6 @@ dialog label { display: flex; flex-direction: column; gap: 4px; color: var(--mut
 dialog .row { justify-content: flex-end; }
 td .actions { display: flex; gap: 6px; flex-wrap: wrap; }
 .card h2 .link { float: right; font-weight: normal; }
+.badge { font-size: 11px; padding: 1px 6px; border-radius: 4px; background: var(--accent-soft); color: var(--accent); vertical-align: 1px; }
+.hop-delay { font-size: 12px; color: var(--ok); }
+.hop-delay.bad { color: var(--bad); }

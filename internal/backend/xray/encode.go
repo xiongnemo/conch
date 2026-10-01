@@ -84,7 +84,7 @@ func (Backend) Encode(r *compile.Result, opts backend.Options) (*backend.Artifac
 	}
 
 	cfg := config{
-		Log:       logConfig{LogLevel: logLevel(r.Settings.LogLevel)},
+		Log:       logConfig{LogLevel: logLevel(backend.LogLevel(r.Settings.LogLevel, opts.MinLogLevel))},
 		Inbounds:  []inbound{e.mixedInbound()},
 		Outbounds: e.defaultFirst(),
 		Routing: routing{
@@ -119,7 +119,17 @@ func (Backend) Encode(r *compile.Result, opts backend.Options) (*backend.Artifac
 				Listen:   opts.ControllerUnix,
 				Settings: apiInboundSettings{Address: "127.0.0.1", Port: 1, Network: "unix"},
 			})
-			cfg.Routing.Rules = append([]rule{{InboundTag: []string{apiTag}, OutboundTag: apiTag}}, cfg.Routing.Rules...)
+			internal := []rule{{InboundTag: []string{apiTag}, OutboundTag: apiTag, RuleTag: apiTag}}
+			// xray has no delay-test API. Each probe is an HTTP proxy on a
+			// unix socket whose balancer nautilus overrides to the outbound
+			// under test, so tests go through the very outbound users use.
+			for i, socket := range opts.Probes {
+				tag := ProbeTag(i)
+				cfg.Inbounds = append(cfg.Inbounds, inbound{Tag: tag, Protocol: "http", Listen: socket})
+				internal = append(internal, rule{InboundTag: []string{tag}, BalancerTag: tag, RuleTag: tag})
+				cfg.Routing.Balancers = append(cfg.Routing.Balancers, balancer{Tag: tag, Selector: []string{e.tags["DIRECT"]}, Strategy: strategy{"random"}})
+			}
+			cfg.Routing.Rules = append(internal, cfg.Routing.Rules...)
 		}
 	}
 
@@ -258,7 +268,7 @@ func (e *encoder) rules() []rule {
 		return nil // global and direct only use the default route
 	}
 	var out []rule
-	for _, r := range e.r.Rules {
+	for i, r := range e.r.Rules {
 		var xs []rule
 		switch r.Match {
 		case route.MatchProcessName, route.MatchProcessPath:
@@ -289,13 +299,15 @@ func (e *encoder) rules() []rule {
 			e.d.Errorf(r.Origin.Pos, "xray 不支持这种规则（%s）", r.Origin.Key)
 			continue
 		}
-		for _, x := range xs {
+		for k, x := range xs {
+			x.RuleTag = ruleTag(i, k, r.Origin.Key)
 			e.target(&x, r.Target)
 			out = append(out, x)
 			data, _ := json.Marshal(x)
 			e.manifest.Rules = append(e.manifest.Rules, backend.ManifestRule{
-				Index:   e.leadingRules() + len(out) - 1,
+				Index:   i,
 				Rule:    string(data),
+				Tag:     x.RuleTag,
 				Tier:    r.Origin.Tier.String(),
 				Key:     r.Origin.Key,
 				Source:  r.Origin.Pos.String(),
@@ -306,14 +318,35 @@ func (e *encoder) rules() []rule {
 	return out
 }
 
-// leadingRules counts the internal rules placed before the user's: the API
-// rule and the group dispatch rules.
-func (e *encoder) leadingRules() int {
-	n := len(e.dispatch)
-	if e.opts.ControllerUnix != "" {
-		n++
+// ruleTag names a rule after the compiled rule it came from. xray logs the
+// tag of the rule each connection matched, which is how nautilus explains
+// connections, and the key keeps xray's own log readable.
+func ruleTag(index, part int, key string) string {
+	key = strings.NewReplacer("[", "", "]", "").Replace(key)
+	if part == 0 {
+		return fmt.Sprintf("#%d %s", index, key)
 	}
-	return n
+	return fmt.Sprintf("#%d.%d %s", index, part+1, key)
+}
+
+// RuleIndex reads the compiled rule index back from a rule tag.
+func RuleIndex(tag string) (int, bool) {
+	rest, ok := strings.CutPrefix(tag, "#")
+	if !ok {
+		return 0, false
+	}
+	end := strings.IndexAny(rest, ". ")
+	if end < 0 {
+		end = len(rest)
+	}
+	i, err := strconv.Atoi(rest[:end])
+	return i, err == nil
+}
+
+// ProbeTag names the i-th probe: an inbound, a rule and a balancer whose
+// target nautilus overrides to measure the delay through any outbound.
+func ProbeTag(i int) string {
+	return compile.HopSep + "probe" + compile.HopSep + strconv.Itoa(i+1)
 }
 
 // listRules turns a rule list into xray rules. geosite/geoip categories

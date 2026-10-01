@@ -181,31 +181,62 @@ function drawChart() {
 
 let outbounds = [];
 
-function delayButton(name) {
+function showDelay(el, r) {
+  if (r.error) {
+    el.textContent = "失败";
+    el.className = "delay bad";
+    el.title = r.error;
+  } else {
+    el.textContent = `${r.delay} ms`;
+    el.className = "delay " + (r.delay < 300 ? "good" : "");
+    el.title = "";
+  }
+}
+
+// delayButton tests an outbound. onHops receives a chain's per-hop results.
+function delayButton(name, onHops) {
   const b = h("button", { class: "delay", title: "测速" }, "测速");
   b.addEventListener("click", async (e) => {
     e.stopPropagation();
     b.textContent = "…";
     try {
       const r = await api("POST", "/delay", { name });
-      b.textContent = `${r.delay} ms`;
-      b.className = "delay " + (r.delay < 300 ? "good" : "");
+      showDelay(b, r);
+      if (r.hops && onHops) onHops(r.hops);
     } catch (err) {
-      b.textContent = "失败";
-      b.className = "delay bad";
-      b.title = err.message;
+      showDelay(b, { error: err.message });
     }
   });
   return b;
+}
+
+// hopLabel shows a group hop with the member it uses: 香港自动[HK 03].
+function hopLabel(name) {
+  const g = outbounds.find((o) => o.name === name && o.kind === "group");
+  return g && g.now ? `${name}[${g.now}]` : name;
+}
+
+function chainRow(c) {
+  const hopDelays = c.hops.map(() => h("span", { class: "hop-delay" }));
+  const hops = c.hops.flatMap((hop, i) => [i ? " → " : null, hopLabel(hop), hopDelays[i]]);
+  return h("p", {}, h("b", {}, c.name), "：", hops, " ",
+    c.udp ? h("span", { class: "badge", title: "UDP 流量（例如 QUIC、游戏、语音）也能经由这条链" }, "UDP") : null, " ",
+    h("span", { class: "chip static" }, delayButton(c.name, (results) => results.forEach((r, i) => {
+      if (!hopDelays[i]) return;
+      hopDelays[i].textContent = r.error ? " 失败" : ` ${r.delay} ms`;
+      hopDelays[i].className = "hop-delay " + (r.error ? "bad" : "");
+      hopDelays[i].title = r.error ? r.error : `经由前 ${i + 1} 跳的延迟`;
+    }))));
 }
 
 function renderOutbounds(list) {
   outbounds = list;
   const groups = list.filter((o) => o.kind === "group");
   fill($("#groups"), ...groups.map((g) => h("div", { class: "card group" },
-    h("h3", {}, g.name, h("span", { class: "kind" }, kindNames[g.type] || g.type)),
+    h("h3", {}, g.name, h("span", { class: "kind" }, kindNames[g.type] || g.type),
+      g.type !== "select" && g.now ? h("span", { class: "kind" }, "当前 " + g.now) : null),
     h("div", { class: "chips" }, g.members.map((m) => {
-      const chip = h("span", { class: "chip" + (g.selected === m ? " selected" : ""), title: g.type === "select" ? "点击选择" : "" }, m, delayButton(m));
+      const chip = h("span", { class: "chip" + ((g.now || g.selected) === m ? " selected" : ""), title: g.type === "select" ? "点击选择" : "" }, m, delayButton(m));
       if (g.type === "select") {
         chip.style.cursor = "pointer";
         chip.addEventListener("click", () => api("PUT", `/groups/${encodeURIComponent(g.name)}`, { selected: m }).then(loadOutbounds).catch(showError));
@@ -214,9 +245,9 @@ function renderOutbounds(list) {
     })),
   )));
   const chains = list.filter((o) => o.kind === "chain");
-  fill($("#chains"), ...(chains.length ? chains.map((c) => h("p", {}, h("b", {}, c.name), "：", c.hops.join(" → "), " ", h("span", { class: "chip static" }, delayButton(c.name)))) : ["没有链"]));
+  fill($("#chains"), ...(chains.length ? chains.map(chainRow) : ["没有链"]));
   const nodes = list.filter((o) => o.kind === "node");
-  fill($("#nodes"), h("div", { class: "chips" }, nodes.map((n) => h("span", { class: "chip", title: `${n.type} ${n.server}` }, n.name, delayButton(n.name)))));
+  fill($("#nodes"), h("div", { class: "chips" }, nodes.map((n) => h("span", { class: "chip", title: `${n.type} ${n.server}${n.udp ? "，支持 UDP" : ""}` }, n.name, delayButton(n.name)))));
   fill($("#add-via"), ...list.map((o) => h("option", { value: o.name }, o.kind === "builtin" ? { DIRECT: "直连", REJECT: "屏蔽" }[o.name] : o.name)));
 }
 
@@ -320,14 +351,19 @@ function renderFailed(list) {
 }
 
 function renderConns(list) {
+  const caps = status?.caps || {};
+  // Kernels without a connection list (xray) report recently opened ones.
+  $("#conns-title").textContent = caps.liveConnections ? "当前连接" : "最近的连接";
+  $("#conns-note").hidden = !!caps.liveConnections;
   fill($("#conns"), list.length ? h("table", {},
     h("thead", {}, h("tr", {}, h("th", {}, "目标"), h("th", {}, "命中 / 出口"), h("th", {}, ""))),
     h("tbody", {}, list.map((c) => h("tr", {},
       h("td", { class: "target" }, `${c.host}:${c.port}`, c.process ? h("div", { class: "src" }, c.process) : null),
-      h("td", {}, c.matched, h("div", { class: "src" }, (c.via || []).join(" → ") + ` · ↑${bytes(c.upload)} ↓${bytes(c.download)}`)),
+      h("td", {}, c.matched, h("div", { class: "src" }, (c.via || []).join(" → ") +
+        (caps.liveConnections ? ` · ↑${bytes(c.upload)} ↓${bytes(c.download)}` : ` · ${new Date(c.start).toLocaleTimeString("zh-CN", { hour12: false })}`))),
       h("td", {}, h("div", { class: "actions" },
         h("button", { onclick: () => routeDialog(c.host) }, "改出口"),
-        h("button", { onclick: () => api("DELETE", `/connections/${encodeURIComponent(c.id)}`).then(loadConns).catch(showError) }, "断开"))))))) : "没有连接");
+        caps.closeConnection ? h("button", { onclick: () => api("DELETE", `/connections/${encodeURIComponent(c.id)}`).then(loadConns).catch(showError) }, "断开") : null)))))) : "没有连接");
 }
 
 function loadConns() {

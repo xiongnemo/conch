@@ -167,169 +167,197 @@
         "process": [
           "Telegram"
         ],
-        "balancerTag": "香港自动"
+        "balancerTag": "香港自动",
+        "ruleTag": "#0 app:Telegram"
       },
       {
         "domain": [
           "full:api.example.com"
         ],
-        "outboundTag": "DIRECT"
+        "outboundTag": "DIRECT",
+        "ruleTag": "#1 =api.example.com"
       },
       {
         "domain": [
           "domain:mail.google.com"
         ],
-        "outboundTag": "DIRECT"
+        "outboundTag": "DIRECT",
+        "ruleTag": "#2 mail.google.com"
       },
       {
         "domain": [
           "domain:claude.ai"
         ],
-        "outboundTag": "日本 01→home"
+        "outboundTag": "日本 01→home",
+        "ruleTag": "#3 claude.ai"
       },
       {
         "domain": [
           "domain:google.com"
         ],
-        "balancerTag": "节点选择"
+        "balancerTag": "节点选择",
+        "ruleTag": "#4 google.com"
       },
       {
         "domain": [
           "domain:home.arpa"
         ],
-        "outboundTag": "DIRECT"
+        "outboundTag": "DIRECT",
+        "ruleTag": "#5 lan"
       },
       {
         "domain": [
           "domain:openai.com"
         ],
-        "outboundTag": "AI-Exit"
+        "outboundTag": "AI-Exit",
+        "ruleTag": "#6 openai.com"
       },
       {
         "domain": [
           "domain:lan"
         ],
-        "outboundTag": "DIRECT"
+        "outboundTag": "DIRECT",
+        "ruleTag": "#7 lan"
       },
       {
         "domain": [
           "domain:local"
         ],
-        "outboundTag": "DIRECT"
+        "outboundTag": "DIRECT",
+        "ruleTag": "#8 lan"
       },
       {
         "domain": [
           "domain:localhost"
         ],
-        "outboundTag": "DIRECT"
+        "outboundTag": "DIRECT",
+        "ruleTag": "#9 lan"
       },
       {
         "ip": [
           "::1/128"
         ],
-        "outboundTag": "DIRECT"
+        "outboundTag": "DIRECT",
+        "ruleTag": "#10 lan"
       },
       {
         "ip": [
           "255.255.255.255/32"
         ],
-        "outboundTag": "DIRECT"
+        "outboundTag": "DIRECT",
+        "ruleTag": "#11 lan"
       },
       {
         "ip": [
           "149.154.160.0/20"
         ],
-        "balancerTag": "香港自动"
+        "balancerTag": "香港自动",
+        "ruleTag": "#12 149.154.160.0/20"
       },
       {
         "ip": [
           "169.254.0.0/16"
         ],
-        "outboundTag": "DIRECT"
+        "outboundTag": "DIRECT",
+        "ruleTag": "#13 lan"
       },
       {
         "ip": [
           "192.168.0.0/16"
         ],
-        "outboundTag": "DIRECT"
+        "outboundTag": "DIRECT",
+        "ruleTag": "#14 lan"
       },
       {
         "ip": [
           "172.16.0.0/12"
         ],
-        "outboundTag": "DIRECT"
+        "outboundTag": "DIRECT",
+        "ruleTag": "#15 lan"
       },
       {
         "ip": [
           "100.64.0.0/10"
         ],
-        "outboundTag": "DIRECT"
+        "outboundTag": "DIRECT",
+        "ruleTag": "#16 lan"
       },
       {
         "ip": [
           "fe80::/10"
         ],
-        "outboundTag": "DIRECT"
+        "outboundTag": "DIRECT",
+        "ruleTag": "#17 lan"
       },
       {
         "ip": [
           "0.0.0.0/8"
         ],
-        "outboundTag": "DIRECT"
+        "outboundTag": "DIRECT",
+        "ruleTag": "#18 lan"
       },
       {
         "ip": [
           "10.0.0.0/8"
         ],
-        "outboundTag": "DIRECT"
+        "outboundTag": "DIRECT",
+        "ruleTag": "#19 10.0.0.0/8"
       },
       {
         "ip": [
           "127.0.0.0/8"
         ],
-        "outboundTag": "DIRECT"
+        "outboundTag": "DIRECT",
+        "ruleTag": "#20 lan"
       },
       {
         "ip": [
           "ff00::/8"
         ],
-        "outboundTag": "DIRECT"
+        "outboundTag": "DIRECT",
+        "ruleTag": "#21 lan"
       },
       {
         "ip": [
           "fc00::/7"
         ],
-        "outboundTag": "DIRECT"
+        "outboundTag": "DIRECT",
+        "ruleTag": "#22 lan"
       },
       {
         "ip": [
           "224.0.0.0/4"
         ],
-        "outboundTag": "DIRECT"
+        "outboundTag": "DIRECT",
+        "ruleTag": "#23 lan"
       },
       {
         "domain": [
           "geosite:category-ads-all"
         ],
-        "outboundTag": "REJECT»"
+        "outboundTag": "REJECT»",
+        "ruleTag": "#24 ads"
       },
       {
         "domain": [
           "geosite:gfw"
         ],
-        "balancerTag": "节点选择"
+        "balancerTag": "节点选择",
+        "ruleTag": "#25 gfwlist"
       },
       {
         "domain": [
           "geosite:cn"
         ],
-        "outboundTag": "DIRECT"
+        "outboundTag": "DIRECT",
+        "ruleTag": "#26 geosite:cn"
       },
       {
         "ip": [
           "geoip:cn"
         ],
-        "outboundTag": "DIRECT"
+        "outboundTag": "DIRECT",
+        "ruleTag": "#27 geoip:cn"
       }
     ],
     "balancers": [

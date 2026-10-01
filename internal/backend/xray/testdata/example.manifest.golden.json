@@ -40,197 +40,225 @@
   ],
   "rules": [
     {
-      "index": 3,
-      "rule": "{\"process\":[\"Telegram\"],\"balancerTag\":\"香港自动\"}",
+      "index": 0,
+      "rule": "{\"process\":[\"Telegram\"],\"balancerTag\":\"香港自动\",\"ruleTag\":\"#0 app:Telegram\"}",
+      "tag": "#0 app:Telegram",
       "tier": "app",
       "key": "app:Telegram",
       "source": "../../../examples/profile.yaml:30"
     },
     {
-      "index": 4,
-      "rule": "{\"domain\":[\"full:api.example.com\"],\"outboundTag\":\"DIRECT\"}",
+      "index": 1,
+      "rule": "{\"domain\":[\"full:api.example.com\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#1 =api.example.com\"}",
+      "tag": "#1 =api.example.com",
       "tier": "domain",
       "key": "=api.example.com",
       "source": "../../../examples/profile.yaml:27"
     },
     {
-      "index": 5,
-      "rule": "{\"domain\":[\"domain:mail.google.com\"],\"outboundTag\":\"DIRECT\"}",
+      "index": 2,
+      "rule": "{\"domain\":[\"domain:mail.google.com\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#2 mail.google.com\"}",
+      "tag": "#2 mail.google.com",
       "tier": "domain",
       "key": "mail.google.com",
       "source": "../../../examples/profile.yaml:26"
     },
     {
-      "index": 6,
-      "rule": "{\"domain\":[\"domain:claude.ai\"],\"outboundTag\":\"日本 01→home\"}",
+      "index": 3,
+      "rule": "{\"domain\":[\"domain:claude.ai\"],\"outboundTag\":\"日本 01→home\",\"ruleTag\":\"#3 claude.ai\"}",
+      "tag": "#3 claude.ai",
       "tier": "domain",
       "key": "claude.ai",
       "source": "../../../examples/profile.yaml:24"
     },
     {
-      "index": 7,
-      "rule": "{\"domain\":[\"domain:google.com\"],\"balancerTag\":\"节点选择\"}",
+      "index": 4,
+      "rule": "{\"domain\":[\"domain:google.com\"],\"balancerTag\":\"节点选择\",\"ruleTag\":\"#4 google.com\"}",
+      "tag": "#4 google.com",
       "tier": "domain",
       "key": "google.com",
       "source": "../../../examples/profile.yaml:25"
     },
     {
+      "index": 5,
+      "rule": "{\"domain\":[\"domain:home.arpa\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#5 lan\"}",
+      "tag": "#5 lan",
+      "tier": "domain",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 6,
+      "rule": "{\"domain\":[\"domain:openai.com\"],\"outboundTag\":\"AI-Exit\",\"ruleTag\":\"#6 openai.com\"}",
+      "tag": "#6 openai.com",
+      "tier": "domain",
+      "key": "openai.com",
+      "source": "../../../examples/profile.yaml:23"
+    },
+    {
+      "index": 7,
+      "rule": "{\"domain\":[\"domain:lan\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#7 lan\"}",
+      "tag": "#7 lan",
+      "tier": "domain",
+      "key": "lan",
+      "builtin": true
+    },
+    {
       "index": 8,
-      "rule": "{\"domain\":[\"domain:home.arpa\"],\"outboundTag\":\"DIRECT\"}",
+      "rule": "{\"domain\":[\"domain:local\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#8 lan\"}",
+      "tag": "#8 lan",
       "tier": "domain",
       "key": "lan",
       "builtin": true
     },
     {
       "index": 9,
-      "rule": "{\"domain\":[\"domain:openai.com\"],\"outboundTag\":\"AI-Exit\"}",
+      "rule": "{\"domain\":[\"domain:localhost\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#9 lan\"}",
+      "tag": "#9 lan",
       "tier": "domain",
-      "key": "openai.com",
-      "source": "../../../examples/profile.yaml:23"
+      "key": "lan",
+      "builtin": true
     },
     {
       "index": 10,
-      "rule": "{\"domain\":[\"domain:lan\"],\"outboundTag\":\"DIRECT\"}",
-      "tier": "domain",
+      "rule": "{\"ip\":[\"::1/128\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#10 lan\"}",
+      "tag": "#10 lan",
+      "tier": "ip",
       "key": "lan",
       "builtin": true
     },
     {
       "index": 11,
-      "rule": "{\"domain\":[\"domain:local\"],\"outboundTag\":\"DIRECT\"}",
-      "tier": "domain",
+      "rule": "{\"ip\":[\"255.255.255.255/32\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#11 lan\"}",
+      "tag": "#11 lan",
+      "tier": "ip",
       "key": "lan",
       "builtin": true
     },
     {
       "index": 12,
-      "rule": "{\"domain\":[\"domain:localhost\"],\"outboundTag\":\"DIRECT\"}",
-      "tier": "domain",
-      "key": "lan",
-      "builtin": true
+      "rule": "{\"ip\":[\"149.154.160.0/20\"],\"balancerTag\":\"香港自动\",\"ruleTag\":\"#12 149.154.160.0/20\"}",
+      "tag": "#12 149.154.160.0/20",
+      "tier": "ip",
+      "key": "149.154.160.0/20",
+      "source": "../../../examples/profile.yaml:29"
     },
     {
       "index": 13,
-      "rule": "{\"ip\":[\"::1/128\"],\"outboundTag\":\"DIRECT\"}",
+      "rule": "{\"ip\":[\"169.254.0.0/16\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#13 lan\"}",
+      "tag": "#13 lan",
       "tier": "ip",
       "key": "lan",
       "builtin": true
     },
     {
       "index": 14,
-      "rule": "{\"ip\":[\"255.255.255.255/32\"],\"outboundTag\":\"DIRECT\"}",
+      "rule": "{\"ip\":[\"192.168.0.0/16\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#14 lan\"}",
+      "tag": "#14 lan",
       "tier": "ip",
       "key": "lan",
       "builtin": true
     },
     {
       "index": 15,
-      "rule": "{\"ip\":[\"149.154.160.0/20\"],\"balancerTag\":\"香港自动\"}",
+      "rule": "{\"ip\":[\"172.16.0.0/12\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#15 lan\"}",
+      "tag": "#15 lan",
       "tier": "ip",
-      "key": "149.154.160.0/20",
-      "source": "../../../examples/profile.yaml:29"
+      "key": "lan",
+      "builtin": true
     },
     {
       "index": 16,
-      "rule": "{\"ip\":[\"169.254.0.0/16\"],\"outboundTag\":\"DIRECT\"}",
+      "rule": "{\"ip\":[\"100.64.0.0/10\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#16 lan\"}",
+      "tag": "#16 lan",
       "tier": "ip",
       "key": "lan",
       "builtin": true
     },
     {
       "index": 17,
-      "rule": "{\"ip\":[\"192.168.0.0/16\"],\"outboundTag\":\"DIRECT\"}",
+      "rule": "{\"ip\":[\"fe80::/10\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#17 lan\"}",
+      "tag": "#17 lan",
       "tier": "ip",
       "key": "lan",
       "builtin": true
     },
     {
       "index": 18,
-      "rule": "{\"ip\":[\"172.16.0.0/12\"],\"outboundTag\":\"DIRECT\"}",
+      "rule": "{\"ip\":[\"0.0.0.0/8\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#18 lan\"}",
+      "tag": "#18 lan",
       "tier": "ip",
       "key": "lan",
       "builtin": true
     },
     {
       "index": 19,
-      "rule": "{\"ip\":[\"100.64.0.0/10\"],\"outboundTag\":\"DIRECT\"}",
+      "rule": "{\"ip\":[\"10.0.0.0/8\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#19 10.0.0.0/8\"}",
+      "tag": "#19 10.0.0.0/8",
       "tier": "ip",
-      "key": "lan",
-      "builtin": true
+      "key": "10.0.0.0/8",
+      "source": "../../../examples/profile.yaml:28"
     },
     {
       "index": 20,
-      "rule": "{\"ip\":[\"fe80::/10\"],\"outboundTag\":\"DIRECT\"}",
+      "rule": "{\"ip\":[\"127.0.0.0/8\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#20 lan\"}",
+      "tag": "#20 lan",
       "tier": "ip",
       "key": "lan",
       "builtin": true
     },
     {
       "index": 21,
-      "rule": "{\"ip\":[\"0.0.0.0/8\"],\"outboundTag\":\"DIRECT\"}",
+      "rule": "{\"ip\":[\"ff00::/8\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#21 lan\"}",
+      "tag": "#21 lan",
       "tier": "ip",
       "key": "lan",
       "builtin": true
     },
     {
       "index": 22,
-      "rule": "{\"ip\":[\"10.0.0.0/8\"],\"outboundTag\":\"DIRECT\"}",
+      "rule": "{\"ip\":[\"fc00::/7\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#22 lan\"}",
+      "tag": "#22 lan",
       "tier": "ip",
-      "key": "10.0.0.0/8",
-      "source": "../../../examples/profile.yaml:28"
+      "key": "lan",
+      "builtin": true
     },
     {
       "index": 23,
-      "rule": "{\"ip\":[\"127.0.0.0/8\"],\"outboundTag\":\"DIRECT\"}",
+      "rule": "{\"ip\":[\"224.0.0.0/4\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#23 lan\"}",
+      "tag": "#23 lan",
       "tier": "ip",
       "key": "lan",
       "builtin": true
     },
     {
       "index": 24,
-      "rule": "{\"ip\":[\"ff00::/8\"],\"outboundTag\":\"DIRECT\"}",
-      "tier": "ip",
-      "key": "lan",
-      "builtin": true
-    },
-    {
-      "index": 25,
-      "rule": "{\"ip\":[\"fc00::/7\"],\"outboundTag\":\"DIRECT\"}",
-      "tier": "ip",
-      "key": "lan",
-      "builtin": true
-    },
-    {
-      "index": 26,
-      "rule": "{\"ip\":[\"224.0.0.0/4\"],\"outboundTag\":\"DIRECT\"}",
-      "tier": "ip",
-      "key": "lan",
-      "builtin": true
-    },
-    {
-      "index": 27,
-      "rule": "{\"domain\":[\"geosite:category-ads-all\"],\"outboundTag\":\"REJECT»\"}",
+      "rule": "{\"domain\":[\"geosite:category-ads-all\"],\"outboundTag\":\"REJECT»\",\"ruleTag\":\"#24 ads\"}",
+      "tag": "#24 ads",
       "tier": "list",
       "key": "ads",
       "source": "../../../examples/profile.yaml:32"
     },
     {
-      "index": 28,
-      "rule": "{\"domain\":[\"geosite:gfw\"],\"balancerTag\":\"节点选择\"}",
+      "index": 25,
+      "rule": "{\"domain\":[\"geosite:gfw\"],\"balancerTag\":\"节点选择\",\"ruleTag\":\"#25 gfwlist\"}",
+      "tag": "#25 gfwlist",
       "tier": "list",
       "key": "gfwlist",
       "source": "../../../examples/profile.yaml:33"
     },
     {
-      "index": 29,
-      "rule": "{\"domain\":[\"geosite:cn\"],\"outboundTag\":\"DIRECT\"}",
+      "index": 26,
+      "rule": "{\"domain\":[\"geosite:cn\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#26 geosite:cn\"}",
+      "tag": "#26 geosite:cn",
       "tier": "list",
       "key": "geosite:cn",
       "source": "../../../examples/profile.yaml:34"
     },
     {
-      "index": 30,
-      "rule": "{\"ip\":[\"geoip:cn\"],\"outboundTag\":\"DIRECT\"}",
+      "index": 27,
+      "rule": "{\"ip\":[\"geoip:cn\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#27 geoip:cn\"}",
+      "tag": "#27 geoip:cn",
       "tier": "list",
       "key": "geoip:cn",
       "source": "../../../examples/profile.yaml:35"

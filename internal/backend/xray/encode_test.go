@@ -102,21 +102,69 @@ func TestAPIOptions(t *testing.T) {
 	}
 }
 
-// Manifest indexes must point at the emitted rule even when internal
-// rules (API, group dispatch) come first.
-func TestManifestIndexes(t *testing.T) {
-	for _, opts := range []backend.Options{{}, {ControllerUnix: "/run/x.sock"}} {
+// Every emitted user rule carries a tag naming the compiled rule it came
+// from: xray logs it for each connection, and nautilus maps it back.
+func TestRuleTags(t *testing.T) {
+	for _, opts := range []backend.Options{{}, {ControllerUnix: "/run/x.sock", Probes: []string{"/run/p1.sock"}}} {
 		art, d := backendtest.Build(t, Backend{}, "../testdata/groups.profile.yaml", opts)
 		if art == nil {
 			t.Fatal(d.Err())
 		}
 		var cfg config
 		json.Unmarshal(art.Config, &cfg)
+		emitted := map[string]string{}
+		for _, r := range cfg.Routing.Rules {
+			if r.RuleTag == "" {
+				continue
+			}
+			if _, dup := emitted[r.RuleTag]; dup {
+				t.Errorf("rule tag %q used twice", r.RuleTag)
+			}
+			data, _ := json.Marshal(r)
+			emitted[r.RuleTag] = string(data)
+		}
+		if len(art.Manifest.Rules) == 0 {
+			t.Fatal("no manifest rules")
+		}
 		for _, mr := range art.Manifest.Rules {
-			got, _ := json.Marshal(cfg.Routing.Rules[mr.Index])
-			if string(got) != mr.Rule {
-				t.Errorf("opts %+v: manifest rule %d is %s, config has %s", opts, mr.Index, mr.Rule, got)
+			if emitted[mr.Tag] != mr.Rule {
+				t.Errorf("manifest rule %s: config has %s", mr.Rule, emitted[mr.Tag])
+			}
+			if i, ok := RuleIndex(mr.Tag); !ok || i != mr.Index {
+				t.Errorf("RuleIndex(%q) = %d, %v; want %d", mr.Tag, i, ok, mr.Index)
 			}
 		}
+	}
+	if _, ok := RuleIndex(ProbeTag(0)); ok {
+		t.Error("probe tags must not look like compiled rules")
+	}
+}
+
+func TestProbes(t *testing.T) {
+	opts := backend.Options{ControllerUnix: "/run/n/xray.sock", Probes: []string{"/run/n/p1.sock", "/run/n/p2.sock"}, MinLogLevel: "info"}
+	art, d := backendtest.Build(t, Backend{}, "../testdata/groups.profile.yaml", opts)
+	if art == nil {
+		t.Fatal(d.Err())
+	}
+	var cfg config
+	json.Unmarshal(art.Config, &cfg)
+	for i, socket := range opts.Probes {
+		tag := ProbeTag(i)
+		in := slices.IndexFunc(cfg.Inbounds, func(in inbound) bool { return in.Tag == tag })
+		if in < 0 || cfg.Inbounds[in].Listen != socket || cfg.Inbounds[in].Protocol != "http" {
+			t.Errorf("probe %d inbound missing: %+v", i, cfg.Inbounds)
+		}
+		// Probe rules come before every user rule, or a user rule for the
+		// test URL's domain would decide where the test goes.
+		r := cfg.Routing.Rules[1+i]
+		if r.InboundTag[0] != tag || r.BalancerTag != tag {
+			t.Errorf("rule %d = %+v, want the probe's", 1+i, r)
+		}
+		if !slices.ContainsFunc(cfg.Routing.Balancers, func(b balancer) bool { return b.Tag == tag }) {
+			t.Errorf("probe %d has no balancer", i)
+		}
+	}
+	if cfg.Log.LogLevel != "info" {
+		t.Errorf("log level = %q, want info", cfg.Log.LogLevel)
 	}
 }

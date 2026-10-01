@@ -3,6 +3,8 @@
 package backend
 
 import (
+	"slices"
+
 	"nautilus/internal/compile"
 	"nautilus/internal/diag"
 	"nautilus/internal/lists"
@@ -32,6 +34,22 @@ type Options struct {
 	Controller string
 	// Lists loads rule lists for backends that inline them.
 	Lists ListLoader
+	// Probes are unix sockets for inbounds that delay tests are sent
+	// through, for kernels without a delay-test API (xray).
+	Probes []string
+	// MinLogLevel raises the profile's log level to at least this, for
+	// callers that read connections and failures from the kernel's output.
+	MinLogLevel string
+}
+
+var logLevels = []string{"silent", "error", "warning", "info", "debug"}
+
+// LogLevel returns the more verbose of two log levels.
+func LogLevel(level, atLeast string) string {
+	if slices.Index(logLevels, atLeast) > slices.Index(logLevels, level) {
+		return atLeast
+	}
+	return level
 }
 
 // Artifact is an encoded kernel configuration.
@@ -123,8 +141,9 @@ type ManifestProxy struct {
 }
 
 type ManifestRule struct {
-	Index   int    `json:"index"`
-	Rule    string `json:"rule"` // as emitted
+	Index   int    `json:"index"`         // in compile.Result.Rules
+	Rule    string `json:"rule"`          // as emitted
+	Tag     string `json:"tag,omitempty"` // the kernel's name for the rule, where it has one
 	Tier    string `json:"tier"`
 	Key     string `json:"key"`
 	Source  string `json:"source,omitempty"` // file:line

@@ -4,10 +4,17 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"net"
+	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
+	"regexp"
+	"slices"
 	"strings"
+	"sync"
 	"time"
 
 	"nautilus/internal/kernel"
@@ -18,6 +25,19 @@ import (
 // a unix socket in a private directory.
 type Xray struct {
 	Bin    string
+	Socket string
+	// Probes are the inbounds delay tests go through, if the config has them.
+	Probes []Probe
+
+	once     sync.Once
+	free     chan int // indexes of probes not in use
+	sessions sessions
+}
+
+// Probe is an HTTP proxy inbound whose balancer can be pointed at any
+// outbound, which lets nautilus measure delays through that outbound.
+type Probe struct {
+	Tag    string // of the inbound, its routing rule and its balancer
 	Socket string
 }
 
@@ -68,8 +88,65 @@ func (x *Xray) Select(ctx context.Context, group, tag string) error {
 	return err
 }
 
-func (*Xray) Delay(context.Context, string, string, time.Duration) (time.Duration, error) {
-	return 0, ErrUnsupported
+// Delay points a free probe at the outbound and times a request through it.
+func (x *Xray) Delay(ctx context.Context, tag, testURL string, timeout time.Duration) (time.Duration, error) {
+	if len(x.Probes) == 0 {
+		return 0, ErrUnsupported
+	}
+	x.once.Do(func() {
+		x.free = make(chan int, len(x.Probes))
+		for i := range x.Probes {
+			x.free <- i
+		}
+	})
+	var i int
+	select {
+	case i = <-x.free:
+	case <-ctx.Done():
+		return 0, ctx.Err()
+	}
+	defer func() { x.free <- i }()
+	p := x.Probes[i]
+	if _, err := x.api(ctx, "bo", "-b", p.Tag, tag); err != nil {
+		return 0, err
+	}
+	return timeRequest(ctx, p.Socket, testURL, timeout)
+}
+
+// timeRequest sends a HEAD request through the HTTP proxy on socket, on a
+// fresh connection, and returns how long the response took.
+func timeRequest(ctx context.Context, socket, testURL string, timeout time.Duration) (time.Duration, error) {
+	tr := &http.Transport{
+		Proxy: func(*http.Request) (*url.URL, error) { return &url.URL{Scheme: "http", Host: "probe"}, nil },
+		DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
+			var d net.Dialer
+			return d.DialContext(ctx, "unix", socket)
+		},
+		DisableKeepAlives: true,
+	}
+	defer tr.CloseIdleConnections()
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, http.MethodHead, testURL, nil)
+	if err != nil {
+		return 0, err
+	}
+	start := time.Now()
+	resp, err := tr.RoundTrip(req)
+	switch {
+	case ctx.Err() != nil:
+		return 0, ErrTimeout
+	case err != nil:
+		// The probe only sees xray hang up; why is in xray's log.
+		return 0, errors.New("连接失败")
+	}
+	resp.Body.Close()
+	// For plain HTTP, xray answers 503 itself when the outbound fails,
+	// saying Proxy-Connection: close, which only a proxy says.
+	if resp.StatusCode == http.StatusServiceUnavailable && resp.Header.Get("Proxy-Connection") == "close" {
+		return 0, errors.New("连接失败")
+	}
+	return time.Since(start), nil
 }
 
 // Traffic polls the inbound counters once a second.
@@ -130,7 +207,207 @@ func sumTraffic(out []byte) (Traffic, error) {
 	return t, nil
 }
 
-// xray's API has no list of open connections.
-func (*Xray) Connections(context.Context) ([]Connection, error) { return nil, ErrUnsupported }
+// Connections lists recently opened connections, read from xray's log:
+// its API has no list of open connections.
+func (x *Xray) Connections(context.Context) ([]Connection, error) {
+	return x.sessions.recent(time.Now()), nil
+}
 
 func (*Xray) CloseConnection(context.Context, string) error { return ErrUnsupported }
+
+func (*Xray) Caps() Caps { return Caps{} }
+
+// Picks reports the members chosen by select groups (the balancer's
+// override) and by url-test groups (leastPing's pick). Which member other
+// groups use depends on health xray's API does not expose.
+func (x *Xray) Picks(ctx context.Context, groups map[string]string) (map[string]string, error) {
+	out := map[string]string{}
+	var mu sync.Mutex
+	var wg sync.WaitGroup
+	for tag, typ := range groups {
+		if typ != "select" && typ != "url-test" {
+			continue
+		}
+		wg.Go(func() {
+			raw, err := x.api(ctx, "bi", "-json", tag)
+			if err != nil {
+				return
+			}
+			if pick := balancerPick(raw); pick != "" {
+				mu.Lock()
+				out[tag] = pick
+				mu.Unlock()
+			}
+		})
+	}
+	wg.Wait()
+	return out, nil
+}
+
+func balancerPick(raw []byte) string {
+	var v struct {
+		Balancer struct {
+			Override struct {
+				Target string `json:"target"`
+			} `json:"override"`
+			PrincipleTarget struct {
+				Tag []string `json:"tag"`
+			} `json:"principleTarget"`
+		} `json:"balancer"`
+	}
+	if json.Unmarshal(raw, &v) != nil {
+		return ""
+	}
+	if t := v.Balancer.Override.Target; t != "" {
+		return t
+	}
+	if tags := v.Balancer.PrincipleTarget.Tag; len(tags) == 1 {
+		return tags[0]
+	}
+	return ""
+}
+
+// Connections and failures come from the info log.
+func (*Xray) LogLevel() string { return "info" }
+
+// ObserveLog follows connections through the log. xray's info level logs
+// several lines per connection, about as much as mihomo's debug level, so
+// they count as debug; the access log's one line per connection is info.
+func (x *Xray) ObserveLog(line string) LogLine {
+	m := xrayLine.FindStringSubmatch(line)
+	if m == nil {
+		if strings.Contains(line, " accepted ") || strings.Contains(line, " rejected ") {
+			// Access log: from 127.0.0.1:5000 accepted tcp:example.com:443 [›mixed -> proxy]
+			return LogLine{Level: "info", Internal: strings.Contains(line, "[›api") || strings.Contains(line, "[›probe")}
+		}
+		return LogLine{}
+	}
+	l := LogLine{Level: map[string]string{"Debug": "debug", "Info": "debug", "Warning": "warning", "Error": "error"}[m[1]]}
+	if m[2] != "" {
+		l.Failure, l.Internal = x.sessions.observe(m[2], m[3], time.Now())
+	}
+	return l
+}
+
+// sessions follows connections through xray's log. Every line about a
+// connection carries its session id:
+//
+//	[Info] [7] app/dispatcher: Hit route rule: [#3 openai.com] so taking detour [AI] for [tcp:chatgpt.com:443]
+//	[Info] [7] app/dispatcher: taking detour [HK 01] for [tcp:chatgpt.com:443]  (a group picks a member)
+//	[Info] [8] app/dispatcher: default route for tcp:example.com:443
+//	[Warning] [8] app/proxyman/outbound: failed to process outbound traffic > …
+type sessions struct {
+	mu    sync.Mutex
+	byID  map[string]*session
+	order []string // oldest first
+}
+
+type session struct {
+	Connection
+	detours  []string // outbounds in the order routing chose them
+	internal bool     // nautilus's own: API calls and delay tests
+	failed   bool
+}
+
+const (
+	keepSessions  = 300
+	recentWindow  = 10 * time.Minute
+	xrayDefault   = "app/dispatcher: default route for "
+	xrayFailedOut = "failed to process outbound traffic > "
+)
+
+var (
+	xrayLine   = regexp.MustCompile(`\[(Debug|Info|Warning|Error)\] (?:\[(\d+)\] )?(.*)$`)
+	xrayRule   = regexp.MustCompile(`^app/dispatcher: Hit route rule: \[([^\]]*)\] so taking detour \[(.*)\] for \[(.*)\]$`)
+	xrayDetour = regexp.MustCompile(`^app/dispatcher: taking detour \[(.*)\] for \[(.*)\]$`)
+	// Failures to connect, as opposed to connections that broke later.
+	dialFailures = []string{"failed to find an available destination", "failed to open connection to",
+		"failed to establish connection to server", "failed to create TCP connection", "failed to create UDP connection", "failed to lookup DNS"}
+)
+
+// observe reads one log message of session id. It returns the failure
+// the message reports and whether the session is nautilus's own.
+func (s *sessions) observe(id, msg string, now time.Time) (*DialFailure, bool) {
+	var ruleTag, out, dest string
+	routed := true
+	if r := xrayRule.FindStringSubmatch(msg); r != nil {
+		ruleTag, out, dest = r[1], r[2], r[3]
+	} else if r := xrayDetour.FindStringSubmatch(msg); r != nil {
+		out, dest = r[1], r[2]
+	} else if rest, ok := strings.CutPrefix(msg, xrayDefault); ok {
+		dest = rest
+	} else {
+		routed = false
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.byID == nil {
+		s.byID = map[string]*session{}
+	}
+	ss := s.byID[id]
+	if routed {
+		if ss == nil {
+			ss = &session{Connection: Connection{ID: id, Start: now, RuleTag: ruleTag}}
+			ss.Network, ss.Host, ss.Port = splitDestination(dest)
+			ss.internal = strings.HasPrefix(ruleTag, "›")
+			if ruleTag == "" && out == "" {
+				ss.Rule = "Match"
+			}
+			s.byID[id] = ss
+			s.order = append(s.order, id)
+			if len(s.order) > keepSessions {
+				delete(s.byID, s.order[0])
+				s.order = s.order[1:]
+			}
+		}
+		if out != "" {
+			ss.detours = append(ss.detours, out)
+		}
+		return nil, ss.internal
+	}
+	if ss == nil {
+		return nil, false
+	}
+	// The message names its package twice: "app/proxyman/outbound: app/proxyman/outbound: failed to …".
+	_, reason, ok := strings.Cut(msg, xrayFailedOut)
+	if !ok || ss.internal || ss.failed || !slices.ContainsFunc(dialFailures, func(f string) bool { return strings.Contains(reason, f) }) {
+		return nil, ss.internal
+	}
+	ss.failed = true
+	via := ""
+	if n := len(ss.detours); n > 0 {
+		via = ss.detours[n-1]
+	}
+	return &DialFailure{Source: "session " + id, Via: via, Host: ss.Host, Port: ss.Port, Error: reason}, false
+}
+
+// recent returns the connections opened in the last few minutes, newest first.
+func (s *sessions) recent(now time.Time) []Connection {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	out := []Connection{}
+	for i := len(s.order) - 1; i >= 0; i-- {
+		ss := s.byID[s.order[i]]
+		if ss.internal {
+			continue
+		}
+		if now.Sub(ss.Start) > recentWindow {
+			break
+		}
+		c := ss.Connection
+		c.Chains = slices.Clone(ss.detours)
+		slices.Reverse(c.Chains) // outbound first, like mihomo
+		out = append(out, c)
+	}
+	return out
+}
+
+// splitDestination parses xray's "tcp:example.com:443" or "udp:[::1]:53".
+func splitDestination(dest string) (network, host, port string) {
+	network, addr, _ := strings.Cut(dest, ":")
+	host, port, err := net.SplitHostPort(addr)
+	if err != nil {
+		return network, addr, ""
+	}
+	return network, host, port
+}

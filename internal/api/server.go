@@ -38,7 +38,7 @@ func (s *Server) Handler() http.Handler {
 		writeJSON(w, s.D.Logs())
 	})
 	mux.HandleFunc("GET /api/v1/outbounds", func(w http.ResponseWriter, r *http.Request) {
-		writeJSON(w, s.D.Outbounds())
+		writeJSON(w, s.D.Outbounds(r.Context()))
 	})
 	mux.HandleFunc("PUT /api/v1/groups/{name}", s.selectGroup)
 	mux.HandleFunc("POST /api/v1/delay", s.delay)
@@ -121,12 +121,18 @@ func (s *Server) delay(w http.ResponseWriter, r *http.Request) {
 	if !decode(w, r, &body) {
 		return
 	}
+	if hops, err := s.D.ChainDelay(r.Context(), body.Name); err == nil {
+		// A chain: the delay through each hop, the last being end to end.
+		last := hops[len(hops)-1]
+		writeJSON(w, map[string]any{"delay": last.Delay, "error": last.Error, "hops": hops})
+		return
+	}
 	d, err := s.D.Delay(r.Context(), body.Name)
 	if err != nil {
 		fail(w, err)
 		return
 	}
-	writeJSON(w, map[string]int64{"delay": d.Milliseconds()})
+	writeJSON(w, map[string]int64{"delay": max(d.Milliseconds(), 1)})
 }
 
 func (s *Server) routes(w http.ResponseWriter, r *http.Request) {

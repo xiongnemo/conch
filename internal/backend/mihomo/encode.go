@@ -46,7 +46,7 @@ func (Backend) Encode(r *compile.Result, opts backend.Options) (*backend.Artifac
 		doc.set("bind-address", str(s.BindAddress))
 	}
 	doc.set("mode", str(s.Mode))
-	doc.set("log-level", str(s.LogLevel))
+	doc.set("log-level", str(backend.LogLevel(s.LogLevel, opts.MinLogLevel)))
 
 	if opts.ControllerUnix != "" {
 		doc.set("external-controller-unix", str(opts.ControllerUnix))

@@ -2,9 +2,7 @@ package daemon
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"regexp"
 	"slices"
 	"strings"
 	"sync"
@@ -12,8 +10,10 @@ import (
 
 	"golang.org/x/net/publicsuffix"
 
+	"nautilus/internal/backend"
 	"nautilus/internal/compile"
 	"nautilus/internal/control"
+	"nautilus/internal/route"
 	"nautilus/internal/view"
 )
 
@@ -27,40 +27,82 @@ type Connection struct {
 // Connections lists open connections with the rule that routed each.
 func (d *Daemon) Connections(ctx context.Context) ([]Connection, error) {
 	conns, err := d.ctl.Connections(ctx)
-	if errors.Is(err, control.ErrUnsupported) {
-		return nil, fmt.Errorf("%s 内核不提供连接列表", d.backend.Name())
-	}
 	if err != nil {
 		return nil, err
 	}
 	d.mu.Lock()
 	res, art := d.res, d.art
 	d.mu.Unlock()
-	rules := map[string]string{}
-	if res != nil && art != nil {
-		for _, mr := range art.Manifest.Rules {
-			if mr.Index >= len(res.Rules) {
-				continue
-			}
-			fields := strings.Split(mr.Rule, ",")
-			payload := ""
-			if len(fields) > 2 {
-				payload = fields[1]
-			}
-			rules[ruleKey(fields[0], payload)] = view.Rule(res.Rules[mr.Index])
-		}
-	}
 	out := make([]Connection, 0, len(conns))
-	for _, c := range conns {
-		via := slices.Clone(c.Chains)
-		slices.Reverse(via)
-		for i, name := range via {
-			via[i] = hopName(res, name)
+	if res == nil || art == nil {
+		for _, c := range conns {
+			via := slices.Clone(c.Chains)
+			slices.Reverse(via)
+			out = append(out, Connection{Connection: c, Matched: c.Rule + " " + c.RulePayload, Via: via})
 		}
-		out = append(out, Connection{Connection: c, Matched: cmpOr(rules[ruleKey(c.Rule, c.RulePayload)], c.Rule+" "+c.RulePayload), Via: via})
+		return out, nil
+	}
+	byLine, byTag := map[string]int{}, map[string]int{}
+	for _, mr := range art.Manifest.Rules {
+		if mr.Index >= len(res.Rules) {
+			continue
+		}
+		if mr.Tag != "" {
+			byTag[mr.Tag] = mr.Index
+			continue
+		}
+		fields := strings.Split(mr.Rule, ",")
+		payload := ""
+		if len(fields) > 2 {
+			payload = fields[1]
+		}
+		byLine[ruleKey(fields[0], payload)] = mr.Index
+	}
+	final := slices.IndexFunc(res.Rules, func(r route.Rule) bool { return r.Match == route.MatchFinal })
+	names := kernelNames(art)
+	for _, c := range conns {
+		idx, ok := byTag[c.RuleTag]
+		if !ok {
+			idx, ok = byLine[ruleKey(c.Rule, c.RulePayload)]
+		}
+		if !ok && strings.EqualFold(c.Rule, "match") && final >= 0 {
+			idx, ok = final, true // xray's default route has no rule
+		}
+		var via []string
+		for _, tag := range slices.Backward(c.Chains) {
+			if name := names(tag); !strings.Contains(name, compile.HopSep) || isHop(res, name) {
+				via = append(via, hopName(res, name))
+			}
+		}
+		matched := cmpOr(c.Rule+" "+c.RulePayload, c.RuleTag)
+		switch {
+		case res.Settings.Mode != "rule":
+			matched = fmt.Sprintf("当前是 %s 模式", res.Settings.Mode)
+		case ok:
+			matched = view.Rule(res.Rules[idx])
+			// Rules that send traffic to a group straight to its balancer
+			// (xray) do not name the group in the connection.
+			if target := res.Rules[idx].Target; len(via) == 0 || via[0] != target {
+				via = append([]string{target}, via...)
+			}
+		}
+		out = append(out, Connection{Connection: c, Matched: matched, Via: via})
 	}
 	slices.SortFunc(out, func(a, b Connection) int { return b.Start.Compare(a.Start) })
 	return out, nil
+}
+
+// kernelNames maps the kernel's identifiers for outbounds back to names.
+func kernelNames(art *backend.Artifact) func(string) string {
+	byTag := map[string]string{}
+	for name, tag := range art.Manifest.Tags {
+		byTag[tag] = name
+	}
+	return func(tag string) string { return cmpOr(byTag[tag], tag) }
+}
+
+func isHop(res *compile.Result, name string) bool {
+	return slices.ContainsFunc(res.Proxies, func(p *compile.Proxy) bool { return p.Name == name && p.Kind == compile.ProxyChainHop })
 }
 
 // ruleKey compares a kernel's rule type with an emitted rule line:
@@ -104,32 +146,23 @@ type failures struct {
 	seen   map[string]time.Time // source+destination, to count retries once
 }
 
-// mihomo: [TCP] dial 节点 (match DomainSuffix/x) 127.0.0.1:1(curl, uid=1000) --> host:443 error: …
-// The source carries the process when mihomo could find it.
-var dialError = regexp.MustCompile(`\[(?:TCP|UDP)\] dial (.+?) \(match [^)]*\) (.+?) --> (\S+):(\d+) error: (.*?)"?$`)
-
-func (f *failures) observe(line string, now time.Time) {
-	m := dialError.FindStringSubmatch(line)
-	if m == nil {
-		return
-	}
-	via, src, host, port, msg := m[1], m[2], m[3], m[4], m[5]
+func (f *failures) add(x control.DialFailure, now time.Time) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	if f.byHost == nil {
 		f.byHost, f.seen = map[string]*Failed{}, map[string]time.Time{}
 	}
-	key := src + ">" + host
+	key := x.Source + ">" + x.Host
 	if t, ok := f.seen[key]; ok && now.Sub(t) < time.Minute {
 		return // the kernel retries a connection several times
 	}
 	f.seen[key] = now
-	e := f.byHost[host]
+	e := f.byHost[x.Host]
 	if e == nil {
-		e = &Failed{Host: host}
-		f.byHost[host] = e
+		e = &Failed{Host: x.Host}
+		f.byHost[x.Host] = e
 	}
-	e.Port, e.Via, e.Error, e.Last = port, via, msg, now
+	e.Port, e.Via, e.Error, e.Last = x.Port, x.Via, x.Error, now
 	e.Count++
 	if len(f.byHost) > 200 || len(f.seen) > 2000 {
 		f.trim(now)

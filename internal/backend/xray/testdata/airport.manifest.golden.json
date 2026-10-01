@@ -50,197 +50,225 @@
   ],
   "rules": [
     {
-      "index": 5,
-      "rule": "{\"domain\":[\"domain:home.arpa\"],\"outboundTag\":\"DIRECT\"}",
+      "index": 0,
+      "rule": "{\"domain\":[\"domain:home.arpa\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#0 lan\"}",
+      "tag": "#0 lan",
       "tier": "domain",
       "key": "lan",
       "builtin": true
     },
     {
-      "index": 6,
-      "rule": "{\"domain\":[\"domain:openai.com\"],\"outboundTag\":\"AI-Exit\"}",
+      "index": 1,
+      "rule": "{\"domain\":[\"domain:openai.com\"],\"outboundTag\":\"AI-Exit\",\"ruleTag\":\"#1 openai.com\"}",
+      "tag": "#1 openai.com",
       "tier": "domain",
       "key": "openai.com",
       "source": "../testdata/airport.profile.yaml:14"
     },
     {
-      "index": 7,
-      "rule": "{\"domain\":[\"domain:lan\"],\"outboundTag\":\"DIRECT\"}",
+      "index": 2,
+      "rule": "{\"domain\":[\"domain:lan\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#2 lan\"}",
+      "tag": "#2 lan",
       "tier": "domain",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 3,
+      "rule": "{\"domain\":[\"domain:local\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#3 lan\"}",
+      "tag": "#3 lan",
+      "tier": "domain",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 4,
+      "rule": "{\"domain\":[\"domain:localhost\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#4 lan\"}",
+      "tag": "#4 lan",
+      "tier": "domain",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 5,
+      "rule": "{\"ip\":[\"::1/128\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#5 lan\"}",
+      "tag": "#5 lan",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 6,
+      "rule": "{\"ip\":[\"255.255.255.255/32\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#6 lan\"}",
+      "tag": "#6 lan",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 7,
+      "rule": "{\"ip\":[\"169.254.0.0/16\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#7 lan\"}",
+      "tag": "#7 lan",
+      "tier": "ip",
       "key": "lan",
       "builtin": true
     },
     {
       "index": 8,
-      "rule": "{\"domain\":[\"domain:local\"],\"outboundTag\":\"DIRECT\"}",
-      "tier": "domain",
+      "rule": "{\"ip\":[\"192.168.0.0/16\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#8 lan\"}",
+      "tag": "#8 lan",
+      "tier": "ip",
       "key": "lan",
       "builtin": true
     },
     {
       "index": 9,
-      "rule": "{\"domain\":[\"domain:localhost\"],\"outboundTag\":\"DIRECT\"}",
-      "tier": "domain",
+      "rule": "{\"ip\":[\"172.16.0.0/12\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#9 lan\"}",
+      "tag": "#9 lan",
+      "tier": "ip",
       "key": "lan",
       "builtin": true
     },
     {
       "index": 10,
-      "rule": "{\"ip\":[\"::1/128\"],\"outboundTag\":\"DIRECT\"}",
+      "rule": "{\"ip\":[\"100.64.0.0/10\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#10 lan\"}",
+      "tag": "#10 lan",
       "tier": "ip",
       "key": "lan",
       "builtin": true
     },
     {
       "index": 11,
-      "rule": "{\"ip\":[\"255.255.255.255/32\"],\"outboundTag\":\"DIRECT\"}",
+      "rule": "{\"ip\":[\"fe80::/10\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#11 lan\"}",
+      "tag": "#11 lan",
       "tier": "ip",
       "key": "lan",
       "builtin": true
     },
     {
       "index": 12,
-      "rule": "{\"ip\":[\"169.254.0.0/16\"],\"outboundTag\":\"DIRECT\"}",
+      "rule": "{\"ip\":[\"0.0.0.0/8\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#12 lan\"}",
+      "tag": "#12 lan",
       "tier": "ip",
       "key": "lan",
       "builtin": true
     },
     {
       "index": 13,
-      "rule": "{\"ip\":[\"192.168.0.0/16\"],\"outboundTag\":\"DIRECT\"}",
+      "rule": "{\"ip\":[\"10.0.0.0/8\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#13 lan\"}",
+      "tag": "#13 lan",
       "tier": "ip",
       "key": "lan",
       "builtin": true
     },
     {
       "index": 14,
-      "rule": "{\"ip\":[\"172.16.0.0/12\"],\"outboundTag\":\"DIRECT\"}",
+      "rule": "{\"ip\":[\"127.0.0.0/8\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#14 lan\"}",
+      "tag": "#14 lan",
       "tier": "ip",
       "key": "lan",
       "builtin": true
     },
     {
       "index": 15,
-      "rule": "{\"ip\":[\"100.64.0.0/10\"],\"outboundTag\":\"DIRECT\"}",
+      "rule": "{\"ip\":[\"ff00::/8\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#15 lan\"}",
+      "tag": "#15 lan",
       "tier": "ip",
       "key": "lan",
       "builtin": true
     },
     {
       "index": 16,
-      "rule": "{\"ip\":[\"fe80::/10\"],\"outboundTag\":\"DIRECT\"}",
+      "rule": "{\"ip\":[\"fc00::/7\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#16 lan\"}",
+      "tag": "#16 lan",
       "tier": "ip",
       "key": "lan",
       "builtin": true
     },
     {
       "index": 17,
-      "rule": "{\"ip\":[\"0.0.0.0/8\"],\"outboundTag\":\"DIRECT\"}",
+      "rule": "{\"ip\":[\"224.0.0.0/4\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#17 lan\"}",
+      "tag": "#17 lan",
       "tier": "ip",
       "key": "lan",
       "builtin": true
     },
     {
       "index": 18,
-      "rule": "{\"ip\":[\"10.0.0.0/8\"],\"outboundTag\":\"DIRECT\"}",
-      "tier": "ip",
-      "key": "lan",
-      "builtin": true
-    },
-    {
-      "index": 19,
-      "rule": "{\"ip\":[\"127.0.0.0/8\"],\"outboundTag\":\"DIRECT\"}",
-      "tier": "ip",
-      "key": "lan",
-      "builtin": true
-    },
-    {
-      "index": 20,
-      "rule": "{\"ip\":[\"ff00::/8\"],\"outboundTag\":\"DIRECT\"}",
-      "tier": "ip",
-      "key": "lan",
-      "builtin": true
-    },
-    {
-      "index": 21,
-      "rule": "{\"ip\":[\"fc00::/7\"],\"outboundTag\":\"DIRECT\"}",
-      "tier": "ip",
-      "key": "lan",
-      "builtin": true
-    },
-    {
-      "index": 22,
-      "rule": "{\"ip\":[\"224.0.0.0/4\"],\"outboundTag\":\"DIRECT\"}",
-      "tier": "ip",
-      "key": "lan",
-      "builtin": true
-    },
-    {
-      "index": 23,
-      "rule": "{\"domain\":[\"geosite:category-ads-all\"],\"outboundTag\":\"REJECT»\"}",
+      "rule": "{\"domain\":[\"geosite:category-ads-all\"],\"outboundTag\":\"REJECT»\",\"ruleTag\":\"#18 ads\"}",
+      "tag": "#18 ads",
       "tier": "list",
       "key": "ads",
       "source": "../testdata/airport.profile.yaml:16"
     },
     {
-      "index": 24,
-      "rule": "{\"domain\":[\"domain:ads.example\"],\"balancerTag\":\"广告拦截\"}",
+      "index": 19,
+      "rule": "{\"domain\":[\"domain:ads.example\"],\"balancerTag\":\"广告拦截\",\"ruleTag\":\"#19 airport-a\"}",
+      "tag": "#19 airport-a",
       "tier": "list",
       "key": "airport-a",
       "source": "../testdata/airport.profile.yaml:17"
     },
     {
-      "index": 25,
-      "rule": "{\"domain\":[\"domain:netflix.com\",\"full:api.example-stream.com\",\"keyword:nflx\"],\"balancerTag\":\"节点选择\"}",
+      "index": 20,
+      "rule": "{\"domain\":[\"domain:netflix.com\",\"full:api.example-stream.com\",\"keyword:nflx\"],\"balancerTag\":\"节点选择\",\"ruleTag\":\"#20 airport-a\"}",
+      "tag": "#20 airport-a",
+      "tier": "list",
+      "key": "airport-a",
+      "source": "../testdata/airport.profile.yaml:17"
+    },
+    {
+      "index": 20,
+      "rule": "{\"ip\":[\"23.246.0.0/18\"],\"balancerTag\":\"节点选择\",\"ruleTag\":\"#20.2 airport-a\"}",
+      "tag": "#20.2 airport-a",
+      "tier": "list",
+      "key": "airport-a",
+      "source": "../testdata/airport.profile.yaml:17"
+    },
+    {
+      "index": 20,
+      "rule": "{\"process\":[\"Netflix\"],\"balancerTag\":\"节点选择\",\"ruleTag\":\"#20.3 airport-a\"}",
+      "tag": "#20.3 airport-a",
+      "tier": "list",
+      "key": "airport-a",
+      "source": "../testdata/airport.profile.yaml:17"
+    },
+    {
+      "index": 21,
+      "rule": "{\"domain\":[\"domain:corp.example\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#21 airport-a\"}",
+      "tag": "#21 airport-a",
+      "tier": "list",
+      "key": "airport-a",
+      "source": "../testdata/airport.profile.yaml:17"
+    },
+    {
+      "index": 22,
+      "rule": "{\"domain\":[\"geosite:cn\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#22 airport-a\"}",
+      "tag": "#22 airport-a",
+      "tier": "list",
+      "key": "airport-a",
+      "source": "../testdata/airport.profile.yaml:17"
+    },
+    {
+      "index": 23,
+      "rule": "{\"ip\":[\"geoip:private\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#23 airport-a\"}",
+      "tag": "#23 airport-a",
+      "tier": "list",
+      "key": "airport-a",
+      "source": "../testdata/airport.profile.yaml:17"
+    },
+    {
+      "index": 24,
+      "rule": "{\"ip\":[\"geoip:cn\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#24 airport-a\"}",
+      "tag": "#24 airport-a",
       "tier": "list",
       "key": "airport-a",
       "source": "../testdata/airport.profile.yaml:17"
     },
     {
       "index": 26,
-      "rule": "{\"ip\":[\"23.246.0.0/18\"],\"balancerTag\":\"节点选择\"}",
-      "tier": "list",
-      "key": "airport-a",
-      "source": "../testdata/airport.profile.yaml:17"
-    },
-    {
-      "index": 27,
-      "rule": "{\"process\":[\"Netflix\"],\"balancerTag\":\"节点选择\"}",
-      "tier": "list",
-      "key": "airport-a",
-      "source": "../testdata/airport.profile.yaml:17"
-    },
-    {
-      "index": 28,
-      "rule": "{\"domain\":[\"domain:corp.example\"],\"outboundTag\":\"DIRECT\"}",
-      "tier": "list",
-      "key": "airport-a",
-      "source": "../testdata/airport.profile.yaml:17"
-    },
-    {
-      "index": 29,
-      "rule": "{\"domain\":[\"geosite:cn\"],\"outboundTag\":\"DIRECT\"}",
-      "tier": "list",
-      "key": "airport-a",
-      "source": "../testdata/airport.profile.yaml:17"
-    },
-    {
-      "index": 30,
-      "rule": "{\"ip\":[\"geoip:private\"],\"outboundTag\":\"DIRECT\"}",
-      "tier": "list",
-      "key": "airport-a",
-      "source": "../testdata/airport.profile.yaml:17"
-    },
-    {
-      "index": 31,
-      "rule": "{\"ip\":[\"geoip:cn\"],\"outboundTag\":\"DIRECT\"}",
-      "tier": "list",
-      "key": "airport-a",
-      "source": "../testdata/airport.profile.yaml:17"
-    },
-    {
-      "index": 32,
-      "rule": "{\"port\":\"22\",\"outboundTag\":\"DIRECT\"}",
+      "rule": "{\"port\":\"22\",\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#26 airport-a\"}",
+      "tag": "#26 airport-a",
       "tier": "list",
       "key": "airport-a",
       "source": "../testdata/airport.profile.yaml:17"

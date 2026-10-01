@@ -224,3 +224,39 @@ func (c *compiler) leaves(name string) []*model.Node {
 	walk(name)
 	return out
 }
+
+// RelaysUDP reports whether UDP traffic sent to an outbound gets through:
+// every node that may carry it, on every hop, must relay UDP.
+func (r *Result) RelaysUDP(name string) bool {
+	seen := map[string]bool{}
+	var walk func(string) bool
+	walk = func(n string) bool {
+		if seen[n] {
+			return true
+		}
+		seen[n] = true
+		switch n {
+		case "DIRECT":
+			return true
+		case "REJECT", "REJECT-DROP":
+			return false
+		}
+		for _, g := range r.Groups {
+			if g.Name == n {
+				return len(g.Members) > 0 && !slices.ContainsFunc(g.Members, func(m string) bool { return !walk(m) })
+			}
+		}
+		for _, c := range r.Chains {
+			if c.Name == n {
+				return !slices.ContainsFunc(c.Path, func(h string) bool { return !walk(h) })
+			}
+		}
+		for _, p := range r.Proxies {
+			if p.Name == n && p.Kind == ProxyNode {
+				return relaysUDP(p.Node)
+			}
+		}
+		return false
+	}
+	return walk(name)
+}

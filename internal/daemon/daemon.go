@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"nautilus/internal/backend"
@@ -38,6 +39,7 @@ type Options struct {
 	KernelBin   string // empty means the installed kernel
 	Offline     bool   // never download subscriptions or rule lists
 	Log         io.Writer
+	DelayURL    string // what delay tests request; empty means DelayURL
 }
 
 // Daemon owns one kernel process.
@@ -68,6 +70,8 @@ type Daemon struct {
 	subInfo     map[string]*subscription.Info
 	managedHash [32]byte
 	stopTraffic context.CancelFunc
+	probes      []string     // sockets of the kernel's delay-test inbounds
+	logLevel    atomic.Value // string: the profile's log-level
 
 	failures failures
 }
@@ -121,13 +125,36 @@ func New(opts Options) (*Daemon, error) {
 	case "mihomo":
 		d.ctl = control.NewMihomo(d.socket)
 	case "xray":
-		d.ctl = &control.Xray{Bin: d.bin, Socket: d.socket}
+		x := &control.Xray{Bin: d.bin, Socket: d.socket}
+		for i := range xrayProbes {
+			socket := filepath.Join(runDir, fmt.Sprintf("xray-probe-%d.sock", i+1))
+			x.Probes = append(x.Probes, control.Probe{Tag: xray.ProbeTag(i), Socket: socket})
+			d.probes = append(d.probes, socket)
+		}
+		d.ctl = x
 	}
-	d.sup.OnLine = func(l string) {
-		d.failures.observe(l, time.Now())
+	d.sup.OnLine = func(l string) bool {
+		ll := d.ctl.ObserveLog(l)
+		if ll.Failure != nil {
+			d.failures.add(*ll.Failure, time.Now())
+		}
+		level, _ := d.logLevel.Load().(string)
+		if ll.Internal || !shown(ll.Level, level) {
+			return false
+		}
 		d.Events.Publish(Event{Type: "log", Data: l})
+		return true
 	}
 	return d, nil
+}
+
+// xrayProbes is how many delay tests can run at once on xray.
+const xrayProbes = 4
+
+// shown reports whether a line at level appears in the log users see,
+// which follows the profile's log-level even when the kernel logs more.
+func shown(level, setting string) bool {
+	return level == "" || setting == "" || backend.LogLevel(setting, level) == setting
 }
 
 func cmpOr(vs ...string) string {
@@ -232,7 +259,7 @@ func (d *Daemon) build(ctx context.Context) (*compile.Result, *backend.Artifact,
 	if diags.HasErrors() {
 		return res, nil, diags, nil
 	}
-	art, more := d.backend.Encode(res, backend.Options{ControllerUnix: d.socket, Lists: d.listLoader(ctx)})
+	art, more := d.backend.Encode(res, backend.Options{ControllerUnix: d.socket, Lists: d.listLoader(ctx), Probes: d.probes, MinLogLevel: d.ctl.LogLevel()})
 	diags = append(diags, more...)
 	if diags.HasErrors() {
 		return res, nil, diags, nil
@@ -279,6 +306,7 @@ func (d *Daemon) apply(ctx context.Context, res *compile.Result, art *backend.Ar
 		d.mu.Lock()
 		d.res, d.art = res, art
 		d.mu.Unlock()
+		d.logLevel.Store(res.Settings.LogLevel)
 		return nil
 	}
 
@@ -317,6 +345,7 @@ func (d *Daemon) apply(ctx context.Context, res *compile.Result, art *backend.Ar
 	d.mu.Lock()
 	d.res, d.art, d.applied, d.appliedPort = res, art, art.Config, res.Settings.MixedPort
 	d.mu.Unlock()
+	d.logLevel.Store(res.Settings.LogLevel)
 	if restarted || d.backend.Name() == "mihomo" {
 		d.restoreSelections(ctx, res)
 	}

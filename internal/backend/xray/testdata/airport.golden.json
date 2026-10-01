@@ -217,121 +217,141 @@
         "domain": [
           "domain:home.arpa"
         ],
-        "outboundTag": "DIRECT"
+        "outboundTag": "DIRECT",
+        "ruleTag": "#0 lan"
       },
       {
         "domain": [
           "domain:openai.com"
         ],
-        "outboundTag": "AI-Exit"
+        "outboundTag": "AI-Exit",
+        "ruleTag": "#1 openai.com"
       },
       {
         "domain": [
           "domain:lan"
         ],
-        "outboundTag": "DIRECT"
+        "outboundTag": "DIRECT",
+        "ruleTag": "#2 lan"
       },
       {
         "domain": [
           "domain:local"
         ],
-        "outboundTag": "DIRECT"
+        "outboundTag": "DIRECT",
+        "ruleTag": "#3 lan"
       },
       {
         "domain": [
           "domain:localhost"
         ],
-        "outboundTag": "DIRECT"
+        "outboundTag": "DIRECT",
+        "ruleTag": "#4 lan"
       },
       {
         "ip": [
           "::1/128"
         ],
-        "outboundTag": "DIRECT"
+        "outboundTag": "DIRECT",
+        "ruleTag": "#5 lan"
       },
       {
         "ip": [
           "255.255.255.255/32"
         ],
-        "outboundTag": "DIRECT"
+        "outboundTag": "DIRECT",
+        "ruleTag": "#6 lan"
       },
       {
         "ip": [
           "169.254.0.0/16"
         ],
-        "outboundTag": "DIRECT"
+        "outboundTag": "DIRECT",
+        "ruleTag": "#7 lan"
       },
       {
         "ip": [
           "192.168.0.0/16"
         ],
-        "outboundTag": "DIRECT"
+        "outboundTag": "DIRECT",
+        "ruleTag": "#8 lan"
       },
       {
         "ip": [
           "172.16.0.0/12"
         ],
-        "outboundTag": "DIRECT"
+        "outboundTag": "DIRECT",
+        "ruleTag": "#9 lan"
       },
       {
         "ip": [
           "100.64.0.0/10"
         ],
-        "outboundTag": "DIRECT"
+        "outboundTag": "DIRECT",
+        "ruleTag": "#10 lan"
       },
       {
         "ip": [
           "fe80::/10"
         ],
-        "outboundTag": "DIRECT"
+        "outboundTag": "DIRECT",
+        "ruleTag": "#11 lan"
       },
       {
         "ip": [
           "0.0.0.0/8"
         ],
-        "outboundTag": "DIRECT"
+        "outboundTag": "DIRECT",
+        "ruleTag": "#12 lan"
       },
       {
         "ip": [
           "10.0.0.0/8"
         ],
-        "outboundTag": "DIRECT"
+        "outboundTag": "DIRECT",
+        "ruleTag": "#13 lan"
       },
       {
         "ip": [
           "127.0.0.0/8"
         ],
-        "outboundTag": "DIRECT"
+        "outboundTag": "DIRECT",
+        "ruleTag": "#14 lan"
       },
       {
         "ip": [
           "ff00::/8"
         ],
-        "outboundTag": "DIRECT"
+        "outboundTag": "DIRECT",
+        "ruleTag": "#15 lan"
       },
       {
         "ip": [
           "fc00::/7"
         ],
-        "outboundTag": "DIRECT"
+        "outboundTag": "DIRECT",
+        "ruleTag": "#16 lan"
       },
       {
         "ip": [
           "224.0.0.0/4"
         ],
-        "outboundTag": "DIRECT"
+        "outboundTag": "DIRECT",
+        "ruleTag": "#17 lan"
       },
       {
         "domain": [
           "geosite:category-ads-all"
         ],
-        "outboundTag": "REJECT»"
+        "outboundTag": "REJECT»",
+        "ruleTag": "#18 ads"
       },
       {
         "domain": [
           "domain:ads.example"
         ],
-        "balancerTag": "广告拦截"
+        "balancerTag": "广告拦截",
+        "ruleTag": "#19 airport-a"
       },
       {
         "domain": [
@@ -339,47 +359,55 @@
           "full:api.example-stream.com",
           "keyword:nflx"
         ],
-        "balancerTag": "节点选择"
+        "balancerTag": "节点选择",
+        "ruleTag": "#20 airport-a"
       },
       {
         "ip": [
           "23.246.0.0/18"
         ],
-        "balancerTag": "节点选择"
+        "balancerTag": "节点选择",
+        "ruleTag": "#20.2 airport-a"
       },
       {
         "process": [
           "Netflix"
         ],
-        "balancerTag": "节点选择"
+        "balancerTag": "节点选择",
+        "ruleTag": "#20.3 airport-a"
       },
       {
         "domain": [
           "domain:corp.example"
         ],
-        "outboundTag": "DIRECT"
+        "outboundTag": "DIRECT",
+        "ruleTag": "#21 airport-a"
       },
       {
         "domain": [
           "geosite:cn"
         ],
-        "outboundTag": "DIRECT"
+        "outboundTag": "DIRECT",
+        "ruleTag": "#22 airport-a"
       },
       {
         "ip": [
           "geoip:private"
         ],
-        "outboundTag": "DIRECT"
+        "outboundTag": "DIRECT",
+        "ruleTag": "#23 airport-a"
       },
       {
         "ip": [
           "geoip:cn"
         ],
-        "outboundTag": "DIRECT"
+        "outboundTag": "DIRECT",
+        "ruleTag": "#24 airport-a"
       },
       {
         "port": "22",
-        "outboundTag": "DIRECT"
+        "outboundTag": "DIRECT",
+        "ruleTag": "#26 airport-a"
       }
     ],
     "balancers": [

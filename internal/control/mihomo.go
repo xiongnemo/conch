@@ -5,12 +5,14 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
 	"net/http"
 	"net/url"
 	"os/exec"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -70,7 +72,7 @@ func (m *Mihomo) do(ctx context.Context, method, path string, body any, out any)
 	defer resp.Body.Close()
 	if resp.StatusCode >= 300 {
 		msg, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
-		return fmt.Errorf("mihomo %s %s：%s %s", method, path, resp.Status, bytes.TrimSpace(msg))
+		return &apiError{Status: resp.StatusCode, Text: fmt.Sprintf("mihomo %s %s：%s %s", method, path, resp.Status, bytes.TrimSpace(msg))}
 	}
 	if out != nil {
 		return json.NewDecoder(resp.Body).Decode(out)
@@ -104,11 +106,25 @@ func (m *Mihomo) Delay(ctx context.Context, tag, testURL string, timeout time.Du
 	var v struct {
 		Delay int `json:"delay"`
 	}
-	if err := m.do(ctx, http.MethodGet, "/proxies/"+url.PathEscape(tag)+"/delay?"+q.Encode(), nil, &v); err != nil {
+	err := m.do(ctx, http.MethodGet, "/proxies/"+url.PathEscape(tag)+"/delay?"+q.Encode(), nil, &v)
+	var e *apiError
+	switch {
+	case errors.As(err, &e) && e.Status == http.StatusGatewayTimeout:
+		return 0, ErrTimeout
+	case errors.As(err, &e) && e.Status == http.StatusServiceUnavailable:
+		return 0, errors.New("连接失败")
+	case err != nil:
 		return 0, err
 	}
 	return time.Duration(v.Delay) * time.Millisecond, nil
 }
+
+type apiError struct {
+	Status int
+	Text   string
+}
+
+func (e *apiError) Error() string { return e.Text }
 
 // Traffic reads mihomo's streaming /traffic endpoint (one JSON object per second).
 func (m *Mihomo) Traffic(ctx context.Context) (<-chan Traffic, error) {
@@ -186,4 +202,44 @@ func (m *Mihomo) Connections(ctx context.Context) ([]Connection, error) {
 
 func (m *Mihomo) CloseConnection(ctx context.Context, id string) error {
 	return m.do(ctx, http.MethodDelete, "/connections/"+url.PathEscape(id), nil, nil)
+}
+
+func (*Mihomo) Caps() Caps { return Caps{LiveConnections: true, CloseConnection: true} }
+
+func (m *Mihomo) Picks(ctx context.Context, groups map[string]string) (map[string]string, error) {
+	var v struct {
+		Proxies map[string]struct {
+			Now string `json:"now"`
+		} `json:"proxies"`
+	}
+	if err := m.do(ctx, http.MethodGet, "/proxies", nil, &v); err != nil {
+		return nil, err
+	}
+	out := map[string]string{}
+	for g := range groups {
+		if now := v.Proxies[g].Now; now != "" {
+			out[g] = now
+		}
+	}
+	return out, nil
+}
+
+// mihomo logs failed dials as warnings.
+func (*Mihomo) LogLevel() string { return "warning" }
+
+// [TCP] dial 节点 (match DomainSuffix/x) 127.0.0.1:1(curl, uid=1000) --> host:443 error: …
+// The source carries the process when mihomo could find it.
+var mihomoDialError = regexp.MustCompile(`\[(?:TCP|UDP)\] dial (.+?) \(match [^)]*\) (.+?) --> (\S+):(\d+) error: (.*?)"?$`)
+
+var mihomoLevel = regexp.MustCompile(`^time="[^"]*" level=(\w+)`)
+
+func (*Mihomo) ObserveLog(line string) LogLine {
+	var l LogLine
+	if m := mihomoLevel.FindStringSubmatch(line); m != nil {
+		l.Level = m[1]
+	}
+	if m := mihomoDialError.FindStringSubmatch(line); m != nil {
+		l.Failure = &DialFailure{Via: m[1], Source: m[2], Host: m[3], Port: m[4], Error: m[5]}
+	}
+	return l
 }

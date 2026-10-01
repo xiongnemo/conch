@@ -1,6 +1,7 @@
 package api
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -10,6 +11,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"nautilus/internal/auth"
@@ -135,12 +137,20 @@ func (c *Client) Select(ctx context.Context, group, member string) error {
 	return c.do(ctx, http.MethodPut, "/api/v1/groups/"+url.PathEscape(group), map[string]string{"selected": member}, nil)
 }
 
-func (c *Client) Delay(ctx context.Context, name string) (time.Duration, error) {
-	var v struct {
-		Delay int64 `json:"delay"`
-	}
+// Delay is the result of a delay test.
+type Delay struct {
+	Delay int64             `json:"delay"` // milliseconds; 0 when the test failed
+	Error string            `json:"error,omitempty"`
+	Hops  []daemon.HopDelay `json:"hops,omitempty"` // for chains: through each hop
+}
+
+// Delay measures latency through an outbound. For chains it also
+// measures each hop, and a failed end-to-end test is reported in the
+// result rather than as an error.
+func (c *Client) Delay(ctx context.Context, name string) (Delay, error) {
+	var v Delay
 	err := c.do(ctx, http.MethodPost, "/api/v1/delay", map[string]string{"name": name}, &v)
-	return time.Duration(v.Delay) * time.Millisecond, err
+	return v, err
 }
 
 func (c *Client) SetMode(ctx context.Context, mode string) error {
@@ -157,6 +167,97 @@ func (c *Client) UpdateSubscription(ctx context.Context, name string) error {
 
 func (c *Client) Restart(ctx context.Context) error {
 	return c.do(ctx, http.MethodPost, "/api/v1/kernel/restart", nil, nil)
+}
+
+func (c *Client) Logs(ctx context.Context) ([]string, error) {
+	var l []string
+	return l, c.do(ctx, http.MethodGet, "/api/v1/logs", nil, &l)
+}
+
+func (c *Client) Connections(ctx context.Context) ([]daemon.Connection, error) {
+	var l []daemon.Connection
+	return l, c.do(ctx, http.MethodGet, "/api/v1/connections", nil, &l)
+}
+
+func (c *Client) CloseConnection(ctx context.Context, id string) error {
+	return c.do(ctx, http.MethodDelete, "/api/v1/connections/"+url.PathEscape(id), nil, nil)
+}
+
+func (c *Client) Failed(ctx context.Context) ([]daemon.Failed, error) {
+	var l []daemon.Failed
+	return l, c.do(ctx, http.MethodGet, "/api/v1/failed", nil, &l)
+}
+
+func (c *Client) ClearFailed(ctx context.Context) error {
+	return c.do(ctx, http.MethodDelete, "/api/v1/failed", nil, nil)
+}
+
+// Suggest proposes route targets for a host, the registrable domain first.
+func (c *Client) Suggest(ctx context.Context, host string) ([]string, error) {
+	var l []string
+	return l, c.do(ctx, http.MethodGet, "/api/v1/suggest?host="+url.QueryEscape(host), nil, &l)
+}
+
+// Event is one server-sent event: a state change, a traffic sample or a log line.
+type Event struct {
+	Type string
+	Data json.RawMessage
+}
+
+// Events streams the daemon's events until ctx is done or the
+// connection drops; the channel is closed then.
+func (c *Client) Events(ctx context.Context) (<-chan Event, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.Base+"/api/v1/events", nil)
+	if err != nil {
+		return nil, err
+	}
+	if c.Password != "" {
+		req.Header.Set("Authorization", "Bearer "+c.Password)
+	}
+	stream := &http.Client{Transport: c.HTTP.Transport} // no timeout: the stream stays open
+	resp, err := stream.Do(req)
+	if err != nil {
+		var op *net.OpError
+		if errors.As(err, &op) && op.Op == "dial" {
+			return nil, ErrNotRunning
+		}
+		return nil, err
+	}
+	if resp.StatusCode != http.StatusOK {
+		defer resp.Body.Close()
+		e := &APIError{Status: resp.StatusCode}
+		if json.NewDecoder(resp.Body).Decode(&e.Body) != nil {
+			e.Body.Error = resp.Status
+		}
+		return nil, e
+	}
+	ch := make(chan Event, 16)
+	go func() {
+		defer close(ch)
+		defer resp.Body.Close()
+		sc := bufio.NewScanner(resp.Body)
+		sc.Buffer(make([]byte, 64*1024), 4<<20)
+		var ev Event
+		for sc.Scan() {
+			line := sc.Text()
+			switch {
+			case line == "":
+				if ev.Type != "" {
+					select {
+					case ch <- ev:
+					case <-ctx.Done():
+						return
+					}
+				}
+				ev = Event{}
+			case strings.HasPrefix(line, "event: "):
+				ev.Type = strings.TrimPrefix(line, "event: ")
+			case strings.HasPrefix(line, "data: "):
+				ev.Data = append(ev.Data, strings.TrimPrefix(line, "data: ")...)
+			}
+		}
+	}()
+	return ch, nil
 }
 
 // String helps error messages mention where the daemon was expected.

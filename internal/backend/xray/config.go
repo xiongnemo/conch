@@ -249,6 +249,7 @@ type rule struct {
 	Network     string   `json:"network,omitempty"`
 	OutboundTag string   `json:"outboundTag,omitempty"`
 	BalancerTag string   `json:"balancerTag,omitempty"`
+	RuleTag     string   `json:"ruleTag,omitempty"`
 }
 
 type balancer struct {
