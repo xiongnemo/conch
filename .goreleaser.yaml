@@ -31,14 +31,35 @@ builds:
       - windows_amd64_v1
       - windows_arm64
       - freebsd_amd64_v1
+  # For routers (OpenWrt): no TUI, and a memory limit for small RAM.
+  - id: nautilus-lite
+    main: ./cmd/nautilus
+    binary: nautilus
+    env: [CGO_ENABLED=0]
+    flags: [-trimpath]
+    tags: [lite]
+    ldflags: ["-s -w -X main.version={{ .Version }}"]
+    targets:
+      - linux_arm64
+      - linux_arm_7
+      - linux_mipsle_softfloat
+      - linux_mips_softfloat
 
 archives:
-  - formats: [tar.gz]
+  - ids: [nautilus]
+    formats: [tar.gz]
     format_overrides:
       - goos: windows
         formats: [zip]
     name_template: >-
       {{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ with .Arm }}v{{ . }}{{ end }}{{ with .Mips }}_{{ . }}{{ end }}
+    files:
+      - examples/profile.yaml
+  - id: lite
+    ids: [nautilus-lite]
+    formats: [tar.gz]
+    name_template: >-
+      {{ .ProjectName }}-lite_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ with .Arm }}v{{ . }}{{ end }}{{ with .Mips }}_{{ . }}{{ end }}
     files:
       - examples/profile.yaml
 
@@ -47,6 +68,7 @@ checksum:
 
 nfpms:
   - package_name: nautilus
+    ids: [nautilus]
     maintainer: Nautilus <maintainers@nautilus.invalid>
     description: Routing-table proxy shell with multi-hop chains, for the mihomo and xray kernels.
     formats: [deb, rpm, apk, archlinux]

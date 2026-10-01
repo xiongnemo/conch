@@ -87,6 +87,11 @@ type daemonFlags struct {
 
 // runDaemon runs the daemon and its HTTP server until ctx is done.
 func runDaemon(ctx context.Context, out io.Writer, f daemonFlags) error {
+	// Routers without a battery-backed clock boot in the past, and then
+	// every TLS handshake fails on "certificate not yet valid".
+	if now := time.Now(); now.Year() < 2025 {
+		fmt.Fprintf(out, "警告：系统时间是 %s，看起来不对；TLS 连接会失败，请先同步时间（例如开启 NTP）\n", now.Format(time.DateTime))
+	}
 	settings, cwd, err := loadSettings()
 	if err != nil {
 		return err
