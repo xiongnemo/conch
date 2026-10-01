@@ -21,6 +21,10 @@ type Spec struct {
 	Args []string
 	Env  []string // added to the daemon's environment
 	Dir  string
+	// Clean lists files a killed process leaves behind that would stop
+	// the next one, removed before every start: on Windows, a unix
+	// socket's file outlives the process, and listening on it fails.
+	Clean []string
 }
 
 type State string
@@ -105,6 +109,9 @@ func (s *Supervisor) launch(gen int) error {
 		// Pdeathsig is tied to the thread that started the child, so the
 		// same locked thread starts the child and waits for it.
 		runtime.LockOSThread()
+		for _, f := range spec.Clean {
+			os.Remove(f)
+		}
 		cmd := exec.Command(spec.Path, spec.Args...)
 		cmd.Dir = spec.Dir
 		cmd.Env = append(os.Environ(), spec.Env...)

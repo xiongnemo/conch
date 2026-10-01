@@ -3,6 +3,9 @@
 package kernel
 
 import (
+	"fmt"
+	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -96,5 +99,29 @@ func TestRing(t *testing.T) {
 	}
 	if got := r.Lines(); !slices.Equal(got, []string{"b", "c", "d"}) {
 		t.Errorf("Lines = %q", got)
+	}
+}
+
+// What a killed process left behind is gone before every start, also the
+// restarts after a crash.
+func TestCleanBeforeStart(t *testing.T) {
+	stale := filepath.Join(t.TempDir(), "kernel.sock")
+	s := NewSupervisor()
+	// Each run checks the file is gone, then leaves it behind and crashes.
+	script := fmt.Sprintf(`test -e %[1]q && echo stale || echo clean; touch %[1]q; exit 1`, stale)
+	os.WriteFile(stale, nil, 0o600)
+	if err := s.Start(Spec{Path: "/bin/sh", Args: []string{"-c", script}, Clean: []string{stale}}); err != nil {
+		t.Fatal(err)
+	}
+	defer s.Stop()
+	deadline := time.Now().Add(5 * time.Second)
+	for s.Status().Restarts == 0 || len(s.Logs.Lines()) < 2 {
+		if time.Now().After(deadline) {
+			t.Fatal("no restart after a crash")
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	if lines := s.Logs.Lines(); slices.Contains(lines, "stale") {
+		t.Errorf("a start found the stale file: %q", lines)
 	}
 }

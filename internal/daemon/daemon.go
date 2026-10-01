@@ -387,7 +387,11 @@ func (d *Daemon) apply(ctx context.Context, res *compile.Result, art *backend.Ar
 		}
 	}
 	if restarted {
-		if err := d.sup.Start(d.ctl.Spec(d.bin, d.home, final)); err != nil {
+		spec := d.ctl.Spec(d.bin, d.home, final)
+		for _, s := range append([]string{d.socket}, d.probes...) {
+			spec.Clean = append(spec.Clean, s, s+".lock") // xray locks its sockets
+		}
+		if err := d.sup.Start(spec); err != nil {
 			return err
 		}
 		if err := d.waitReady(ctx, res.Settings.MixedPort); err != nil {

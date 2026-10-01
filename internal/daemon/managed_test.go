@@ -2,6 +2,7 @@ package daemon
 
 import (
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -30,10 +31,11 @@ func TestMergeEntries(t *testing.T) {
 
 // Unix socket paths may not be much longer than 100 bytes on any OS.
 func TestSocketDir(t *testing.T) {
-	if got := socketDir("/home/u/.local/share/nautilus"); got != "/home/u/.local/share/nautilus/run" {
-		t.Errorf("socketDir = %s", got)
+	base := filepath.Join(string(filepath.Separator)+"home", "u", "nautilus")
+	if got := socketDir(base); got != filepath.Join(base, "run") {
+		t.Errorf("socketDir(%s) = %s", base, got)
 	}
-	deep := "/" + strings.Repeat("deep/", 20) + "nautilus"
+	deep := filepath.Join(append([]string{base}, slices.Repeat([]string{"deep"}, 20)...)...)
 	got := socketDir(deep)
 	if len(filepath.Join(got, "xray-probe-4.sock")) > 100 || got != socketDir(deep) || strings.HasPrefix(got, deep) {
 		t.Errorf("socketDir(%s) = %s", deep, got)
