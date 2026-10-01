@@ -17,8 +17,10 @@ import (
 	"sync/atomic"
 	"time"
 
+	"nautilus/internal/auth"
 	"nautilus/internal/backend"
 	"nautilus/internal/backend/mihomo"
+	"nautilus/internal/backend/singbox"
 	"nautilus/internal/backend/xray"
 	"nautilus/internal/compile"
 	"nautilus/internal/control"
@@ -75,7 +77,9 @@ type Daemon struct {
 	subInfo     map[string]*subscription.Info
 	managedHash [32]byte
 	stopTraffic context.CancelFunc
-	probes      []string     // sockets of the kernel's delay-test inbounds
+	probes      []string // sockets of the kernel's delay-test inbounds
+	controller  string   // the kernel API's TCP address, for kernels without unix sockets
+	secret      string
 	logLevel    atomic.Value // string: the profile's log-level
 
 	failures failures
@@ -83,7 +87,7 @@ type Daemon struct {
 	sidecars sidecarSet
 }
 
-var backends = map[string]backend.Router{"mihomo": mihomo.Backend{}, "xray": xray.Backend{}}
+var backends = map[string]backend.Router{"mihomo": mihomo.Backend{}, "xray": xray.Backend{}, "sing-box": singbox.Backend{}}
 
 func New(opts Options) (*Daemon, error) {
 	if opts.Log == nil {
@@ -139,6 +143,10 @@ func New(opts Options) (*Daemon, error) {
 			d.probes = append(d.probes, socket)
 		}
 		d.ctl = x
+	case "sing-box":
+		// Its API only listens on TCP: a loopback port with a secret.
+		d.controller, d.secret = fmt.Sprintf("127.0.0.1:%d", freeLocalPort()), auth.NewPassword()
+		d.ctl = control.NewSingBox(d.controller, d.secret)
 	}
 	d.sup.OnLine = func(l string) bool {
 		ll := d.ctl.ObserveLog(l)
@@ -280,7 +288,11 @@ func (d *Daemon) build(ctx context.Context) (*compile.Result, *backend.Artifact,
 	if diags.HasErrors() {
 		return res, nil, diags, nil
 	}
-	art, more := d.backend.Encode(enc, backend.Options{ControllerUnix: d.socket, Lists: d.listLoader(ctx), Probes: d.probes, MinLogLevel: d.ctl.LogLevel(), Forwards: forwards})
+	opts := backend.Options{ControllerUnix: d.socket, Lists: d.listLoader(ctx), Probes: d.probes, MinLogLevel: d.ctl.LogLevel(), Forwards: forwards}
+	if d.controller != "" {
+		opts.ControllerUnix, opts.Controller, opts.Secret = "", d.controller, d.secret
+	}
+	art, more := d.backend.Encode(enc, opts)
 	diags = append(diags, more...)
 	if diags.HasErrors() {
 		return res, nil, diags, nil

@@ -1,0 +1,2 @@
+警告：订阅 "airport-a" 中有 1 条规则 sing-box 无法表达，已跳过（例如 "AND,((NETWORK,UDP),(DST-PORT,443)),REJECT"）
+警告 ../testdata/airport.profile.yaml:17：规则列表 https://example.com/rules/streaming.yaml 中有 1 条 sing-box 无法表达的规则，已跳过（例如 "USER-AGENT,Netflix*"）

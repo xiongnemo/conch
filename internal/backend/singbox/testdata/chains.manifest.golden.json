@@ -1,0 +1,285 @@
+{
+  "backend": "sing-box",
+  "proxies": [
+    {
+      "name": "入口， A",
+      "kind": "node",
+      "node": "入口， A"
+    },
+    {
+      "name": "中转",
+      "kind": "node",
+      "node": "中转",
+      "upstream": "落地"
+    },
+    {
+      "name": "落地",
+      "kind": "node",
+      "node": "落地"
+    },
+    {
+      "name": "手写链",
+      "kind": "node",
+      "node": "手写链",
+      "upstream": "入口， A"
+    },
+    {
+      "name": "两跳",
+      "kind": "chain-exit",
+      "node": "中转",
+      "chain": "两跳",
+      "hop": 1,
+      "upstream": "入口， A"
+    },
+    {
+      "name": "三跳›1›入口， A",
+      "kind": "chain-hop",
+      "node": "入口， A",
+      "chain": "三跳",
+      "hop": 1,
+      "upstream": "入口组"
+    },
+    {
+      "name": "三跳›2›中转",
+      "kind": "chain-hop",
+      "node": "中转",
+      "chain": "三跳",
+      "hop": 2,
+      "upstream": "三跳›1›入口， A"
+    },
+    {
+      "name": "三跳",
+      "kind": "chain-exit",
+      "node": "落地",
+      "chain": "三跳",
+      "hop": 3,
+      "upstream": "三跳›2›中转"
+    },
+    {
+      "name": "接力",
+      "kind": "chain-exit",
+      "node": "落地",
+      "chain": "接力",
+      "hop": 1,
+      "upstream": "两跳"
+    },
+    {
+      "name": "中间组›1›落地",
+      "kind": "chain-hop",
+      "node": "落地",
+      "chain": "中间组",
+      "hop": 1,
+      "upstream": "入口， A"
+    },
+    {
+      "name": "中间组›1›手写链",
+      "kind": "chain-hop",
+      "node": "手写链",
+      "chain": "中间组",
+      "hop": 1,
+      "upstream": "入口， A"
+    },
+    {
+      "name": "中间组",
+      "kind": "chain-exit",
+      "node": "落地",
+      "chain": "中间组",
+      "hop": 2,
+      "upstream": "中间组›1›出口选择"
+    },
+    {
+      "name": "末尾组›1›落地",
+      "kind": "chain-hop",
+      "node": "落地",
+      "chain": "末尾组",
+      "hop": 1,
+      "upstream": "入口， A"
+    },
+    {
+      "name": "末尾组›1›手写链",
+      "kind": "chain-hop",
+      "node": "手写链",
+      "chain": "末尾组",
+      "hop": 1,
+      "upstream": "入口， A"
+    },
+    {
+      "name": "入口组→落地",
+      "kind": "chain-exit",
+      "node": "落地",
+      "chain": "入口组→落地",
+      "hop": 1,
+      "upstream": "入口组"
+    }
+  ],
+  "rules": [
+    {
+      "index": 0,
+      "rule": "{\"domain_suffix\":[\"a.example\"],\"action\":\"route\",\"outbound\":\"接力\"}",
+      "tag": "domain_suffix=a.example",
+      "tier": "domain",
+      "key": "a.example",
+      "source": "../testdata/chains.profile.yaml:25"
+    },
+    {
+      "index": 1,
+      "rule": "{\"domain_suffix\":[\"b.example\"],\"action\":\"route\",\"outbound\":\"入口组→落地\"}",
+      "tag": "domain_suffix=b.example",
+      "tier": "domain",
+      "key": "b.example",
+      "source": "../testdata/chains.profile.yaml:26"
+    },
+    {
+      "index": 2,
+      "rule": "{\"domain_suffix\":[\"c.example\"],\"action\":\"route\",\"outbound\":\"中间组\"}",
+      "tag": "domain_suffix=c.example",
+      "tier": "domain",
+      "key": "c.example",
+      "source": "../testdata/chains.profile.yaml:27"
+    },
+    {
+      "index": 3,
+      "rule": "{\"domain_suffix\":[\"d.example\"],\"action\":\"route\",\"outbound\":\"末尾组\"}",
+      "tag": "domain_suffix=d.example",
+      "tier": "domain",
+      "key": "d.example",
+      "source": "../testdata/chains.profile.yaml:28"
+    },
+    {
+      "index": 4,
+      "rule": "{\"domain_suffix\":[\"home.arpa\"],\"action\":\"route\",\"outbound\":\"DIRECT\"}",
+      "tag": "domain_suffix=home.arpa",
+      "tier": "domain",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 5,
+      "rule": "{\"domain_suffix\":[\"lan\"],\"action\":\"route\",\"outbound\":\"DIRECT\"}",
+      "tag": "domain_suffix=lan",
+      "tier": "domain",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 6,
+      "rule": "{\"domain_suffix\":[\"local\"],\"action\":\"route\",\"outbound\":\"DIRECT\"}",
+      "tag": "domain_suffix=local",
+      "tier": "domain",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 7,
+      "rule": "{\"domain_suffix\":[\"localhost\"],\"action\":\"route\",\"outbound\":\"DIRECT\"}",
+      "tag": "domain_suffix=localhost",
+      "tier": "domain",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 8,
+      "rule": "{\"ip_cidr\":[\"::1/128\"],\"action\":\"route\",\"outbound\":\"DIRECT\"}",
+      "tag": "ip_cidr=::1/128",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 9,
+      "rule": "{\"ip_cidr\":[\"255.255.255.255/32\"],\"action\":\"route\",\"outbound\":\"DIRECT\"}",
+      "tag": "ip_cidr=255.255.255.255/32",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 10,
+      "rule": "{\"ip_cidr\":[\"169.254.0.0/16\"],\"action\":\"route\",\"outbound\":\"DIRECT\"}",
+      "tag": "ip_cidr=169.254.0.0/16",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 11,
+      "rule": "{\"ip_cidr\":[\"192.168.0.0/16\"],\"action\":\"route\",\"outbound\":\"DIRECT\"}",
+      "tag": "ip_cidr=192.168.0.0/16",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 12,
+      "rule": "{\"ip_cidr\":[\"172.16.0.0/12\"],\"action\":\"route\",\"outbound\":\"DIRECT\"}",
+      "tag": "ip_cidr=172.16.0.0/12",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 13,
+      "rule": "{\"ip_cidr\":[\"100.64.0.0/10\"],\"action\":\"route\",\"outbound\":\"DIRECT\"}",
+      "tag": "ip_cidr=100.64.0.0/10",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 14,
+      "rule": "{\"ip_cidr\":[\"fe80::/10\"],\"action\":\"route\",\"outbound\":\"DIRECT\"}",
+      "tag": "ip_cidr=fe80::/10",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 15,
+      "rule": "{\"ip_cidr\":[\"0.0.0.0/8\"],\"action\":\"route\",\"outbound\":\"DIRECT\"}",
+      "tag": "ip_cidr=0.0.0.0/8",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 16,
+      "rule": "{\"ip_cidr\":[\"10.0.0.0/8\"],\"action\":\"route\",\"outbound\":\"DIRECT\"}",
+      "tag": "ip_cidr=10.0.0.0/8",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 17,
+      "rule": "{\"ip_cidr\":[\"127.0.0.0/8\"],\"action\":\"route\",\"outbound\":\"DIRECT\"}",
+      "tag": "ip_cidr=127.0.0.0/8",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 18,
+      "rule": "{\"ip_cidr\":[\"ff00::/8\"],\"action\":\"route\",\"outbound\":\"DIRECT\"}",
+      "tag": "ip_cidr=ff00::/8",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 19,
+      "rule": "{\"ip_cidr\":[\"fc00::/7\"],\"action\":\"route\",\"outbound\":\"DIRECT\"}",
+      "tag": "ip_cidr=fc00::/7",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 20,
+      "rule": "{\"ip_cidr\":[\"224.0.0.0/4\"],\"action\":\"route\",\"outbound\":\"DIRECT\"}",
+      "tag": "ip_cidr=224.0.0.0/4",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    }
+  ]
+}

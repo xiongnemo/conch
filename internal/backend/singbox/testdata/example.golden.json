@@ -1,0 +1,390 @@
+{
+  "log": {
+    "level": "info",
+    "timestamp": true
+  },
+  "dns": {
+    "servers": [
+      {
+        "type": "https",
+        "tag": "dns-1",
+        "server": "223.5.5.5"
+      },
+      {
+        "type": "https",
+        "tag": "dns-2",
+        "server": "1.12.12.12"
+      }
+    ],
+    "final": "dns-1",
+    "strategy": "ipv4_only"
+  },
+  "inbounds": [
+    {
+      "type": "mixed",
+      "tag": "›mixed",
+      "listen": "127.0.0.1",
+      "listen_port": 7890
+    }
+  ],
+  "outbounds": [
+    {
+      "type": "direct",
+      "tag": "DIRECT"
+    },
+    {
+      "type": "shadowsocks",
+      "tag": "香港 01",
+      "server": "hk1.example.com",
+      "server_port": 8388,
+      "method": "aes-128-gcm",
+      "password": "pass"
+    },
+    {
+      "type": "trojan",
+      "tag": "香港 02",
+      "server": "hk2.example.com",
+      "server_port": 443,
+      "password": "pass",
+      "tls": {
+        "enabled": true,
+        "server_name": "hk2.example.com"
+      }
+    },
+    {
+      "type": "vless",
+      "tag": "日本 01",
+      "server": "jp1.example.com",
+      "server_port": 443,
+      "uuid": "00000000-0000-0000-0000-000000000000",
+      "flow": "xtls-rprx-vision",
+      "tls": {
+        "enabled": true,
+        "server_name": "www.example.com",
+        "utls": {
+          "enabled": true,
+          "fingerprint": "chrome"
+        },
+        "reality": {
+          "enabled": true,
+          "public_key": "BkDN6JhDpzeaKaAuy4k_dgzzDOrjd5dJdm8KtB-vHSc",
+          "short_id": "01"
+        }
+      }
+    },
+    {
+      "type": "socks",
+      "tag": "home",
+      "server": "203.0.113.10",
+      "server_port": 1080,
+      "version": "5",
+      "username": "u",
+      "password": "p"
+    },
+    {
+      "type": "socks",
+      "tag": "AI-Exit",
+      "server": "203.0.113.10",
+      "server_port": 1080,
+      "version": "5",
+      "username": "u",
+      "password": "p",
+      "detour": "香港自动"
+    },
+    {
+      "type": "socks",
+      "tag": "日本 01→home",
+      "server": "203.0.113.10",
+      "server_port": 1080,
+      "version": "5",
+      "username": "u",
+      "password": "p",
+      "detour": "日本 01"
+    },
+    {
+      "type": "urltest",
+      "tag": "香港自动",
+      "outbounds": [
+        "香港 01",
+        "香港 02"
+      ],
+      "url": "https://www.gstatic.com/generate_204",
+      "interval": "300s"
+    },
+    {
+      "type": "selector",
+      "tag": "节点选择",
+      "outbounds": [
+        "香港自动",
+        "日本 01",
+        "AI-Exit",
+        "DIRECT"
+      ]
+    },
+    {
+      "type": "selector",
+      "tag": "GLOBAL",
+      "outbounds": [
+        "香港自动",
+        "节点选择",
+        "AI-Exit",
+        "日本 01→home",
+        "香港 01",
+        "香港 02",
+        "日本 01",
+        "home",
+        "DIRECT"
+      ]
+    }
+  ],
+  "route": {
+    "rules": [
+      {
+        "action": "sniff"
+      },
+      {
+        "action": "resolve"
+      },
+      {
+        "process_name": [
+          "Telegram"
+        ],
+        "action": "route",
+        "outbound": "香港自动"
+      },
+      {
+        "domain": [
+          "api.example.com"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "domain_suffix": [
+          "mail.google.com"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "domain_suffix": [
+          "claude.ai"
+        ],
+        "action": "route",
+        "outbound": "日本 01→home"
+      },
+      {
+        "domain_suffix": [
+          "google.com"
+        ],
+        "action": "route",
+        "outbound": "节点选择"
+      },
+      {
+        "domain_suffix": [
+          "home.arpa"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "domain_suffix": [
+          "openai.com"
+        ],
+        "action": "route",
+        "outbound": "AI-Exit"
+      },
+      {
+        "domain_suffix": [
+          "lan"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "domain_suffix": [
+          "local"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "domain_suffix": [
+          "localhost"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "ip_cidr": [
+          "::1/128"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "ip_cidr": [
+          "255.255.255.255/32"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "ip_cidr": [
+          "149.154.160.0/20"
+        ],
+        "action": "route",
+        "outbound": "香港自动"
+      },
+      {
+        "ip_cidr": [
+          "169.254.0.0/16"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "ip_cidr": [
+          "192.168.0.0/16"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "ip_cidr": [
+          "172.16.0.0/12"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "ip_cidr": [
+          "100.64.0.0/10"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "ip_cidr": [
+          "fe80::/10"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "ip_cidr": [
+          "0.0.0.0/8"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "ip_cidr": [
+          "10.0.0.0/8"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "ip_cidr": [
+          "127.0.0.0/8"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "ip_cidr": [
+          "ff00::/8"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "ip_cidr": [
+          "fc00::/7"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "ip_cidr": [
+          "224.0.0.0/4"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "rule_set": [
+          "geosite-category-ads-all"
+        ],
+        "action": "reject"
+      },
+      {
+        "rule_set": [
+          "geosite-gfw"
+        ],
+        "action": "route",
+        "outbound": "节点选择"
+      },
+      {
+        "rule_set": [
+          "geosite-cn"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "rule_set": [
+          "geoip-cn"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      }
+    ],
+    "rule_set": [
+      {
+        "type": "remote",
+        "tag": "geosite-category-ads-all",
+        "format": "binary",
+        "url": "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo/geosite/category-ads-all.srs",
+        "http_client": {
+          "detour": "节点选择"
+        },
+        "update_interval": "1d"
+      },
+      {
+        "type": "remote",
+        "tag": "geosite-gfw",
+        "format": "binary",
+        "url": "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo/geosite/gfw.srs",
+        "http_client": {
+          "detour": "节点选择"
+        },
+        "update_interval": "1d"
+      },
+      {
+        "type": "remote",
+        "tag": "geosite-cn",
+        "format": "binary",
+        "url": "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo/geosite/cn.srs",
+        "http_client": {
+          "detour": "节点选择"
+        },
+        "update_interval": "1d"
+      },
+      {
+        "type": "remote",
+        "tag": "geoip-cn",
+        "format": "binary",
+        "url": "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo/geoip/cn.srs",
+        "http_client": {
+          "detour": "节点选择"
+        },
+        "update_interval": "1d"
+      }
+    ],
+    "final": "节点选择",
+    "auto_detect_interface": true,
+    "default_domain_resolver": "dns-1"
+  }
+}

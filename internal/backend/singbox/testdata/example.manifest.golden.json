@@ -1,0 +1,267 @@
+{
+  "backend": "sing-box",
+  "proxies": [
+    {
+      "name": "香港 01",
+      "kind": "node",
+      "node": "香港 01"
+    },
+    {
+      "name": "香港 02",
+      "kind": "node",
+      "node": "香港 02"
+    },
+    {
+      "name": "日本 01",
+      "kind": "node",
+      "node": "日本 01"
+    },
+    {
+      "name": "home",
+      "kind": "node",
+      "node": "home"
+    },
+    {
+      "name": "AI-Exit",
+      "kind": "chain-exit",
+      "node": "home",
+      "chain": "AI-Exit",
+      "hop": 1,
+      "upstream": "香港自动"
+    },
+    {
+      "name": "日本 01→home",
+      "kind": "chain-exit",
+      "node": "home",
+      "chain": "日本 01→home",
+      "hop": 1,
+      "upstream": "日本 01"
+    }
+  ],
+  "rules": [
+    {
+      "index": 0,
+      "rule": "{\"process_name\":[\"Telegram\"],\"action\":\"route\",\"outbound\":\"香港自动\"}",
+      "tag": "process_name=Telegram",
+      "tier": "app",
+      "key": "app:Telegram",
+      "source": "../../../examples/profile.yaml:30"
+    },
+    {
+      "index": 1,
+      "rule": "{\"domain\":[\"api.example.com\"],\"action\":\"route\",\"outbound\":\"DIRECT\"}",
+      "tag": "domain=api.example.com",
+      "tier": "domain",
+      "key": "=api.example.com",
+      "source": "../../../examples/profile.yaml:27"
+    },
+    {
+      "index": 2,
+      "rule": "{\"domain_suffix\":[\"mail.google.com\"],\"action\":\"route\",\"outbound\":\"DIRECT\"}",
+      "tag": "domain_suffix=mail.google.com",
+      "tier": "domain",
+      "key": "mail.google.com",
+      "source": "../../../examples/profile.yaml:26"
+    },
+    {
+      "index": 3,
+      "rule": "{\"domain_suffix\":[\"claude.ai\"],\"action\":\"route\",\"outbound\":\"日本 01→home\"}",
+      "tag": "domain_suffix=claude.ai",
+      "tier": "domain",
+      "key": "claude.ai",
+      "source": "../../../examples/profile.yaml:24"
+    },
+    {
+      "index": 4,
+      "rule": "{\"domain_suffix\":[\"google.com\"],\"action\":\"route\",\"outbound\":\"节点选择\"}",
+      "tag": "domain_suffix=google.com",
+      "tier": "domain",
+      "key": "google.com",
+      "source": "../../../examples/profile.yaml:25"
+    },
+    {
+      "index": 5,
+      "rule": "{\"domain_suffix\":[\"home.arpa\"],\"action\":\"route\",\"outbound\":\"DIRECT\"}",
+      "tag": "domain_suffix=home.arpa",
+      "tier": "domain",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 6,
+      "rule": "{\"domain_suffix\":[\"openai.com\"],\"action\":\"route\",\"outbound\":\"AI-Exit\"}",
+      "tag": "domain_suffix=openai.com",
+      "tier": "domain",
+      "key": "openai.com",
+      "source": "../../../examples/profile.yaml:23"
+    },
+    {
+      "index": 7,
+      "rule": "{\"domain_suffix\":[\"lan\"],\"action\":\"route\",\"outbound\":\"DIRECT\"}",
+      "tag": "domain_suffix=lan",
+      "tier": "domain",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 8,
+      "rule": "{\"domain_suffix\":[\"local\"],\"action\":\"route\",\"outbound\":\"DIRECT\"}",
+      "tag": "domain_suffix=local",
+      "tier": "domain",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 9,
+      "rule": "{\"domain_suffix\":[\"localhost\"],\"action\":\"route\",\"outbound\":\"DIRECT\"}",
+      "tag": "domain_suffix=localhost",
+      "tier": "domain",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 10,
+      "rule": "{\"ip_cidr\":[\"::1/128\"],\"action\":\"route\",\"outbound\":\"DIRECT\"}",
+      "tag": "ip_cidr=::1/128",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 11,
+      "rule": "{\"ip_cidr\":[\"255.255.255.255/32\"],\"action\":\"route\",\"outbound\":\"DIRECT\"}",
+      "tag": "ip_cidr=255.255.255.255/32",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 12,
+      "rule": "{\"ip_cidr\":[\"149.154.160.0/20\"],\"action\":\"route\",\"outbound\":\"香港自动\"}",
+      "tag": "ip_cidr=149.154.160.0/20",
+      "tier": "ip",
+      "key": "149.154.160.0/20",
+      "source": "../../../examples/profile.yaml:29"
+    },
+    {
+      "index": 13,
+      "rule": "{\"ip_cidr\":[\"169.254.0.0/16\"],\"action\":\"route\",\"outbound\":\"DIRECT\"}",
+      "tag": "ip_cidr=169.254.0.0/16",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 14,
+      "rule": "{\"ip_cidr\":[\"192.168.0.0/16\"],\"action\":\"route\",\"outbound\":\"DIRECT\"}",
+      "tag": "ip_cidr=192.168.0.0/16",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 15,
+      "rule": "{\"ip_cidr\":[\"172.16.0.0/12\"],\"action\":\"route\",\"outbound\":\"DIRECT\"}",
+      "tag": "ip_cidr=172.16.0.0/12",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 16,
+      "rule": "{\"ip_cidr\":[\"100.64.0.0/10\"],\"action\":\"route\",\"outbound\":\"DIRECT\"}",
+      "tag": "ip_cidr=100.64.0.0/10",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 17,
+      "rule": "{\"ip_cidr\":[\"fe80::/10\"],\"action\":\"route\",\"outbound\":\"DIRECT\"}",
+      "tag": "ip_cidr=fe80::/10",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 18,
+      "rule": "{\"ip_cidr\":[\"0.0.0.0/8\"],\"action\":\"route\",\"outbound\":\"DIRECT\"}",
+      "tag": "ip_cidr=0.0.0.0/8",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 19,
+      "rule": "{\"ip_cidr\":[\"10.0.0.0/8\"],\"action\":\"route\",\"outbound\":\"DIRECT\"}",
+      "tag": "ip_cidr=10.0.0.0/8",
+      "tier": "ip",
+      "key": "10.0.0.0/8",
+      "source": "../../../examples/profile.yaml:28"
+    },
+    {
+      "index": 20,
+      "rule": "{\"ip_cidr\":[\"127.0.0.0/8\"],\"action\":\"route\",\"outbound\":\"DIRECT\"}",
+      "tag": "ip_cidr=127.0.0.0/8",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 21,
+      "rule": "{\"ip_cidr\":[\"ff00::/8\"],\"action\":\"route\",\"outbound\":\"DIRECT\"}",
+      "tag": "ip_cidr=ff00::/8",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 22,
+      "rule": "{\"ip_cidr\":[\"fc00::/7\"],\"action\":\"route\",\"outbound\":\"DIRECT\"}",
+      "tag": "ip_cidr=fc00::/7",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 23,
+      "rule": "{\"ip_cidr\":[\"224.0.0.0/4\"],\"action\":\"route\",\"outbound\":\"DIRECT\"}",
+      "tag": "ip_cidr=224.0.0.0/4",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 24,
+      "rule": "{\"rule_set\":[\"geosite-category-ads-all\"],\"action\":\"reject\"}",
+      "tag": "rule_set=geosite-category-ads-all",
+      "tier": "list",
+      "key": "ads",
+      "source": "../../../examples/profile.yaml:32"
+    },
+    {
+      "index": 25,
+      "rule": "{\"rule_set\":[\"geosite-gfw\"],\"action\":\"route\",\"outbound\":\"节点选择\"}",
+      "tag": "rule_set=geosite-gfw",
+      "tier": "list",
+      "key": "gfwlist",
+      "source": "../../../examples/profile.yaml:33"
+    },
+    {
+      "index": 26,
+      "rule": "{\"rule_set\":[\"geosite-cn\"],\"action\":\"route\",\"outbound\":\"DIRECT\"}",
+      "tag": "rule_set=geosite-cn",
+      "tier": "list",
+      "key": "geosite:cn",
+      "source": "../../../examples/profile.yaml:34"
+    },
+    {
+      "index": 27,
+      "rule": "{\"rule_set\":[\"geoip-cn\"],\"action\":\"route\",\"outbound\":\"DIRECT\"}",
+      "tag": "rule_set=geoip-cn",
+      "tier": "list",
+      "key": "geoip:cn",
+      "source": "../../../examples/profile.yaml:35"
+    }
+  ]
+}

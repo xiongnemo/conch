@@ -11,6 +11,7 @@ import (
 
 	"nautilus/internal/backend"
 	"nautilus/internal/backend/mihomo"
+	"nautilus/internal/backend/singbox"
 	"nautilus/internal/backend/xray"
 	"nautilus/internal/compile"
 	"nautilus/internal/diag"
@@ -22,15 +23,16 @@ import (
 )
 
 var backends = map[string]backend.Router{
-	"mihomo": mihomo.Backend{},
-	"xray":   xray.Backend{},
+	"mihomo":   mihomo.Backend{},
+	"xray":     xray.Backend{},
+	"sing-box": singbox.Backend{},
 }
 
 func lookupBackend(name string) (backend.Router, error) {
 	if b, ok := backends[name]; ok {
 		return b, nil
 	}
-	return nil, fmt.Errorf("不认识的后端 %q（可以用 mihomo 或 xray）", name)
+	return nil, fmt.Errorf("不认识的后端 %q（可以用 mihomo、xray 或 sing-box）", name)
 }
 
 // pipeline loads a profile with its subscriptions and compiles it.
@@ -135,7 +137,7 @@ func newCompileCmd() *cobra.Command {
 	f.BoolVar(&pl.offline, "offline", false, "不下载订阅和规则列表，只用已缓存的")
 	f.StringVarP(&outPath, "output", "o", "-", "输出文件，- 表示标准输出")
 	f.StringVar(&manifestPath, "manifest", "", "同时输出 manifest（JSON）到这个文件")
-	f.StringVar(&backendName, "backend", "mihomo", "内核后端：mihomo 或 xray")
+	f.StringVar(&backendName, "backend", "mihomo", "内核后端：mihomo、xray 或 sing-box")
 	f.StringVar(&opts.ControllerUnix, "controller-unix", "", "内核 API 的 unix socket 路径")
 	f.StringVar(&opts.ControllerPipe, "controller-pipe", "", "内核 API 的 Windows 命名管道")
 	f.StringVar(&opts.Controller, "controller", "", "内核 API 的 TCP 地址（仅用于调试）")

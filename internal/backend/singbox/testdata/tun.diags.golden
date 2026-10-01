@@ -1,0 +1,1 @@
+警告 ../testdata/tun.profile.yaml:5：出口组 "Proxy"：sing-box 没有故障转移组，改为自动选择延迟最低的成员

@@ -1,0 +1,294 @@
+{
+  "log": {
+    "level": "info",
+    "timestamp": true
+  },
+  "dns": {
+    "servers": [
+      {
+        "type": "https",
+        "tag": "dns-1",
+        "server": "223.5.5.5"
+      },
+      {
+        "type": "https",
+        "tag": "dns-2",
+        "server": "1.12.12.12"
+      }
+    ],
+    "final": "dns-1",
+    "strategy": "ipv4_only"
+  },
+  "inbounds": [
+    {
+      "type": "mixed",
+      "tag": "›mixed",
+      "listen": "127.0.0.1",
+      "listen_port": 7890
+    }
+  ],
+  "outbounds": [
+    {
+      "type": "direct",
+      "tag": "DIRECT"
+    },
+    {
+      "type": "trojan",
+      "tag": "a",
+      "server": "192.0.2.1",
+      "server_port": 443,
+      "password": "p",
+      "tls": {
+        "enabled": true
+      }
+    },
+    {
+      "type": "trojan",
+      "tag": "a2",
+      "server": "192.0.2.2",
+      "server_port": 443,
+      "password": "p",
+      "tls": {
+        "enabled": true
+      }
+    },
+    {
+      "type": "trojan",
+      "tag": "b",
+      "server": "192.0.2.3",
+      "server_port": 443,
+      "password": "p",
+      "tls": {
+        "enabled": true
+      }
+    },
+    {
+      "type": "socks",
+      "tag": "exit",
+      "server": "192.0.2.4",
+      "server_port": 1080,
+      "version": "5"
+    },
+    {
+      "type": "socks",
+      "tag": "出口链",
+      "server": "192.0.2.4",
+      "server_port": 1080,
+      "version": "5",
+      "detour": "自动"
+    },
+    {
+      "type": "urltest",
+      "tag": "自动",
+      "outbounds": [
+        "a",
+        "a2"
+      ],
+      "url": "https://www.gstatic.com/generate_204",
+      "interval": "300s",
+      "tolerance": 50
+    },
+    {
+      "type": "urltest",
+      "tag": "备用",
+      "outbounds": [
+        "a",
+        "b",
+        "DIRECT"
+      ],
+      "url": "https://cp.cloudflare.com",
+      "interval": "60s"
+    },
+    {
+      "type": "urltest",
+      "tag": "轮询",
+      "outbounds": [
+        "a",
+        "a2",
+        "b"
+      ],
+      "url": "https://www.gstatic.com/generate_204",
+      "interval": "300s"
+    },
+    {
+      "type": "urltest",
+      "tag": "一致",
+      "outbounds": [
+        "a",
+        "b"
+      ],
+      "url": "https://www.gstatic.com/generate_204",
+      "interval": "300s"
+    },
+    {
+      "type": "selector",
+      "tag": "选择",
+      "outbounds": [
+        "自动",
+        "备用",
+        "出口链",
+        "DIRECT"
+      ]
+    },
+    {
+      "type": "selector",
+      "tag": "GLOBAL",
+      "outbounds": [
+        "自动",
+        "备用",
+        "轮询",
+        "一致",
+        "选择",
+        "出口链",
+        "a",
+        "a2",
+        "b",
+        "exit",
+        "DIRECT"
+      ]
+    }
+  ],
+  "route": {
+    "rules": [
+      {
+        "action": "sniff"
+      },
+      {
+        "domain_suffix": [
+          "a.example"
+        ],
+        "action": "route",
+        "outbound": "轮询"
+      },
+      {
+        "domain_suffix": [
+          "b.example"
+        ],
+        "action": "route",
+        "outbound": "一致"
+      },
+      {
+        "domain_suffix": [
+          "home.arpa"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "domain_suffix": [
+          "lan"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "domain_suffix": [
+          "local"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "domain_suffix": [
+          "localhost"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "ip_cidr": [
+          "::1/128"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "ip_cidr": [
+          "255.255.255.255/32"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "ip_cidr": [
+          "169.254.0.0/16"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "ip_cidr": [
+          "192.168.0.0/16"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "ip_cidr": [
+          "172.16.0.0/12"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "ip_cidr": [
+          "100.64.0.0/10"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "ip_cidr": [
+          "fe80::/10"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "ip_cidr": [
+          "0.0.0.0/8"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "ip_cidr": [
+          "10.0.0.0/8"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "ip_cidr": [
+          "127.0.0.0/8"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "ip_cidr": [
+          "ff00::/8"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "ip_cidr": [
+          "fc00::/7"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "ip_cidr": [
+          "224.0.0.0/4"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      }
+    ],
+    "final": "选择",
+    "auto_detect_interface": true,
+    "default_domain_resolver": "dns-1"
+  }
+}

@@ -37,7 +37,8 @@ func (d *Daemon) takeoverDNS() string {
 // syncDNS redirects the system resolver while the applied config uses
 // TUN, where the OS needs it, and restores it otherwise.
 func (d *Daemon) syncDNS() {
-	if !dnsNeeded() {
+	// sing-box sets the system resolver for its TUN device itself.
+	if !dnsNeeded() || d.backend != nil && d.backend.Name() == "sing-box" {
 		return
 	}
 	d.mu.Lock()

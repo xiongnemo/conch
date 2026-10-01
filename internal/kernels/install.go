@@ -1,6 +1,7 @@
 package kernels
 
 import (
+	"archive/tar"
 	"archive/zip"
 	"compress/gzip"
 	"context"
@@ -178,6 +179,9 @@ func unpack(archive string, asset Asset, dir, bin string) error {
 		return err
 	}
 	defer f.Close()
+	if strings.HasSuffix(asset.Name, ".tar.gz") {
+		return untar(f, asset, dir, bin)
+	}
 	if strings.HasSuffix(asset.Name, ".gz") {
 		zr, err := gzip.NewReader(f)
 		if err != nil {
@@ -220,6 +224,42 @@ func unpack(archive string, asset Asset, dir, bin string) error {
 		if err != nil {
 			return err
 		}
+	}
+	return nil
+}
+
+// untar extracts the files an asset names from a .tar.gz archive.
+func untar(r io.Reader, asset Asset, dir, bin string) error {
+	zr, err := gzip.NewReader(r)
+	if err != nil {
+		return err
+	}
+	defer zr.Close()
+	tr := tar.NewReader(zr)
+	found := map[string]bool{}
+	for {
+		h, err := tr.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return err
+		}
+		if h.Typeflag != tar.TypeReg {
+			continue
+		}
+		for pattern, local := range asset.Files {
+			if ok, _ := path.Match(pattern, h.Name); ok && !found[local] {
+				if err := writeFile(filepath.Join(dir, local), tr); err != nil {
+					return err
+				}
+				found[local] = true
+				break
+			}
+		}
+	}
+	if !found[bin] {
+		return fmt.Errorf("压缩包里没有 %s", bin)
 	}
 	return nil
 }

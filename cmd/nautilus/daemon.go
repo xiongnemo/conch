@@ -68,7 +68,7 @@ func newDaemonCmd() *cobra.Command {
 	}
 	fl := cmd.Flags()
 	fl.StringVarP(&f.profile, "profile", "p", "", "profile 文件（默认是当前目录或配置目录里的 profile.yaml）")
-	fl.StringVar(&f.backend, "backend", "", "内核：mihomo 或 xray（默认沿用上次的选择，第一次是 mihomo）")
+	fl.StringVar(&f.backend, "backend", "", "内核：mihomo、xray 或 sing-box（默认沿用上次的选择，第一次是 mihomo）")
 	fl.BoolVar(&f.offline, "offline", false, "不下载订阅和规则列表，只用已缓存的")
 	fl.BoolVar(&f.service, "service", false, "作为系统服务运行（由 nautilus service install 设置）：系统代理交给每个用户的 nautilus agent")
 	fl.StringVar(&f.configDir, "config-dir", "", "配置目录（默认 "+paths.ConfigDir()+"）")

@@ -1,0 +1,11 @@
+{
+  "backend": "sing-box",
+  "proxies": [
+    {
+      "name": "n1",
+      "kind": "node",
+      "node": "n1"
+    }
+  ],
+  "rules": null
+}

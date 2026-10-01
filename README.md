@@ -1,10 +1,10 @@
 # Nautilus
 
-路由表式分流 + 多跳链式代理的外壳。它把一份好读的 `profile.yaml` 编译成 mihomo 或 xray 的配置，替你托管内核进程，并提供 Web UI、TUI、浏览器扩展和命令行。
+路由表式分流 + 多跳链式代理的外壳。它把一份好读的 `profile.yaml` 编译成 mihomo、xray 或 sing-box 的配置，替你托管内核进程，并提供 Web UI、TUI、浏览器扩展和命令行。
 
 - **路由表，指哪打哪**：手动条目越具体越优先，与书写顺序无关；只有规则列表之间讲顺序。
 - **链式代理是一等公民**：`AI-Exit: [香港自动, home]`，路由条目可以直接指向一条链，每一跳都能单独测速。
-- **两个完整的内核**：mihomo 和 xray；trojan-go 节点由 trojan-go 边车运行。
+- **三个内核**：mihomo、xray 和 sing-box（用 `nautilus daemon --backend xray` 或 `--backend sing-box` 切换），trojan-go 节点由 trojan-go 边车运行。
 - **一套 API，多个界面**：Web UI（带登录）、TUI、浏览器扩展、CLI 用的是同一个 API。
 - 订阅、系统代理、TUN、系统服务、崩溃后自动恢复系统设置。
 
@@ -15,7 +15,7 @@
 内核不需要自己装：第一次运行 `nautilus daemon` 时会自动下载并校验（每个 nautilus 版本都内置了测试过的内核版本和 sha256）。也可以手动安装：
 
 ```sh
-nautilus kernel install mihomo          # 或 xray --geodata、trojan-go
+nautilus kernel install mihomo          # 或 xray --geodata、sing-box、trojan-go
 nautilus kernel install mihomo --mirror https://your-mirror/   # 通过镜像下载，同样会校验
 ```
 
@@ -96,7 +96,7 @@ sudo nautilus service uninstall    # 保留配置和数据
 
 服务会带上你现在的 profile、已下载的内核和登录密码。服务改不了每个用户的系统代理，所以每个用户登录后会运行 `nautilus agent` 来设置。
 
-不装服务也能开 TUN：Linux 上给内核加权限（`sudo nautilus kernel setcap`，升级内核后要重做一次）；macOS 需要 root；Windows 需要管理员。macOS 上开启 TUN 时，nautilus 会临时把系统 DNS 指向一个能被 TUN 接管的地址，关闭时恢复。xray 内核暂不支持 TUN。
+不装服务也能开 TUN：Linux 上给内核加权限（`sudo nautilus kernel setcap`，升级内核后要重做一次）；macOS 需要 root；Windows 需要管理员。macOS 上开启 TUN 时，nautilus 会临时把系统 DNS 指向一个能被 TUN 接管的地址，关闭时恢复（sing-box 自己处理）。xray 内核暂不支持 TUN。
 
 ## 文件
 
@@ -132,6 +132,6 @@ sudo nautilus service uninstall    # 保留配置和数据
 go test ./...
 # 用真实内核跑端到端测试：
 export NAUTILUS_MIHOMO=$(nautilus kernel path mihomo) NAUTILUS_XRAY=$(nautilus kernel path xray) \
-       NAUTILUS_TROJAN_GO=$(nautilus kernel path trojan-go)
+       NAUTILUS_SING_BOX=$(nautilus kernel path sing-box) NAUTILUS_TROJAN_GO=$(nautilus kernel path trojan-go)
 go test ./internal/e2e -count=1
 ```

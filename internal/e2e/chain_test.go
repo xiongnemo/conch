@@ -22,6 +22,7 @@ import (
 
 	"nautilus/internal/backend"
 	"nautilus/internal/backend/mihomo"
+	"nautilus/internal/backend/singbox"
 	"nautilus/internal/backend/xray"
 	"nautilus/internal/compile"
 	"nautilus/internal/model"
@@ -80,7 +81,14 @@ func clients() []client {
 	if bin := os.Getenv("NAUTILUS_XRAY"); bin != "" {
 		out = append(out, client{"xray", bin, xray.Backend{}, "config.json", xrayArgs})
 	}
+	if bin := os.Getenv("NAUTILUS_SING_BOX"); bin != "" {
+		out = append(out, client{"sing-box", bin, singbox.Backend{}, "config.json", singBoxArgs})
+	}
 	return out
+}
+
+func singBoxArgs(dir, file string) []string {
+	return []string{"run", "--disable-color", "-c", file, "-D", dir}
 }
 
 func hopServerBin(t *testing.T) string {

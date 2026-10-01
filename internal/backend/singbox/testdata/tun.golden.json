@@ -1,0 +1,105 @@
+{
+  "log": {
+    "level": "debug",
+    "timestamp": true
+  },
+  "dns": {
+    "servers": [
+      {
+        "type": "https",
+        "tag": "dns-1",
+        "server": "223.5.5.5"
+      },
+      {
+        "type": "https",
+        "tag": "dns-2",
+        "server": "1.12.12.12"
+      },
+      {
+        "type": "fakeip",
+        "tag": "fakeip",
+        "inet4_range": "198.18.0.0/15",
+        "inet6_range": "fc00::/18"
+      }
+    ],
+    "rules": [
+      {
+        "query_type": [
+          "A",
+          "AAAA"
+        ],
+        "server": "fakeip"
+      }
+    ],
+    "final": "dns-1",
+    "strategy": "ipv4_only"
+  },
+  "inbounds": [
+    {
+      "type": "mixed",
+      "tag": "›mixed",
+      "listen": "192.168.1.2",
+      "listen_port": 7891
+    },
+    {
+      "type": "tun",
+      "tag": "›tun",
+      "address": [
+        "172.19.0.1/30",
+        "fdfe:dcba:9876::1/126"
+      ],
+      "auto_route": true,
+      "strict_route": true,
+      "stack": "gvisor"
+    }
+  ],
+  "outbounds": [
+    {
+      "type": "direct",
+      "tag": "DIRECT"
+    },
+    {
+      "type": "trojan",
+      "tag": "n1",
+      "server": "192.0.2.1",
+      "server_port": 443,
+      "password": "x",
+      "tls": {
+        "enabled": true
+      }
+    },
+    {
+      "type": "urltest",
+      "tag": "Proxy",
+      "outbounds": [
+        "n1",
+        "DIRECT"
+      ],
+      "url": "https://www.gstatic.com/generate_204",
+      "interval": "120s"
+    },
+    {
+      "type": "selector",
+      "tag": "GLOBAL",
+      "outbounds": [
+        "Proxy",
+        "n1",
+        "DIRECT"
+      ]
+    }
+  ],
+  "route": {
+    "rules": [
+      {
+        "action": "sniff"
+      },
+      {
+        "protocol": "dns",
+        "action": "hijack-dns"
+      }
+    ],
+    "final": "GLOBAL",
+    "auto_detect_interface": true,
+    "default_domain_resolver": "dns-1"
+  }
+}

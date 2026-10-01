@@ -103,7 +103,7 @@ inbound: { mixed-port: %d }
 	if !strings.Contains(found.Matched, "IP 条目 127.0.0.2") || len(found.Via) == 0 || found.Via[len(found.Via)-1] != "DIRECT" {
 		t.Errorf("connection explained as %q via %q", found.Matched, found.Via)
 	}
-	if caps := d.Status().Caps; caps.LiveConnections != (c.name == "mihomo") {
+	if caps := d.Status().Caps; caps.LiveConnections != (c.name != "xray") {
 		t.Errorf("caps = %+v", caps)
 	}
 

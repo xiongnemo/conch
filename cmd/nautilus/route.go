@@ -66,7 +66,7 @@ func newRouteCmd() *cobra.Command {
 			return nil
 		},
 	}
-	get.Flags().StringVar(&backendName, "backend", "mihomo", "按哪个内核的匹配规则来解释：mihomo 或 xray")
+	get.Flags().StringVar(&backendName, "backend", "mihomo", "按哪个内核的匹配规则来解释：mihomo、xray 或 sing-box")
 	get.Flags().StringVar(&process, "app", "", "发起连接的应用（进程名或路径）")
 	get.Flags().BoolVar(&noResolve, "no-resolve", false, "不在本机解析域名")
 

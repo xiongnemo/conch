@@ -1,0 +1,382 @@
+{
+  "log": {
+    "level": "info",
+    "timestamp": true
+  },
+  "dns": {
+    "servers": [
+      {
+        "type": "https",
+        "tag": "dns-1",
+        "server": "223.5.5.5"
+      },
+      {
+        "type": "https",
+        "tag": "dns-2",
+        "server": "1.12.12.12"
+      }
+    ],
+    "final": "dns-1",
+    "strategy": "ipv4_only"
+  },
+  "inbounds": [
+    {
+      "type": "mixed",
+      "tag": "›mixed",
+      "listen": "127.0.0.1",
+      "listen_port": 7890
+    }
+  ],
+  "outbounds": [
+    {
+      "type": "direct",
+      "tag": "DIRECT"
+    },
+    {
+      "type": "shadowsocks",
+      "tag": "入口， A",
+      "server": "192.0.2.1",
+      "server_port": 1,
+      "method": "aes-128-gcm",
+      "password": "x"
+    },
+    {
+      "type": "shadowsocks",
+      "tag": "中转",
+      "server": "192.0.2.2",
+      "server_port": 2,
+      "method": "aes-128-gcm",
+      "password": "x",
+      "detour": "落地"
+    },
+    {
+      "type": "socks",
+      "tag": "落地",
+      "server": "192.0.2.3",
+      "server_port": 3,
+      "version": "5"
+    },
+    {
+      "type": "socks",
+      "tag": "手写链",
+      "server": "192.0.2.4",
+      "server_port": 4,
+      "version": "5",
+      "detour": "入口， A"
+    },
+    {
+      "type": "shadowsocks",
+      "tag": "两跳",
+      "server": "192.0.2.2",
+      "server_port": 2,
+      "method": "aes-128-gcm",
+      "password": "x",
+      "detour": "入口， A"
+    },
+    {
+      "type": "shadowsocks",
+      "tag": "三跳›1›入口， A",
+      "server": "192.0.2.1",
+      "server_port": 1,
+      "method": "aes-128-gcm",
+      "password": "x",
+      "detour": "入口组"
+    },
+    {
+      "type": "shadowsocks",
+      "tag": "三跳›2›中转",
+      "server": "192.0.2.2",
+      "server_port": 2,
+      "method": "aes-128-gcm",
+      "password": "x",
+      "detour": "三跳›1›入口， A"
+    },
+    {
+      "type": "socks",
+      "tag": "三跳",
+      "server": "192.0.2.3",
+      "server_port": 3,
+      "version": "5",
+      "detour": "三跳›2›中转"
+    },
+    {
+      "type": "socks",
+      "tag": "接力",
+      "server": "192.0.2.3",
+      "server_port": 3,
+      "version": "5",
+      "detour": "两跳"
+    },
+    {
+      "type": "socks",
+      "tag": "中间组›1›落地",
+      "server": "192.0.2.3",
+      "server_port": 3,
+      "version": "5",
+      "detour": "入口， A"
+    },
+    {
+      "type": "socks",
+      "tag": "中间组›1›手写链",
+      "server": "192.0.2.4",
+      "server_port": 4,
+      "version": "5",
+      "detour": "入口， A"
+    },
+    {
+      "type": "socks",
+      "tag": "中间组",
+      "server": "192.0.2.3",
+      "server_port": 3,
+      "version": "5",
+      "detour": "中间组›1›出口选择"
+    },
+    {
+      "type": "socks",
+      "tag": "末尾组›1›落地",
+      "server": "192.0.2.3",
+      "server_port": 3,
+      "version": "5",
+      "detour": "入口， A"
+    },
+    {
+      "type": "socks",
+      "tag": "末尾组›1›手写链",
+      "server": "192.0.2.4",
+      "server_port": 4,
+      "version": "5",
+      "detour": "入口， A"
+    },
+    {
+      "type": "socks",
+      "tag": "入口组→落地",
+      "server": "192.0.2.3",
+      "server_port": 3,
+      "version": "5",
+      "detour": "入口组"
+    },
+    {
+      "type": "urltest",
+      "tag": "入口组",
+      "outbounds": [
+        "入口， A",
+        "中转"
+      ],
+      "url": "https://www.gstatic.com/generate_204",
+      "interval": "300s"
+    },
+    {
+      "type": "selector",
+      "tag": "出口选择",
+      "outbounds": [
+        "落地",
+        "手写链"
+      ]
+    },
+    {
+      "type": "urltest",
+      "tag": "出口自动",
+      "outbounds": [
+        "落地",
+        "手写链"
+      ],
+      "url": "https://www.gstatic.com/generate_204",
+      "interval": "300s"
+    },
+    {
+      "type": "selector",
+      "tag": "中间组›1›出口选择",
+      "outbounds": [
+        "中间组›1›落地",
+        "中间组›1›手写链"
+      ]
+    },
+    {
+      "type": "urltest",
+      "tag": "末尾组",
+      "outbounds": [
+        "末尾组›1›落地",
+        "末尾组›1›手写链"
+      ],
+      "url": "https://www.gstatic.com/generate_204",
+      "interval": "300s"
+    },
+    {
+      "type": "selector",
+      "tag": "GLOBAL",
+      "outbounds": [
+        "入口组",
+        "出口选择",
+        "出口自动",
+        "两跳",
+        "三跳",
+        "接力",
+        "中间组",
+        "末尾组",
+        "入口组→落地",
+        "入口， A",
+        "中转",
+        "落地",
+        "手写链",
+        "DIRECT"
+      ]
+    }
+  ],
+  "route": {
+    "rules": [
+      {
+        "action": "sniff"
+      },
+      {
+        "domain_suffix": [
+          "a.example"
+        ],
+        "action": "route",
+        "outbound": "接力"
+      },
+      {
+        "domain_suffix": [
+          "b.example"
+        ],
+        "action": "route",
+        "outbound": "入口组→落地"
+      },
+      {
+        "domain_suffix": [
+          "c.example"
+        ],
+        "action": "route",
+        "outbound": "中间组"
+      },
+      {
+        "domain_suffix": [
+          "d.example"
+        ],
+        "action": "route",
+        "outbound": "末尾组"
+      },
+      {
+        "domain_suffix": [
+          "home.arpa"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "domain_suffix": [
+          "lan"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "domain_suffix": [
+          "local"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "domain_suffix": [
+          "localhost"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "ip_cidr": [
+          "::1/128"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "ip_cidr": [
+          "255.255.255.255/32"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "ip_cidr": [
+          "169.254.0.0/16"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "ip_cidr": [
+          "192.168.0.0/16"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "ip_cidr": [
+          "172.16.0.0/12"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "ip_cidr": [
+          "100.64.0.0/10"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "ip_cidr": [
+          "fe80::/10"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "ip_cidr": [
+          "0.0.0.0/8"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "ip_cidr": [
+          "10.0.0.0/8"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "ip_cidr": [
+          "127.0.0.0/8"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "ip_cidr": [
+          "ff00::/8"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "ip_cidr": [
+          "fc00::/7"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "ip_cidr": [
+          "224.0.0.0/4"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      }
+    ],
+    "final": "三跳",
+    "auto_detect_interface": true,
+    "default_domain_resolver": "dns-1"
+  }
+}

@@ -1,0 +1,430 @@
+{
+  "log": {
+    "level": "info",
+    "timestamp": true
+  },
+  "dns": {
+    "servers": [
+      {
+        "type": "https",
+        "tag": "dns-1",
+        "server": "223.5.5.5"
+      },
+      {
+        "type": "https",
+        "tag": "dns-2",
+        "server": "1.12.12.12"
+      }
+    ],
+    "final": "dns-1",
+    "strategy": "ipv4_only"
+  },
+  "inbounds": [
+    {
+      "type": "mixed",
+      "tag": "›mixed",
+      "listen": "127.0.0.1",
+      "listen_port": 7890
+    }
+  ],
+  "outbounds": [
+    {
+      "type": "direct",
+      "tag": "DIRECT"
+    },
+    {
+      "type": "socks",
+      "tag": "home",
+      "server": "203.0.113.10",
+      "server_port": 1080,
+      "version": "5"
+    },
+    {
+      "type": "shadowsocks",
+      "tag": "🇭🇰 香港 01",
+      "server": "hk1.airport.example",
+      "server_port": 8001,
+      "method": "aes-128-gcm",
+      "password": "p1"
+    },
+    {
+      "type": "vmess",
+      "tag": "🇭🇰 香港 02",
+      "server": "hk2.airport.example",
+      "server_port": 443,
+      "uuid": "00000000-0000-0000-0000-00000000aa01",
+      "security": "auto",
+      "tls": {
+        "enabled": true
+      },
+      "transport": {
+        "type": "ws",
+        "path": "/hk2",
+        "headers": {
+          "Host": "hk2.airport.example"
+        }
+      }
+    },
+    {
+      "type": "trojan",
+      "tag": "🇯🇵 日本 01",
+      "server": "jp1.airport.example",
+      "server_port": 443,
+      "password": "p3",
+      "tls": {
+        "enabled": true,
+        "server_name": "jp1.airport.example"
+      }
+    },
+    {
+      "type": "trojan",
+      "tag": "airport-a/home",
+      "server": "conflict.airport.example",
+      "server_port": 443,
+      "password": "p",
+      "tls": {
+        "enabled": true
+      }
+    },
+    {
+      "type": "trojan",
+      "tag": "[扩展] 香港 IEPL",
+      "server": "iepl.airport.example",
+      "server_port": 443,
+      "password": "px",
+      "tls": {
+        "enabled": true
+      }
+    },
+    {
+      "type": "socks",
+      "tag": "AI-Exit",
+      "server": "203.0.113.10",
+      "server_port": 1080,
+      "version": "5",
+      "detour": "自动选择"
+    },
+    {
+      "type": "trojan",
+      "tag": "中转",
+      "server": "jp1.airport.example",
+      "server_port": 443,
+      "password": "p3",
+      "tls": {
+        "enabled": true,
+        "server_name": "jp1.airport.example"
+      },
+      "detour": "🇭🇰 香港 01"
+    },
+    {
+      "type": "selector",
+      "tag": "节点选择",
+      "outbounds": [
+        "自动选择",
+        "香港节点",
+        "中转",
+        "DIRECT"
+      ]
+    },
+    {
+      "type": "urltest",
+      "tag": "自动选择",
+      "outbounds": [
+        "🇭🇰 香港 01",
+        "🇭🇰 香港 02",
+        "🇯🇵 日本 01"
+      ],
+      "url": "http://www.gstatic.com/generate_204",
+      "interval": "300s"
+    },
+    {
+      "type": "selector",
+      "tag": "香港节点",
+      "outbounds": [
+        "[扩展] 香港 IEPL",
+        "🇭🇰 香港 01",
+        "🇭🇰 香港 02"
+      ]
+    },
+    {
+      "type": "selector",
+      "tag": "广告拦截",
+      "outbounds": [
+        "REJECT",
+        "DIRECT"
+      ]
+    },
+    {
+      "type": "selector",
+      "tag": "GLOBAL",
+      "outbounds": [
+        "节点选择",
+        "自动选择",
+        "香港节点",
+        "广告拦截",
+        "AI-Exit",
+        "中转",
+        "home",
+        "🇭🇰 香港 01",
+        "🇭🇰 香港 02",
+        "🇯🇵 日本 01",
+        "airport-a/home",
+        "[扩展] 香港 IEPL",
+        "DIRECT"
+      ]
+    },
+    {
+      "type": "block",
+      "tag": "REJECT"
+    }
+  ],
+  "route": {
+    "rules": [
+      {
+        "action": "sniff"
+      },
+      {
+        "domain_suffix": [
+          "home.arpa"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "domain_suffix": [
+          "openai.com"
+        ],
+        "action": "route",
+        "outbound": "AI-Exit"
+      },
+      {
+        "domain_suffix": [
+          "lan"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "domain_suffix": [
+          "local"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "domain_suffix": [
+          "localhost"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "ip_cidr": [
+          "::1/128"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "ip_cidr": [
+          "255.255.255.255/32"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "ip_cidr": [
+          "169.254.0.0/16"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "ip_cidr": [
+          "192.168.0.0/16"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "ip_cidr": [
+          "172.16.0.0/12"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "ip_cidr": [
+          "100.64.0.0/10"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "ip_cidr": [
+          "fe80::/10"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "ip_cidr": [
+          "0.0.0.0/8"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "ip_cidr": [
+          "10.0.0.0/8"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "ip_cidr": [
+          "127.0.0.0/8"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "ip_cidr": [
+          "ff00::/8"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "ip_cidr": [
+          "fc00::/7"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "ip_cidr": [
+          "224.0.0.0/4"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "rule_set": [
+          "geosite-category-ads-all"
+        ],
+        "action": "reject"
+      },
+      {
+        "domain_suffix": [
+          "ads.example"
+        ],
+        "action": "route",
+        "outbound": "广告拦截"
+      },
+      {
+        "domain": [
+          "api.example-stream.com"
+        ],
+        "domain_suffix": [
+          "netflix.com"
+        ],
+        "domain_keyword": [
+          "nflx"
+        ],
+        "ip_cidr": [
+          "23.246.0.0/18"
+        ],
+        "action": "route",
+        "outbound": "节点选择"
+      },
+      {
+        "process_name": [
+          "Netflix"
+        ],
+        "action": "route",
+        "outbound": "节点选择"
+      },
+      {
+        "domain_suffix": [
+          "corp.example"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "rule_set": [
+          "geosite-cn"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "rule_set": [
+          "geoip-private"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "rule_set": [
+          "geoip-cn"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "port": [
+          22
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      }
+    ],
+    "rule_set": [
+      {
+        "type": "remote",
+        "tag": "geosite-category-ads-all",
+        "format": "binary",
+        "url": "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo/geosite/category-ads-all.srs",
+        "http_client": {
+          "detour": "节点选择"
+        },
+        "update_interval": "1d"
+      },
+      {
+        "type": "remote",
+        "tag": "geosite-cn",
+        "format": "binary",
+        "url": "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo/geosite/cn.srs",
+        "http_client": {
+          "detour": "节点选择"
+        },
+        "update_interval": "1d"
+      },
+      {
+        "type": "remote",
+        "tag": "geoip-private",
+        "format": "binary",
+        "url": "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo/geoip/private.srs",
+        "http_client": {
+          "detour": "节点选择"
+        },
+        "update_interval": "1d"
+      },
+      {
+        "type": "remote",
+        "tag": "geoip-cn",
+        "format": "binary",
+        "url": "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo/geoip/cn.srs",
+        "http_client": {
+          "detour": "节点选择"
+        },
+        "update_interval": "1d"
+      }
+    ],
+    "final": "节点选择",
+    "auto_detect_interface": true,
+    "default_domain_resolver": "dns-1"
+  }
+}

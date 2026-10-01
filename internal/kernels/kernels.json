@@ -101,6 +101,61 @@
       }
     ]
   },
+  "sing-box": {
+    "repo": "SagerNet/sing-box",
+    "releases": [
+      {
+        "version": "v1.14.2",
+        "assets": {
+          "SFM-1.14.2.dSYMs.zip": "90601d3ff28f8a7184d641b90ba7b1616b20a47120df5d591a96a3283a61a153",
+          "sing-box-1.14.2-android-386.tar.gz": "855ad664d406435f48c65488baf07cef0bd2c11e833c2c5a80b63f48ce6340db",
+          "sing-box-1.14.2-android-amd64.tar.gz": "5a16af1bcb373d5e8824b7cca415813d3556dd10e7d41e5dd4dfb3cb9e9240ff",
+          "sing-box-1.14.2-android-arm.tar.gz": "10352dab32c87e2eefe3fd61e21bd259900ef4096ced311ec49050769613e861",
+          "sing-box-1.14.2-android-arm64.tar.gz": "57eeb81867a9a5e406bcbb5f7fde352acdc354e8c084173a28bdd9417c5e0cba",
+          "sing-box-1.14.2-darwin-amd64-legacy-macos-10.13.tar.gz": "ad929eb9c0c99f11d54ac677fe63dfe3d2d77e61fd168bbe808925100b5d77b0",
+          "sing-box-1.14.2-darwin-amd64.tar.gz": "b0bfb0dc70a5fc708710b9f5ea98b9ee76d40fa4169928d25d73edc4331df2fe",
+          "sing-box-1.14.2-darwin-arm64.tar.gz": "925c5382eca8492b0150f868a6db20b18290a38700e621724b3703fd453e032d",
+          "sing-box-1.14.2-linux-386-glibc.tar.gz": "f875c9f4675e3f7497735cc469a4f423a9e6171f98b1470a89df9110178a06da",
+          "sing-box-1.14.2-linux-386-musl.tar.gz": "e84faef6ccf47d9b7ffc071b1061b1dc8f38e747ce8f4d4543f200c2d1f6f845",
+          "sing-box-1.14.2-linux-386-softfloat.tar.gz": "4a93cee4f1e369ddd6523035af99fbf2f7c05490b56213f08827126500509539",
+          "sing-box-1.14.2-linux-386.tar.gz": "041389d19756e40709516ee22fe6dcc2a9d7043439dd062ca486231bde8417cf",
+          "sing-box-1.14.2-linux-amd64-glibc.tar.gz": "5c7bc18461827b28d0e5ee7e89d33b276d3ff7c818531104c8e8d26d85b0656e",
+          "sing-box-1.14.2-linux-amd64-musl.tar.gz": "8f6cb4bcf94d2b33c65d52e0d5b142db29a938336f1ff7267f397ac3758fc297",
+          "sing-box-1.14.2-linux-amd64.tar.gz": "a684484d7477d1437282ee411f4d131d0340aaad60a7868841ebd5d87dd8a0c6",
+          "sing-box-1.14.2-linux-arm64-glibc.tar.gz": "87db5c3a96ebad1c44c0be1fe7955db2f76b8c97bbc0ed62173063d675e078cf",
+          "sing-box-1.14.2-linux-arm64-musl.tar.gz": "675297394f9430cebb72b3c48ba8bce0d6f7c750a9d68a8f7f88c515c8255cd1",
+          "sing-box-1.14.2-linux-arm64.tar.gz": "b43a1fb1bda131c6653576741ce527eb2bdeab7c9308ca90ee8b972abb7e4a7f",
+          "sing-box-1.14.2-linux-armv5.tar.gz": "508431ad7870d4d879a01374692a54a70e141a96ac99f51a96bae84c0808ed49",
+          "sing-box-1.14.2-linux-armv6.tar.gz": "6df28ef1a6f86aea4f8f90086500590c504e5668ca298b572e0513b97d2e7348",
+          "sing-box-1.14.2-linux-armv7-glibc.tar.gz": "550431f271700aa25b266093ac7549568dbc4174d2b36fbfcdc2613504dd1a1a",
+          "sing-box-1.14.2-linux-armv7-musl.tar.gz": "ba873d9e1eaff53dd6f678ecc315ac6fcb9d28b32b550e1ecc8227634955b56f",
+          "sing-box-1.14.2-linux-armv7.tar.gz": "1e2700de1cca1b58d410abc0ead40b595aa26ebe4812e0475311228d3e688db4",
+          "sing-box-1.14.2-linux-loong64-glibc.tar.gz": "ad7b4640f0d127a1680b91e476467d46122873870382fc524bbd42ddc75b0b62",
+          "sing-box-1.14.2-linux-loong64-musl.tar.gz": "04ca99455dbe045940b41c0e9bebac88b7fd4306141aec15df6e31b2cb1928ab",
+          "sing-box-1.14.2-linux-loong64.tar.gz": "2dc49c812c95b48464469d413890642778738ea064209f853ed374d503e61e3d",
+          "sing-box-1.14.2-linux-mips-softfloat.tar.gz": "daf43468c2febab6a14f2243980ea5baab2043ffc46aa6e16b522450f24a1e82",
+          "sing-box-1.14.2-linux-mips64-softfloat.tar.gz": "334bdbc2c39b09d688ef7359dd756071990ea62bda185bd8bc472bb06a4ae595",
+          "sing-box-1.14.2-linux-mips64le-glibc.tar.gz": "7711f9db86f1e97cfcff4f14f69ce0c3cff8a50b48a86987fabbd9baf178dd78",
+          "sing-box-1.14.2-linux-mips64le-softfloat.tar.gz": "a823ee09dc5c867f53a95fd68569afe0fe96c21c157a48c649ff2e69cf1adc00",
+          "sing-box-1.14.2-linux-mips64le.tar.gz": "7b7d81ddbf31c71c7fa0921043a1a950711d558003d47d4235a27a82ebd4449c",
+          "sing-box-1.14.2-linux-mipsle-glibc.tar.gz": "523256eacc25cae6382d8d43061ae89fffd2dbce24c38c3de4ebfb4e63d89868",
+          "sing-box-1.14.2-linux-mipsle-softfloat-musl.tar.gz": "6625be161dcf1ab0ec2b824a4a14026c6a76cca683c7a3e00cc3806004d16769",
+          "sing-box-1.14.2-linux-mipsle-softfloat.tar.gz": "3f165b4a9579a13efbc70cdd757d60aa6b1d85c9621eb6f723a3f5de8bef9df1",
+          "sing-box-1.14.2-linux-mipsle.tar.gz": "d23530db3439ee7987e6d1a33d6b695d26cdf3fd92c993c931f9f4d758efde2b",
+          "sing-box-1.14.2-linux-ppc64le.tar.gz": "b59b16b24514780f9bd65330e418be5d9537f3b4cb1172bd4c53745bcd0a95d4",
+          "sing-box-1.14.2-linux-riscv64-glibc.tar.gz": "fbdd2c11f24b3f9801c2a2b07aeac4f415ff35709a434d79f7d094351eb8b29f",
+          "sing-box-1.14.2-linux-riscv64-musl.tar.gz": "95bda0a4fec8a5a0df8464e36d6aa03ac5df8aaf05d8141f7b5cb50e2e86dd91",
+          "sing-box-1.14.2-linux-riscv64.tar.gz": "7ee2d238081085a4047569b5a9f296763ede3f59742786a30a2ebc8a9f611e4f",
+          "sing-box-1.14.2-linux-s390x.tar.gz": "94141d84eb442d7919a3be259355579e740b69aa47b51aba5e3663fd60a67b77",
+          "sing-box-1.14.2-windows-386-legacy-windows-7.zip": "b6a3e03c23f3a2d9510fa91fe89d3c432224869febd07140ce941b93651594ce",
+          "sing-box-1.14.2-windows-386.zip": "745b3ae034972244396414a54a1518aaa46fa55b6b9c4690dc7a4c2b71bac69b",
+          "sing-box-1.14.2-windows-amd64-legacy-windows-7.zip": "f7ddb30d5369529195dbdfc9576af63a9d718cdd05726f7781408b9e4e39fbda",
+          "sing-box-1.14.2-windows-amd64.zip": "c2d8bfff918755808781dfdeeb8581b6c91eb3a243d9a7b55483cfc0c0684d32",
+          "sing-box-1.14.2-windows-arm64.zip": "2bb467039310452380958b821983d5bb4f78fb70a2583914e4bea8b011582b64"
+        }
+      }
+    ]
+  },
   "trojan-go": {
     "repo": "p4gefau1t/trojan-go",
     "releases": [

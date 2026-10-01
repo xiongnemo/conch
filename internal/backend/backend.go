@@ -31,8 +31,10 @@ type Options struct {
 	ControllerUnix string
 	// ControllerPipe is the Windows named-pipe equivalent of ControllerUnix.
 	ControllerPipe string
-	// Controller is a TCP address for the kernel API, for debugging only.
+	// Controller is a TCP address for the kernel API: for debugging, and
+	// for kernels that only serve it on TCP (sing-box), with Secret.
 	Controller string
+	Secret     string
 	// Lists loads rule lists for backends that inline them.
 	Lists ListLoader
 	// Probes are unix sockets for inbounds that delay tests are sent

@@ -98,3 +98,18 @@ func TestXrayBalancerPick(t *testing.T) {
 		}
 	}
 }
+
+func TestSingBoxObserveLog(t *testing.T) {
+	var s SingBox
+	l := s.ObserveLog("+1000 2026-10-02 01:30:00 ERROR [3141592653 5ms] connection: open connection to blocked.example:80 using outbound/socks[dead]: dial tcp 127.0.0.1:1: connect: connection refused")
+	want := DialFailure{Source: "connection 3141592653", Via: "dead", Host: "blocked.example", Port: "80", Error: "dial tcp 127.0.0.1:1: connect: connection refused"}
+	if l.Level != "error" || l.Failure == nil || *l.Failure != want {
+		t.Errorf("dial error = %+v %+v", l, l.Failure)
+	}
+	if l := s.ObserveLog("+1000 2026-10-02 01:30:00 INFO [42 0ms] inbound/mixed[›mixed]: inbound connection to www.google.com:443"); l.Level != "info" || l.Failure != nil {
+		t.Errorf("connection line = %+v", l)
+	}
+	if l := s.ObserveLog("+1000 2026-10-02 01:30:00 WARN router: something"); l.Level != "warning" {
+		t.Errorf("warning = %+v", l)
+	}
+}

@@ -1,0 +1,3 @@
+警告 ../testdata/groups.profile.yaml:10：出口组 "备用"：sing-box 没有故障转移组，改为自动选择延迟最低的成员
+警告 ../testdata/groups.profile.yaml:11：出口组 "轮询"：sing-box 没有负载均衡组，改为自动选择延迟最低的成员
+警告 ../testdata/groups.profile.yaml:12：出口组 "一致"：sing-box 没有负载均衡组，改为自动选择延迟最低的成员

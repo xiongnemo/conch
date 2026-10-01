@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"runtime"
+	"strings"
 
 	"golang.org/x/sys/cpu"
 )
@@ -15,6 +16,7 @@ import (
 //go:generate go run ./gen -kernel mihomo -repo MetaCubeX/mihomo -version v1.19.32 -file kernels.json
 //go:generate go run ./gen -kernel xray -repo XTLS/Xray-core -version v26.3.27 -file kernels.json
 //go:generate go run ./gen -kernel trojan-go -repo p4gefau1t/trojan-go -version v0.10.6 -file kernels.json
+//go:generate go run ./gen -kernel sing-box -repo SagerNet/sing-box -version v1.14.2 -file kernels.json
 
 //go:embed kernels.json
 var manifestJSON []byte
@@ -98,8 +100,37 @@ func AssetFor(kernel, version string, t Target) (Asset, error) {
 		return xrayAsset(t)
 	case "trojan-go":
 		return trojanGoAsset(t)
+	case "sing-box":
+		return singBoxAsset(version, t)
 	}
 	return Asset{}, fmt.Errorf("不认识的内核 %q", kernel)
+}
+
+func singBoxAsset(version string, t Target) (Asset, error) {
+	var arch string
+	switch t.Arch {
+	case "amd64", "386", "arm64", "riscv64", "loong64", "s390x", "ppc64le":
+		arch = t.Arch
+	case "arm":
+		arch = fmt.Sprintf("armv%d", t.ARM)
+	case "mips", "mips64":
+		arch = t.Arch + "-softfloat" // the only build; it runs on hardfloat CPUs too
+	case "mipsle", "mips64le":
+		arch = t.Arch
+		if t.Float == "softfloat" {
+			arch += "-softfloat"
+		}
+	}
+	v := strings.TrimPrefix(version, "v")
+	bin := BinaryName("sing-box", t.OS)
+	switch {
+	case arch == "":
+	case t.OS == "windows" && (t.Arch == "amd64" || t.Arch == "386" || t.Arch == "arm64"):
+		return Asset{Name: fmt.Sprintf("sing-box-%s-windows-%s.zip", v, arch), Files: map[string]string{"*/" + bin: bin}}, nil
+	case t.OS == "linux" || t.OS == "darwin" && (t.Arch == "amd64" || t.Arch == "arm64"):
+		return Asset{Name: fmt.Sprintf("sing-box-%s-%s-%s.tar.gz", v, t.OS, arch), Files: map[string]string{"*/" + bin: bin}}, nil
+	}
+	return Asset{}, fmt.Errorf("sing-box 没有 %s/%s 的安装包", t.OS, t.Arch)
 }
 
 // trojan-go only runs as a sidecar for trojan-go nodes; its last release
