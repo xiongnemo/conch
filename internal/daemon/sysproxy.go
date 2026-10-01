@@ -29,9 +29,13 @@ func (d *Daemon) SetSysProxy(on bool) error {
 	sp := d.state.SysProxy
 	sp.Wanted = on
 	var err error
-	if on {
+	switch {
+	case d.opts.Service:
+		// Agents in the desktop sessions follow the wish.
+		d.Events.Publish(Event{Type: "state", Data: d.statusLocked()})
+	case on:
 		err = d.applySysProxy(port)
-	} else {
+	default:
 		err = d.unapplySysProxy()
 	}
 	if saveErr := d.state.save(d.statePath()); err == nil {
@@ -76,7 +80,7 @@ func (d *Daemon) syncSysProxy() {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	sp := d.state.SysProxy
-	if sp == nil {
+	if sp == nil || d.opts.Service {
 		return
 	}
 	var err error
@@ -99,6 +103,9 @@ func (d *Daemon) syncSysProxy() {
 func (d *Daemon) releaseSysProxy() {
 	d.mu.Lock()
 	defer d.mu.Unlock()
+	if d.opts.Service {
+		return
+	}
 	if err := d.unapplySysProxy(); err != nil {
 		fmt.Fprintln(d.opts.Log, "恢复系统代理失败：", err)
 	}

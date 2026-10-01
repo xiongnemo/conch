@@ -99,6 +99,10 @@ $("#sysproxy").addEventListener("change", (e) => {
   api("PUT", "/sysproxy", { enabled: e.target.checked }).then(renderStatus).catch((err) => { e.target.checked = !e.target.checked; showError(err); });
 });
 
+$("#tun").addEventListener("change", (e) => {
+  api("PUT", "/tun", { enabled: e.target.checked }).then(renderStatus).catch((err) => { e.target.checked = !e.target.checked; showError(err); });
+});
+
 for (const b of document.querySelectorAll("#modes button")) {
   b.addEventListener("click", () => api("PUT", "/mode", { mode: b.dataset.mode }).then(renderStatus).catch(showError));
 }
@@ -126,6 +130,7 @@ function renderStatus(s) {
   $("#kernel").className = "pill " + (k.state || "");
   for (const b of document.querySelectorAll("#modes button")) b.classList.toggle("active", b.dataset.mode === s.mode);
   $("#sysproxy").checked = !!s.sysproxy;
+  $("#tun").checked = !!s.tun;
 
   const problems = [s.error, ...(s.diagnostics || [])].filter(Boolean);
   $("#banner").hidden = problems.length === 0;

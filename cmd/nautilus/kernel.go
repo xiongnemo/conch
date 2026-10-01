@@ -2,16 +2,20 @@ package main
 
 import (
 	"fmt"
+	"os"
+	"os/user"
+	"path/filepath"
 
 	"github.com/spf13/cobra"
 
 	"nautilus/internal/kernels"
 	"nautilus/internal/paths"
+	"nautilus/internal/platform/privilege"
 )
 
 func newKernelCmd() *cobra.Command {
 	cmd := &cobra.Command{Use: "kernel", Short: "管理内核（下载、校验、查看路径）"}
-	cmd.AddCommand(newKernelInstallCmd(), newKernelPathCmd(), newKernelGeodataCmd())
+	cmd.AddCommand(newKernelInstallCmd(), newKernelPathCmd(), newKernelGeodataCmd(), newKernelSetcapCmd())
 	return cmd
 }
 
@@ -92,4 +96,38 @@ func newKernelGeodataCmd() *cobra.Command {
 	cmd.Flags().StringVar(&mirror, "mirror", "", "GitHub 下载镜像前缀，例如 https://ghfast.top")
 	cmd.Flags().StringVar(&dir, "dir", "", "保存目录（默认是内核的工作目录）")
 	return cmd
+}
+
+func newKernelSetcapCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "setcap [mihomo]",
+		Short: "给内核加上创建 TUN 网卡的权限（Linux，需要 sudo）",
+		Long: `给已安装的内核加上 cap_net_admin、cap_net_bind_service 和 cap_net_raw 权限，
+这样普通用户运行的 daemon 也能开启 TUN。升级内核后需要重新运行一次。`,
+		Args: cobra.MaximumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			kernel := "mihomo"
+			if len(args) == 1 {
+				kernel = args[0]
+			}
+			dataDir := paths.DataDir()
+			// Under sudo, the kernel is the invoking user's, not root's.
+			if name := os.Getenv("SUDO_USER"); os.Geteuid() == 0 && name != "" && os.Getenv("NAUTILUS_DATA_DIR") == "" {
+				u, err := user.Lookup(name)
+				if err != nil {
+					return err
+				}
+				dataDir = filepath.Join(u.HomeDir, ".local", "share", "nautilus")
+			}
+			inst, err := kernels.Current(dataDir, kernel, kernels.Host().OS)
+			if err != nil {
+				return err
+			}
+			if err := privilege.SetTUNCaps(inst.Path); err != nil {
+				return err
+			}
+			fmt.Fprintf(cmd.OutOrStdout(), "已给 %s 加上网络权限，现在可以开启 TUN 了\n", inst.Path)
+			return nil
+		},
+	}
 }

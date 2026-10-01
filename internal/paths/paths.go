@@ -59,6 +59,20 @@ func SubscriptionsDir() string {
 	return filepath.Join(DataDir(), "subscriptions")
 }
 
+// UserDirs returns ConfigDir and DataDir for the user whose home is home,
+// without environment overrides: for `sudo nautilus service install`,
+// which sets things up for the user who ran sudo.
+func UserDirs(home string) (configDir, dataDir string) {
+	configDir = filepath.Join(home, ".config", "nautilus")
+	switch runtime.GOOS {
+	case "windows":
+		return filepath.Join(home, "AppData", "Roaming", "nautilus"), filepath.Join(home, "AppData", "Local", "nautilus")
+	case "darwin":
+		return configDir, filepath.Join(home, "Library", "Application Support", "nautilus")
+	}
+	return configDir, filepath.Join(home, ".local", "share", "nautilus")
+}
+
 func home() string {
 	if h, err := os.UserHomeDir(); err == nil {
 		return h

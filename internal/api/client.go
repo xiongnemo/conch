@@ -161,6 +161,10 @@ func (c *Client) SetSysProxy(ctx context.Context, on bool) error {
 	return c.do(ctx, http.MethodPut, "/api/v1/sysproxy", map[string]bool{"enabled": on}, nil)
 }
 
+func (c *Client) SetTUN(ctx context.Context, on bool) error {
+	return c.do(ctx, http.MethodPut, "/api/v1/tun", map[string]bool{"enabled": on}, nil)
+}
+
 func (c *Client) UpdateSubscription(ctx context.Context, name string) error {
 	return c.do(ctx, http.MethodPost, "/api/v1/subscriptions/"+url.PathEscape(name)+"/update", nil, nil)
 }

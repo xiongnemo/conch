@@ -40,6 +40,10 @@ type Options struct {
 	Offline     bool   // never download subscriptions or rule lists
 	Log         io.Writer
 	DelayURL    string // what delay tests request; empty means DelayURL
+	// Service means the daemon runs as a system service. It cannot change
+	// per-user settings then: `nautilus agent` sets the system proxy in
+	// each desktop session instead.
+	Service bool
 }
 
 // Daemon owns one kernel process.
@@ -226,7 +230,7 @@ func (d *Daemon) build(ctx context.Context) (*compile.Result, *backend.Artifact,
 	}
 	temp := append([]TempRoute(nil), d.state.Temp...)
 	selections := d.state.Selections
-	mode := d.state.Mode
+	mode, tun := d.state.Mode, d.state.TUN
 	d.mu.Unlock()
 
 	merged, err := model.Load(d.opts.ProfilePath) // a copy to merge into
@@ -251,6 +255,9 @@ func (d *Daemon) build(ctx context.Context) (*compile.Result, *backend.Artifact,
 	subscription.Apply(merged, snaps, &diags)
 	if mode != "" {
 		merged.Mode = mode
+	}
+	if tun != nil {
+		merged.TUN.Enable = *tun
 	}
 	res := compile.Compile(merged)
 	diags = append(diags, res.Diags...)

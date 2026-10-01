@@ -20,6 +20,8 @@ import (
 	"nautilus/internal/daemon"
 	"nautilus/internal/kernels"
 	"nautilus/internal/paths"
+	"nautilus/internal/platform/privilege"
+	"nautilus/internal/platform/service"
 )
 
 func newDoctorCmd() *cobra.Command {
@@ -33,7 +35,7 @@ func newDoctorCmd() *cobra.Command {
 			d := &doctor{w: cmd.OutOrStdout()}
 			ctx := cmd.Context()
 
-			port := 0
+			port, tunWanted := 0, false
 			if err := pl.resolve(); err != nil {
 				d.bad("%v", err)
 			} else {
@@ -46,7 +48,7 @@ func newDoctorCmd() *cobra.Command {
 					d.bad("profile 有错误：\n%s", diags.Err())
 				default:
 					d.ok("profile 没有问题（%s）", pl.profilePath)
-					port = res.Settings.MixedPort
+					port, tunWanted = res.Settings.MixedPort, res.Settings.TUN.Enable
 				}
 			}
 
@@ -55,6 +57,16 @@ func newDoctorCmd() *cobra.Command {
 				d.bad("%v", err)
 			} else {
 				d.ok("内核 %s %s 已安装", backend, inst.Version)
+				if tunWanted {
+					if err := privilege.TUNError(inst.Path); err != nil {
+						d.bad("profile 开启了 TUN，但%v", err)
+					} else {
+						d.ok("内核有开启 TUN 的权限")
+					}
+				}
+			}
+			if s, err := service.Status(service.Options{Layout: service.SystemLayout(), Run: service.Exec}); err == nil {
+				d.note("%s", s)
 			}
 			if backend == "xray" && !kernels.HasGeodata("xray", paths.KernelHome("xray")) {
 				d.bad("xray 的 geodata 不完整，请运行 nautilus kernel geodata xray")

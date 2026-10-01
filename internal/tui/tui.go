@@ -31,6 +31,7 @@ type Client interface {
 	Delay(ctx context.Context, name string) (api.Delay, error)
 	SetMode(ctx context.Context, mode string) error
 	SetSysProxy(ctx context.Context, on bool) error
+	SetTUN(ctx context.Context, on bool) error
 	UpdateSubscription(ctx context.Context, name string) error
 	Restart(ctx context.Context) error
 	Connections(ctx context.Context) ([]daemon.Connection, error)
@@ -568,6 +569,9 @@ func (m *Model) header() string {
 		if s.SysProxy {
 			right += muted.Render(" · ") + "系统代理"
 		}
+		if s.TUN {
+			right += muted.Render(" · ") + "TUN"
+		}
 	}
 	return spread(left, right, m.w) + "\n" + muted.Render(strings.Repeat("─", m.w))
 }
@@ -601,7 +605,7 @@ func (m *Model) footer() string {
 func (m *Model) pageHints() string {
 	switch m.page {
 	case pageOverview:
-		return "m 切换模式 · s 系统代理 · u 更新订阅 · R 重启内核"
+		return "m 切换模式 · s 系统代理 · t TUN · u 更新订阅 · R 重启内核"
 	case pageOutbounds:
 		return "enter 展开/选择 · t 测速"
 	case pageRoutes:
@@ -627,7 +631,7 @@ func (m *Model) helpView(h int) string {
 		"  q / ctrl+c   退出",
 		"",
 		titleStyle.Render("概览"),
-		"  m 切换分流模式 · s 开关系统代理 · u 更新选中的订阅 · R 重启内核",
+		"  m 切换分流模式 · s 开关系统代理 · t 开关 TUN · u 更新选中的订阅 · R 重启内核",
 		titleStyle.Render("出口"),
 		"  enter 展开出口组或选择成员 · t 测速（出口组：测所有成员；链：逐跳测速）",
 		titleStyle.Render("路由"),

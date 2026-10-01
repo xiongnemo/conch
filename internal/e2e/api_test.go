@@ -16,6 +16,7 @@ import (
 	"nautilus/internal/api"
 	"nautilus/internal/auth"
 	"nautilus/internal/daemon"
+	"nautilus/internal/platform/privilege"
 	"nautilus/web"
 )
 
@@ -151,5 +152,17 @@ inbound: { mixed-port: %d }
 	}
 	if s, _ := c.Status(ctx); s.Mode != "global" {
 		t.Errorf("mode = %q after switching to global", s.Mode)
+	}
+
+	// Without the privilege, TUN is refused with a way to get it, and
+	// nothing changes.
+	if privilege.TUNError(bin) != nil {
+		err := c.SetTUN(ctx, true)
+		if !errors.As(err, &apiErr) || !strings.Contains(apiErr.Body.Error, "sudo setcap cap_net_admin") {
+			t.Errorf("TUN without privileges: %v", err)
+		}
+		if s, _ := c.Status(ctx); s.TUN || s.Error != "" {
+			t.Errorf("status after refused TUN: tun %v, error %q", s.TUN, s.Error)
+		}
 	}
 }

@@ -32,6 +32,9 @@
       <label class="switch" title="让系统和浏览器使用 nautilus；daemon 退出时恢复原来的设置">
         <input id="sysproxy" type="checkbox"> 系统代理
       </label>
+      <label class="switch" title="用 TUN 网卡接管所有程序的流量，包括不认识代理设置的程序">
+        <input id="tun" type="checkbox"> TUN
+      </label>
       <div id="modes" class="segmented" title="分流模式">
         <button data-mode="rule">分流</button>
         <button data-mode="global">全局</button>

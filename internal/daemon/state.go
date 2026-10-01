@@ -14,6 +14,7 @@ type State struct {
 	Backend    string            `json:"backend,omitempty"`
 	Selections map[string]string `json:"selections,omitempty"` // select group → member
 	Mode       string            `json:"mode,omitempty"`       // overrides the profile's mode
+	TUN        *bool             `json:"tun,omitempty"`        // overrides the profile's tun.enable
 	Temp       []TempRoute       `json:"temp,omitempty"`
 	SysProxy   *SysProxyState    `json:"sysproxy,omitempty"`
 }

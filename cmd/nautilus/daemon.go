@@ -10,9 +10,7 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"os/signal"
 	"path/filepath"
-	"syscall"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -50,83 +48,102 @@ func loadSettings() (auth.Settings, string, error) {
 }
 
 func newDaemonCmd() *cobra.Command {
-	var (
-		profileFlag string
-		backendName string
-		offline     bool
-	)
+	var f daemonFlags
 	cmd := &cobra.Command{
 		Use:   "daemon",
 		Short: "运行内核，并提供 Web UI 和 API",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			out := cmd.ErrOrStderr()
-			settings, cwd, err := loadSettings()
-			if err != nil {
-				return err
+			// The service passes its directories explicitly.
+			if f.configDir != "" {
+				os.Setenv("NAUTILUS_CONFIG_DIR", f.configDir)
 			}
-			if file, err := auth.Ensure(&settings, cwd, paths.ConfigDir()); err != nil {
-				return err
-			} else if file != "" {
-				fmt.Fprintf(out, "已生成登录密码，保存在 %s：\n\n    %s\n\n", file, settings.Password)
-				if w := auth.GitIgnoreWarning(file); w != "" {
-					fmt.Fprintln(out, "注意：", w)
-				}
+			if f.dataDir != "" {
+				os.Setenv("NAUTILUS_DATA_DIR", f.dataDir)
 			}
-			profile, err := resolveProfile(profileFlag)
-			if err != nil {
-				return err
-			}
-			opts := daemon.Options{ProfilePath: profile, DataDir: paths.DataDir(), Backend: backendName, Offline: offline, Log: out}
-			d, err := newDaemon(cmd.Context(), opts, out)
-			if err != nil {
-				return err
-			}
-
-			guard := auth.NewGuard(settings)
-			if guard.Pairings, err = auth.LoadPairings(filepath.Join(paths.DataDir(), "pairings.json")); err != nil {
-				return err
-			}
-			srv := &http.Server{Handler: (&api.Server{D: d, Guard: guard, Web: web.FS()}).Handler(), ReadHeaderTimeout: 10 * time.Second}
-			ln, err := net.Listen("tcp", settings.Listen)
-			if err != nil {
-				return fmt.Errorf("Web UI 无法监听 %s：%w", settings.Listen, err)
-			}
-			go func() {
-				var err error
-				if settings.TLSCert != "" {
-					err = srv.ServeTLS(ln, settings.TLSCert, settings.TLSKey)
-				} else {
-					err = srv.Serve(ln)
-				}
-				if err != nil && !errors.Is(err, http.ErrServerClosed) {
-					fmt.Fprintln(out, "Web UI 停止了：", err)
-				}
-			}()
-			scheme := "http"
-			if settings.TLSCert != "" {
-				scheme = "https"
-			}
-			fmt.Fprintf(out, "Web UI：%s://%s/\n", scheme, displayAddr(settings.Listen))
-			if host, _, _ := net.SplitHostPort(settings.Listen); !auth.IsLoopback(host) && settings.TLSCert == "" {
-				fmt.Fprintln(out, "警告：Web UI 监听在本机以外的地址，但没有配置 TLS 证书，密码会以明文传输")
-			}
-
-			ctx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt, syscall.SIGTERM)
-			defer stop()
-			go followSettings(ctx, guard, cwd, out)
-			err = d.Run(ctx)
-			shutdown, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-			defer cancel()
-			srv.Shutdown(shutdown)
-			return err
+			return serve(cmd.Context(), cmd.ErrOrStderr(), func(ctx context.Context, out io.Writer) error {
+				return runDaemon(ctx, out, f)
+			})
 		},
 	}
-	f := cmd.Flags()
-	f.StringVarP(&profileFlag, "profile", "p", "", "profile 文件（默认是当前目录或配置目录里的 profile.yaml）")
-	f.StringVar(&backendName, "backend", "", "内核：mihomo 或 xray（默认沿用上次的选择，第一次是 mihomo）")
-	f.BoolVar(&offline, "offline", false, "不下载订阅和规则列表，只用已缓存的")
+	fl := cmd.Flags()
+	fl.StringVarP(&f.profile, "profile", "p", "", "profile 文件（默认是当前目录或配置目录里的 profile.yaml）")
+	fl.StringVar(&f.backend, "backend", "", "内核：mihomo 或 xray（默认沿用上次的选择，第一次是 mihomo）")
+	fl.BoolVar(&f.offline, "offline", false, "不下载订阅和规则列表，只用已缓存的")
+	fl.BoolVar(&f.service, "service", false, "作为系统服务运行（由 nautilus service install 设置）：系统代理交给每个用户的 nautilus agent")
+	fl.StringVar(&f.configDir, "config-dir", "", "配置目录（默认 "+paths.ConfigDir()+"）")
+	fl.StringVar(&f.dataDir, "data-dir", "", "数据目录（默认 "+paths.DataDir()+"）")
+	for _, name := range []string{"service", "config-dir", "data-dir"} {
+		fl.MarkHidden(name)
+	}
 	return cmd
+}
+
+type daemonFlags struct {
+	profile, backend   string
+	offline, service   bool
+	configDir, dataDir string
+}
+
+// runDaemon runs the daemon and its HTTP server until ctx is done.
+func runDaemon(ctx context.Context, out io.Writer, f daemonFlags) error {
+	settings, cwd, err := loadSettings()
+	if err != nil {
+		return err
+	}
+	if file, err := auth.Ensure(&settings, cwd, paths.ConfigDir()); err != nil {
+		return err
+	} else if file != "" {
+		fmt.Fprintf(out, "已生成登录密码，保存在 %s：\n\n    %s\n\n", file, settings.Password)
+		if w := auth.GitIgnoreWarning(file); w != "" {
+			fmt.Fprintln(out, "注意：", w)
+		}
+	}
+	profile, err := resolveProfile(f.profile)
+	if err != nil {
+		return err
+	}
+	opts := daemon.Options{ProfilePath: profile, DataDir: paths.DataDir(), Backend: f.backend, Offline: f.offline, Log: out, Service: f.service}
+	d, err := newDaemon(ctx, opts, out)
+	if err != nil {
+		return err
+	}
+
+	guard := auth.NewGuard(settings)
+	if guard.Pairings, err = auth.LoadPairings(filepath.Join(paths.DataDir(), "pairings.json")); err != nil {
+		return err
+	}
+	srv := &http.Server{Handler: (&api.Server{D: d, Guard: guard, Web: web.FS()}).Handler(), ReadHeaderTimeout: 10 * time.Second}
+	ln, err := net.Listen("tcp", settings.Listen)
+	if err != nil {
+		return fmt.Errorf("Web UI 无法监听 %s：%w", settings.Listen, err)
+	}
+	go func() {
+		var err error
+		if settings.TLSCert != "" {
+			err = srv.ServeTLS(ln, settings.TLSCert, settings.TLSKey)
+		} else {
+			err = srv.Serve(ln)
+		}
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
+			fmt.Fprintln(out, "Web UI 停止了：", err)
+		}
+	}()
+	scheme := "http"
+	if settings.TLSCert != "" {
+		scheme = "https"
+	}
+	fmt.Fprintf(out, "Web UI：%s://%s/\n", scheme, displayAddr(settings.Listen))
+	if host, _, _ := net.SplitHostPort(settings.Listen); !auth.IsLoopback(host) && settings.TLSCert == "" {
+		fmt.Fprintln(out, "警告：Web UI 监听在本机以外的地址，但没有配置 TLS 证书，密码会以明文传输")
+	}
+
+	go followSettings(ctx, guard, cwd, out)
+	err = d.Run(ctx)
+	shutdown, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	srv.Shutdown(shutdown)
+	return err
 }
 
 // newDaemon creates the daemon, installing the kernel and its geodata the
@@ -248,6 +265,28 @@ func newStatusCmd() *cobra.Command {
 			return nil
 		},
 	}
+}
+
+func newTUNCmd() *cobra.Command {
+	set := func(on bool) func(*cobra.Command, []string) error {
+		return func(cmd *cobra.Command, _ []string) error {
+			if err := daemonClient().SetTUN(cmd.Context(), on); err != nil {
+				return err
+			}
+			if on {
+				fmt.Fprintln(cmd.OutOrStdout(), "TUN 已开启：不认识代理设置的程序也会经过 nautilus")
+			} else {
+				fmt.Fprintln(cmd.OutOrStdout(), "TUN 已关闭")
+			}
+			return nil
+		}
+	}
+	cmd := &cobra.Command{Use: "tun", Short: "开关 TUN（接管所有程序的流量，需要 daemon 在运行）"}
+	cmd.AddCommand(
+		&cobra.Command{Use: "on", Short: "用 TUN 网卡接管所有程序的流量", Args: cobra.NoArgs, RunE: set(true)},
+		&cobra.Command{Use: "off", Short: "关闭 TUN", Args: cobra.NoArgs, RunE: set(false)},
+	)
+	return cmd
 }
 
 func newSysProxyCmd() *cobra.Command {

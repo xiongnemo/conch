@@ -15,6 +15,7 @@ import (
 	"nautilus/internal/explain"
 	"nautilus/internal/kernel"
 	"nautilus/internal/lists"
+	"nautilus/internal/platform/privilege"
 	"nautilus/internal/route"
 	"nautilus/internal/subscription"
 )
@@ -44,15 +45,24 @@ type Status struct {
 	Diagnostics   []string                      `json:"diagnostics,omitempty"`
 	Subscriptions map[string]*subscription.Info `json:"subscriptions,omitempty"`
 	SysProxy      bool                          `json:"sysproxy"` // the user wants the system proxy on
+	TUN           bool                          `json:"tun"`      // the applied config captures traffic with TUN
+	Service       bool                          `json:"service"`  // a system service: agents set the system proxy
 	Caps          control.Caps                  `json:"caps"`
 }
 
 func (d *Daemon) Status() Status {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	s := Status{Backend: d.backend.Name(), Kernel: d.sup.Status(), Profile: d.opts.ProfilePath, Error: d.lastErr, Subscriptions: d.subInfo, Caps: d.ctl.Caps()}
+	return d.statusLocked()
+}
+
+func (d *Daemon) statusLocked() Status {
+	s := Status{Service: d.opts.Service, Backend: d.backend.Name(), Kernel: d.sup.Status(), Profile: d.opts.ProfilePath, Error: d.lastErr, Subscriptions: d.subInfo, Caps: d.ctl.Caps()}
 	if d.res != nil {
 		s.Mode, s.MixedPort = d.res.Settings.Mode, d.res.Settings.MixedPort
+	}
+	if d.applied != nil && d.res != nil {
+		s.TUN = d.res.Settings.TUN.Enable
 	}
 	s.Ready = d.applied != nil && s.Kernel.State == kernel.Running
 	s.SysProxy = d.state.SysProxy != nil && d.state.SysProxy.Wanted
@@ -382,6 +392,35 @@ func (d *Daemon) SetMode(ctx context.Context, mode string) error {
 		return err
 	}
 	return d.Reconcile(ctx)
+}
+
+// SetTUN turns TUN on or off, overriding the profile. If the kernel
+// cannot run with it, the previous setting is kept.
+func (d *Daemon) SetTUN(ctx context.Context, on bool) error {
+	if on {
+		if !d.backend.Capabilities().TUN {
+			return fmt.Errorf("%s 内核暂不支持 TUN：它不会自己配置系统路由，需要 nautilus 来做；可以先用 mihomo 内核", d.backend.Name())
+		}
+		if err := privilege.TUNError(d.bin); err != nil {
+			return err
+		}
+	}
+	d.mu.Lock()
+	old := d.state.TUN
+	d.state.TUN = &on
+	err := d.state.save(d.statePath())
+	d.mu.Unlock()
+	if err != nil {
+		return err
+	}
+	if err := d.Reconcile(ctx); err != nil {
+		d.mu.Lock()
+		d.state.TUN = old
+		d.state.save(d.statePath())
+		d.mu.Unlock()
+		return err
+	}
+	return nil
 }
 
 // UpdateSubscription downloads a subscription now.

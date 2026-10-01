@@ -126,6 +126,11 @@ func (f *fake) SetSysProxy(_ context.Context, on bool) error {
 	return nil
 }
 
+func (f *fake) SetTUN(_ context.Context, on bool) error {
+	f.record("tun %v", on)
+	return nil
+}
+
 func (f *fake) UpdateSubscription(_ context.Context, name string) error {
 	f.record("update %s", name)
 	return nil
@@ -278,6 +283,8 @@ func TestOverview(t *testing.T) {
 	h.wantCall("mode global")
 	h.keys("s")
 	h.wantCall("sysproxy true")
+	h.keys("t")
+	h.wantCall("tun true")
 	h.keys("u") // the subscription is the only item, so the cursor is on it
 	h.wantCall("update airport")
 	h.keys("R")

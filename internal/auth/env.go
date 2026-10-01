@@ -108,9 +108,7 @@ func Ensure(s *Settings, cwd, configDir string) (string, error) {
 	if !s.Auth || s.Password != "" {
 		return "", nil
 	}
-	buf := make([]byte, 18)
-	rand.Read(buf)
-	s.Password = base64.RawURLEncoding.EncodeToString(buf)
+	s.Password = NewPassword()
 	var lastErr error
 	for _, f := range EnvFiles(cwd, configDir) {
 		if err := appendEnv(f, "NAUTILUS_PASSWORD", s.Password); err != nil {
@@ -225,4 +223,20 @@ func GitIgnoreWarning(file string) string {
 			return ""
 		}
 	}
+}
+
+// PasswordIn returns the password a .env file sets, if any.
+func PasswordIn(file string) string {
+	env, err := readEnv(file)
+	if err != nil {
+		return ""
+	}
+	return env["NAUTILUS_PASSWORD"]
+}
+
+// NewPassword returns a random password.
+func NewPassword() string {
+	buf := make([]byte, 18)
+	rand.Read(buf)
+	return base64.RawURLEncoding.EncodeToString(buf)
 }

@@ -38,6 +38,10 @@ func (m *Model) overviewRows(w int) []row {
 	if s.SysProxy {
 		sysproxy = good.Render("开") + muted.Render("（daemon 退出时恢复原来的设置）")
 	}
+	tun := muted.Render("关")
+	if s.TUN {
+		tun = good.Render("开") + muted.Render("（所有程序的流量都经过 nautilus）")
+	}
 	port := "-"
 	if s.MixedPort != 0 {
 		port = fmt.Sprintf("127.0.0.1:%d（HTTP 和 SOCKS5）", s.MixedPort)
@@ -46,6 +50,7 @@ func (m *Model) overviewRows(w int) []row {
 		field("内核", kernel),
 		field("模式", strings.Join(modes, "  ")),
 		field("系统代理", sysproxy),
+		field("TUN", tun),
 		field("代理端口", port),
 		field("配置文件", s.Profile),
 		blank(),
@@ -115,6 +120,14 @@ func (m *Model) overviewKey(key string, item any) tea.Cmd {
 			ok = "系统代理已开启"
 		}
 		return m.do(ok, func(ctx context.Context) error { return m.c.SetSysProxy(ctx, on) })
+	case "t":
+		on := !s.TUN
+		ok := "TUN 已关闭"
+		if on {
+			ok = "TUN 已开启"
+			m.note("正在开启 TUN……", false)
+		}
+		return m.do(ok, func(ctx context.Context) error { return m.c.SetTUN(ctx, on) })
 	case "u":
 		if sub, ok := item.(subItem); ok {
 			m.note("正在更新订阅 "+sub.name+"……", false)
