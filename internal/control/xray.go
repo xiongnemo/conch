@@ -65,7 +65,9 @@ func (*Xray) Validate(ctx context.Context, bin, home, config string) error {
 }
 
 func (x *Xray) api(ctx context.Context, args ...string) ([]byte, error) {
-	full := append([]string{"api", args[0], "--server=unix://" + x.Socket}, args[1:]...)
+	// "unix:" and the path, which gRPC reads as the path also on Windows
+	// (unix://C:\… would make C: a host).
+	full := append([]string{"api", args[0], "--server=unix:" + x.Socket}, args[1:]...)
 	out, err := exec.CommandContext(ctx, x.Bin, full...).CombinedOutput()
 	if err != nil {
 		return out, fmt.Errorf("xray api %s：%s", args[0], lastLines(out, 2))

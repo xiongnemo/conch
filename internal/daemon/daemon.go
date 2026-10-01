@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -119,7 +120,7 @@ func New(opts Options) (*Daemon, error) {
 	}
 	// The kernel API is unauthenticated on this socket: keep it in a
 	// directory only this user can enter.
-	runDir := filepath.Join(opts.DataDir, "run")
+	runDir := socketDir(opts.DataDir)
 	if err := os.MkdirAll(runDir, 0o700); err != nil {
 		return nil, err
 	}
@@ -488,4 +489,17 @@ func (d *Daemon) startTraffic() {
 func fileHash(path string) [32]byte {
 	data, _ := os.ReadFile(path)
 	return sha256.Sum256(data)
+}
+
+// socketDir is where the kernels' unix sockets go: in the data directory,
+// unless their paths would be too long for a socket (about 100 bytes on
+// every OS), as a deep data directory makes them. Then in a directory of
+// the user's temporary directory named after it.
+func socketDir(dataDir string) string {
+	dir := filepath.Join(dataDir, "run")
+	if len(filepath.Join(dir, "xray-probe-0.sock")) <= 100 {
+		return dir
+	}
+	sum := sha256.Sum256([]byte(dataDir))
+	return filepath.Join(os.TempDir(), "nautilus-"+hex.EncodeToString(sum[:4]))
 }
