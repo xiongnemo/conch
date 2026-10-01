@@ -1,0 +1,1 @@
+警告 ../../../examples/profile.yaml:29：sing-box：从 IP 条目 149.154.160.0/20（resolve: true）开始，之后匹配的连接会先在本机解析域名，并用解析出的 IP 连接出口

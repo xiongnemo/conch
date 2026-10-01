@@ -221,6 +221,7 @@ func (e *encoder) rules() []rule {
 				// From here on, IP rules also see the domain's addresses.
 				out = append(out, rule{Action: "resolve"})
 				resolved = true
+				e.d.Warnf(r.Origin.Pos, "sing-box：从 IP 条目 %s（resolve: true）开始，之后匹配的连接会先在本机解析域名，并用解析出的 IP 连接出口", r.Origin.Key)
 			}
 		case route.MatchRuleSet:
 			xs = e.listRules(r)
