@@ -1,0 +1,40 @@
+:root {
+  --bg: #fff; --text: #1d2330; --muted: #6b7280; --line: #e5e7eb;
+  --accent: #2563eb; --accent-soft: #e8efff; --ok: #15803d; --warn: #b45309; --bad: #b91c1c;
+  color-scheme: light dark;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #1a1e24; --text: #e6e8eb; --muted: #9aa3ae; --line: #2a3038; --accent: #6b9bff; --accent-soft: #1e2a44; }
+}
+* { box-sizing: border-box; }
+body { margin: 0; width: 380px; font: 13px/1.5 system-ui, "PingFang SC", "Microsoft YaHei", sans-serif; background: var(--bg); color: var(--text); }
+main { padding: 12px 14px; }
+header { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.pill { font-size: 12px; padding: 1px 8px; border-radius: 99px; background: var(--accent-soft); color: var(--accent); }
+h1 { font-size: 16px; margin: 0 0 8px; }
+h2 { font-size: 13px; color: var(--muted); margin: 14px 0 6px; font-weight: 600; }
+.muted { color: var(--muted); }
+.small { font-size: 12px; }
+.error { color: var(--bad); }
+.good { color: var(--ok); }
+.warn { color: var(--warn); }
+.bad { color: var(--bad); }
+.notice { background: var(--accent-soft); padding: 4px 8px; border-radius: 6px; }
+.site .host { font-size: 15px; font-weight: 600; word-break: break-all; }
+.site .via { font-size: 14px; margin: 2px 0; }
+.site .delay { font-size: 12px; margin-left: 4px; }
+details { margin-top: 4px; }
+details ul { margin: 4px 0; padding-left: 18px; }
+form { display: grid; gap: 8px; margin-top: 10px; }
+label { display: grid; grid-template-columns: 76px 1fr; align-items: center; gap: 8px; }
+input, select, button { font: inherit; color: inherit; }
+input, select { width: 100%; padding: 4px 6px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); }
+button { padding: 5px 10px; border: 0; border-radius: 6px; background: var(--accent); color: #fff; cursor: pointer; }
+button.secondary { background: var(--accent-soft); color: var(--accent); }
+button.link { background: none; color: var(--muted); padding: 0 4px; }
+button.small-button { padding: 1px 8px; font-size: 12px; background: var(--accent-soft); color: var(--accent); }
+.failures { list-style: none; margin: 0; padding: 0; }
+.failures li { display: grid; grid-template-columns: 1fr auto auto; gap: 8px; align-items: center; padding: 4px 0; border-top: 1px solid var(--line); }
+.failures .host { word-break: break-all; }
+footer { display: flex; justify-content: space-between; margin-top: 14px; padding-top: 8px; border-top: 1px solid var(--line); }
+code { font-size: 12px; background: var(--accent-soft); padding: 0 4px; border-radius: 4px; }

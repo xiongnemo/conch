@@ -374,6 +374,36 @@ function loadConns() {
 $("#clear-failed").addEventListener("click", () => api("DELETE", "/failed").then(loadConns).catch(showError));
 setInterval(() => { if (currentTab === "connections" && !document.hidden) loadConns(); }, 2000);
 
+// ---- browser extensions ----
+
+async function loadPairings() {
+  const list = await api("GET", "/pairings").catch(() => []);
+  fill($("#pairings"), list.length ? h("table", {}, h("tbody", {}, list.map((p) => h("tr", {},
+    h("td", {}, p.name, h("div", { class: "src" }, p.origin || "")),
+    h("td", {}, h("div", { class: "src" }, "配对于 " + new Date(p.created).toLocaleString("zh-CN", { hour12: false }))),
+    h("td", {}, h("button", { onclick: () => api("DELETE", `/pairings/${encodeURIComponent(p.id)}`).then(loadPairings).catch(showError) }, "取消配对")))))) : null);
+}
+
+let pairTimer = null;
+$("#pair").addEventListener("click", async () => {
+  try {
+    const { code, expires } = await api("POST", "/pair/code");
+    $("#pair-code").textContent = code;
+    const tick = () => {
+      const left = Math.round((new Date(expires) - Date.now()) / 1000);
+      $("#pair-expires").textContent = left > 0 ? `${left} 秒内有效，只能用一次` : "已过期，请关闭后重新获取";
+      if (left <= 0) clearInterval(pairTimer);
+    };
+    clearInterval(pairTimer);
+    tick();
+    pairTimer = setInterval(tick, 1000);
+    $("#pair-dialog").showModal();
+    $("#pair-dialog").addEventListener("close", () => { clearInterval(pairTimer); loadPairings(); }, { once: true });
+  } catch (err) {
+    showError(err);
+  }
+});
+
 // ---- logs ----
 
 const logLines = [];
@@ -386,6 +416,7 @@ function addLog(line) {
 // ---- startup ----
 
 function refresh() {
+  if (currentTab === "overview") loadPairings();
   if (currentTab === "outbounds") loadOutbounds();
   if (currentTab === "routes") { loadRoutes(); loadOutbounds(); }
   if (currentTab === "connections") { loadConns(); loadOutbounds(); }

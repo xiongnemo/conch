@@ -198,6 +198,25 @@ func (c *Client) Suggest(ctx context.Context, host string) ([]string, error) {
 	return l, c.do(ctx, http.MethodGet, "/api/v1/suggest?host="+url.QueryEscape(host), nil, &l)
 }
 
+// PairCode issues a code a browser extension can pair with.
+func (c *Client) PairCode(ctx context.Context) (string, time.Time, error) {
+	var v struct {
+		Code    string    `json:"code"`
+		Expires time.Time `json:"expires"`
+	}
+	err := c.do(ctx, http.MethodPost, "/api/v1/pair/code", nil, &v)
+	return v.Code, v.Expires, err
+}
+
+func (c *Client) Pairings(ctx context.Context) ([]auth.Pairing, error) {
+	var l []auth.Pairing
+	return l, c.do(ctx, http.MethodGet, "/api/v1/pairings", nil, &l)
+}
+
+func (c *Client) RevokePairing(ctx context.Context, id string) error {
+	return c.do(ctx, http.MethodDelete, "/api/v1/pairings/"+url.PathEscape(id), nil, nil)
+}
+
 // Event is one server-sent event: a state change, a traffic sample or a log line.
 type Event struct {
 	Type string

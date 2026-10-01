@@ -3,3 +3,5 @@
 /dist/
 *.part
 .env
+/extension/node_modules/
+/extension/dist/

@@ -84,6 +84,9 @@ func newDaemonCmd() *cobra.Command {
 			}
 
 			guard := auth.NewGuard(settings)
+			if guard.Pairings, err = auth.LoadPairings(filepath.Join(paths.DataDir(), "pairings.json")); err != nil {
+				return err
+			}
 			srv := &http.Server{Handler: (&api.Server{D: d, Guard: guard, Web: web.FS()}).Handler(), ReadHeaderTimeout: 10 * time.Second}
 			ln, err := net.Listen("tcp", settings.Listen)
 			if err != nil {

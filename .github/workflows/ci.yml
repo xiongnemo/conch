@@ -28,8 +28,20 @@ jobs:
             echo "NAUTILUS_XRAY=$(/tmp/nautilus kernel path xray)"
             echo "NAUTILUS_XRAY_ASSETS=$HOME/.local/share/nautilus/home/xray"
           } >> "$GITHUB_ENV"
-      - name: Kernels accept every golden config, chains work end to end
-        run: go test ./internal/backend/... ./internal/e2e -run 'Accepted|Chain' -count=1 -v
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Browser extension builds and its tests pass
+        working-directory: extension
+        run: |
+          npm ci
+          npm run check
+          npm test
+          npm run build
+      - name: Kernels accept every golden config; daemon, API and extension work end to end
+        run: |
+          export NAUTILUS_CHROME="$(command -v google-chrome)" NAUTILUS_EXTENSION="$PWD/extension/dist/chrome"
+          go test ./internal/backend/... ./internal/e2e -count=1 -v
 
   cross:
     runs-on: ubuntu-latest

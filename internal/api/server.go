@@ -83,11 +83,35 @@ func (s *Server) Handler() http.Handler {
 		writeJSON(w, daemon.Suggest(r.URL.Query().Get("host")))
 	})
 	mux.HandleFunc("GET /api/v1/events", s.events)
+	mux.HandleFunc("POST "+auth.PairPath, s.pair)
+	mux.HandleFunc("POST /api/v1/pair/code", s.pairCode)
+	mux.HandleFunc("GET /api/v1/pairings", func(w http.ResponseWriter, r *http.Request) {
+		list := []auth.Pairing{}
+		if p := s.Guard.Pairings; p != nil {
+			list = append(list, p.List()...)
+		}
+		writeJSON(w, list)
+	})
+	mux.HandleFunc("DELETE /api/v1/pairings/{id}", func(w http.ResponseWriter, r *http.Request) {
+		if s.Guard.Pairings == nil {
+			fail(w, daemon.ErrNotFound)
+			return
+		}
+		ok, err := s.Guard.Pairings.Revoke(r.PathValue("id"))
+		switch {
+		case err != nil:
+			fail(w, err)
+		case !ok:
+			fail(w, fmt.Errorf("配对 %w", daemon.ErrNotFound))
+		default:
+			w.WriteHeader(http.StatusNoContent)
+		}
+	})
 	if s.Web != nil {
 		mux.Handle("GET /", http.FileServerFS(s.Web))
 	}
 	s.Guard.Public = func(path string) bool {
-		return path == "/api/v1/login" || path == "/api/v1/session" || !strings.HasPrefix(path, "/api/")
+		return path == "/api/v1/login" || path == "/api/v1/session" || path == auth.PairPath || !strings.HasPrefix(path, "/api/")
 	}
 	return secure(s.Guard.Wrap(mux))
 }
@@ -184,6 +208,39 @@ func (s *Server) explain(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, view.Explain(s.D.Result(), ex))
+}
+
+// pairCode issues a code for pairing a browser extension.
+func (s *Server) pairCode(w http.ResponseWriter, r *http.Request) {
+	if s.Guard.Pairings == nil {
+		fail(w, errors.New("这个 daemon 不支持配对浏览器扩展"))
+		return
+	}
+	code, expires := s.Guard.Pairings.NewCode(time.Now())
+	writeJSON(w, map[string]any{"code": code, "expires": expires})
+}
+
+// pair trades a pairing code for a token, for the extension asking.
+func (s *Server) pair(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		Code string `json:"code"`
+		Name string `json:"name"`
+	}
+	if !decode(w, r, &body) {
+		return
+	}
+	if s.Guard.Pairings == nil {
+		fail(w, errors.New("这个 daemon 不支持配对浏览器扩展"))
+		return
+	}
+	p, token, err := s.Guard.Pairings.Pair(strings.TrimSpace(body.Code), body.Name, r.Header.Get("Origin"), time.Now())
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusForbidden)
+		json.NewEncoder(w).Encode(Error{Error: err.Error()})
+		return
+	}
+	writeJSON(w, map[string]string{"id": p.ID, "token": token})
 }
 
 func (s *Server) setMode(w http.ResponseWriter, r *http.Request) {

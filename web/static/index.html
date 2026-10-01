@@ -59,6 +59,11 @@
           <h2>订阅</h2>
           <div id="subs" class="muted">没有订阅</div>
         </div>
+        <div class="card">
+          <h2>浏览器扩展 <button id="pair" class="link">配对浏览器扩展</button></h2>
+          <p class="muted">扩展可以显示当前网站走哪个出口、一键改出口，并记录网页加载失败的网站。它只能查看和修改路由。</p>
+          <div id="pairings"></div>
+        </div>
       </section>
 
       <section data-page="outbounds" hidden>
@@ -104,6 +109,16 @@
       </section>
     </main>
   </div>
+
+  <dialog id="pair-dialog">
+    <form method="dialog">
+      <h2>配对浏览器扩展</h2>
+      <p class="muted">在扩展的弹窗里输入这个配对码：</p>
+      <p id="pair-code" class="pair-code"></p>
+      <p class="muted" id="pair-expires"></p>
+      <div class="row"><button value="close">关闭</button></div>
+    </form>
+  </dialog>
 
   <dialog id="route-dialog">
     <form id="route-dialog-form" method="dialog">

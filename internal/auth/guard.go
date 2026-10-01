@@ -10,6 +10,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -28,13 +29,16 @@ type Guard struct {
 	key      []byte // session signing key, derived from the password
 
 	limiter limiter
-	// Origins returns extra origins allowed to make changes, such as a
-	// paired browser extension.
-	Origins func() []string
+	// Pairings are the paired browser extensions; nil allows none.
+	Pairings *Pairings
 	// Public reports paths served without a session (the login page and
 	// its assets).
 	Public func(path string) bool
 }
+
+// PairPath is where extensions trade a pairing code for a token. It is
+// public and answers CORS requests from any extension.
+const PairPath = "/api/v1/pair"
 
 func NewGuard(s Settings) *Guard {
 	g := &Guard{}
@@ -67,6 +71,20 @@ func (g *Guard) Wrap(next http.Handler) http.Handler {
 			jsonError(w, http.StatusForbidden, "不接受这个 Host 的请求")
 			return
 		}
+		// Extensions with permission for the daemon's address are exempt
+		// from CORS; answering it also serves those without.
+		if origin := r.Header.Get("Origin"); g.corsAllowed(origin, r.URL.Path) {
+			h := w.Header()
+			h.Set("Access-Control-Allow-Origin", origin)
+			h.Add("Vary", "Origin")
+			if r.Method == http.MethodOptions {
+				h.Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE")
+				h.Set("Access-Control-Allow-Headers", "Authorization, Content-Type")
+				h.Set("Access-Control-Max-Age", "600")
+				w.WriteHeader(http.StatusNoContent)
+				return
+			}
+		}
 		if changes(r.Method) {
 			if r.Header.Get("Origin") != "" && !g.originAllowed(r) {
 				jsonError(w, http.StatusForbidden, "不接受来自其他网站的修改请求")
@@ -80,12 +98,27 @@ func (g *Guard) Wrap(next http.Handler) http.Handler {
 			}
 		}
 		public := g.Public != nil && g.Public(r.URL.Path)
-		if s.Auth && !public && !g.authenticated(r) {
-			jsonError(w, http.StatusUnauthorized, "需要登录")
-			return
+		if s.Auth && !public {
+			switch g.access(r) {
+			case accessNone:
+				jsonError(w, http.StatusUnauthorized, "需要登录")
+				return
+			case accessExtension:
+				if !inExtensionScope(r) {
+					jsonError(w, http.StatusForbidden, "浏览器扩展没有权限做这个操作")
+					return
+				}
+			}
 		}
 		next.ServeHTTP(w, r)
 	})
+}
+
+func (g *Guard) corsAllowed(origin, path string) bool {
+	if !IsExtensionOrigin(origin) {
+		return false
+	}
+	return path == PairPath || g.Pairings != nil && slices.Contains(g.Pairings.Origins(), origin)
 }
 
 func changes(method string) bool {
@@ -112,22 +145,36 @@ func (g *Guard) originAllowed(r *http.Request) bool {
 	if u, err := url.Parse(origin); err == nil && u.Host == r.Host {
 		return true
 	}
-	if g.Origins != nil {
-		for _, o := range g.Origins() {
-			if o == origin {
-				return true
-			}
-		}
+	if r.URL.Path == PairPath && IsExtensionOrigin(origin) {
+		return true // pairing is how an extension's origin gets allowed
 	}
-	return false
+	return g.Pairings != nil && slices.Contains(g.Pairings.Origins(), origin)
 }
 
-func (g *Guard) authenticated(r *http.Request) bool {
+type access int
+
+const (
+	accessNone access = iota
+	accessExtension
+	accessFull
+)
+
+func (g *Guard) access(r *http.Request) access {
 	if token, ok := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer "); ok {
-		return g.passwordOK(token)
+		if g.passwordOK(token) {
+			return accessFull
+		}
+		if g.Pairings != nil {
+			if _, ok := g.Pairings.Lookup(token); ok {
+				return accessExtension
+			}
+		}
+		return accessNone
 	}
-	c, err := r.Cookie(CookieName)
-	return err == nil && g.sessionOK(c.Value, time.Now())
+	if c, err := r.Cookie(CookieName); err == nil && g.sessionOK(c.Value, time.Now()) {
+		return accessFull
+	}
+	return accessNone
 }
 
 func (g *Guard) passwordOK(p string) bool {
