@@ -12,7 +12,7 @@ import (
 	"golang.org/x/sys/windows/svc"
 	"golang.org/x/sys/windows/svc/mgr"
 
-	"nautilus/internal/kernels"
+	"nautilus/internal/platform/firewall"
 )
 
 // SystemLayout is where a system-wide installation lives on Windows.
@@ -58,6 +58,11 @@ func Install(o Options) error {
 			return err
 		}
 	}
+	// ProgramData lets every user read what is in it, and .env holds the
+	// API password: only SYSTEM and administrators get in.
+	if _, err := o.Run("icacls", l.ConfigDir, "/inheritance:r", "/grant:r", "*S-1-5-18:(OI)(CI)F", "/grant:r", "*S-1-5-32-544:(OI)(CI)F", "/Q"); err != nil {
+		o.logf("没能收紧 %s 的权限（%v）：其他用户也许能读到登录密码", l.ConfigDir, err)
+	}
 	if err := carryOver(&o); err != nil {
 		return err
 	}
@@ -89,13 +94,9 @@ func Install(o Options) error {
 		return fmt.Errorf("启动服务：%w", err)
 	}
 	o.logf("nautilus 服务已启动，日志在 %s", l.Log)
-	// TUN's system stack accepts connections in the kernel process.
-	if inst, err := kernels.Current(l.DataDir, "mihomo", "windows"); err == nil {
-		o.Run("netsh", "advfirewall", "firewall", "delete", "rule", "name="+firewallRule)
-		if _, err := o.Run("netsh", "advfirewall", "firewall", "add", "rule", "name="+firewallRule, "dir=in", "action=allow", "program="+inst.Path, "enable=yes"); err != nil {
-			o.logf("没能在防火墙里放行内核（%v），开启 TUN 时可能需要手动放行", err)
-		}
-	}
+	// The daemon lets the kernel through the firewall when it turns TUN
+	// on; this name is what versions before that used.
+	o.Run("netsh", "advfirewall", "firewall", "delete", "rule", "name="+firewallRule)
 	if o.NoAgent {
 		return nil
 	}
@@ -138,6 +139,7 @@ func Uninstall(o Options) error {
 		return err
 	}
 	o.Run("netsh", "advfirewall", "firewall", "delete", "rule", "name="+firewallRule)
+	firewall.Remove()
 	if k, err := registry.OpenKey(registry.CURRENT_USER, runKey, registry.SET_VALUE); err == nil {
 		k.DeleteValue(agentValue)
 		k.Close()
@@ -146,22 +148,27 @@ func Uninstall(o Options) error {
 	return nil
 }
 
-// Status describes the service in a line.
+// Status describes the service in a line. It asks only for the right to
+// read the status, which every user has.
 func Status(o Options) (string, error) {
-	m, err := mgr.Connect()
+	m, err := windows.OpenSCManager(nil, nil, windows.SC_MANAGER_CONNECT)
 	if err != nil {
 		return "", err
 	}
-	defer m.Disconnect()
-	s, err := m.OpenService(Name)
-	if err != nil {
+	defer windows.CloseServiceHandle(m)
+	name, _ := windows.UTF16PtrFromString(Name)
+	s, err := windows.OpenService(m, name, windows.SERVICE_QUERY_STATUS)
+	if errors.Is(err, windows.ERROR_SERVICE_DOES_NOT_EXIST) {
 		return "", ErrNotInstalled
-	}
-	defer s.Close()
-	q, err := s.Query()
-	if err != nil {
+	} else if err != nil {
 		return "", err
 	}
+	defer windows.CloseServiceHandle(s)
+	var q windows.SERVICE_STATUS
+	if err := windows.QueryServiceStatus(s, &q); err != nil {
+		return "", err
+	}
+	state := svc.State(q.CurrentState)
 	states := map[svc.State]string{svc.Running: "运行中", svc.Stopped: "已停止", svc.StartPending: "正在启动", svc.StopPending: "正在停止"}
-	return "nautilus 服务：" + cmpOr(states[q.State], fmt.Sprint(q.State)), nil
+	return "nautilus 服务：" + cmpOr(states[state], fmt.Sprint(state)), nil
 }

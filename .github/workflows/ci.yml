@@ -101,6 +101,38 @@ jobs:
           # Tests skip when a kernel or the browser is missing; here that is a failure.
           if grep -- '--- SKIP' e2e.log; then exit 1; fi
 
+  # The daemon on Windows: controllers over unix sockets, Job Objects,
+  # kernels' Windows builds.
+  e2e-windows:
+    name: e2e (windows, real kernels)
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+      - name: Install mihomo, xray, sing-box and trojan-go
+        shell: bash
+        run: |
+          go build -o nautilus.exe ./cmd/nautilus
+          for k in mihomo sing-box trojan-go; do ./nautilus.exe kernel install $k; done
+          ./nautilus.exe kernel install xray --geodata
+          {
+            echo "NAUTILUS_MIHOMO=$(./nautilus.exe kernel path mihomo)"
+            echo "NAUTILUS_XRAY=$(./nautilus.exe kernel path xray)"
+            echo "NAUTILUS_XRAY_ASSETS=$LOCALAPPDATA\\nautilus\\home\\xray"
+            echo "NAUTILUS_SING_BOX=$(./nautilus.exe kernel path sing-box)"
+            echo "NAUTILUS_TROJAN_GO=$(./nautilus.exe kernel path trojan-go)"
+          } >> "$GITHUB_ENV"
+      - name: Kernels accept every golden config; daemon, API and sidecars work end to end
+        shell: bash
+        run: |
+          go test -count=1 -v ./internal/backend/... ./internal/e2e ./internal/sidecar | tee e2e.log
+          # Only the extension test may skip: Go cannot hand Chrome its
+          # debugging pipe on Windows.
+          if grep -- '--- SKIP' e2e.log | grep -v TestExtension; then exit 1; fi
+
   extension:
     runs-on: ubuntu-latest
     timeout-minutes: 10

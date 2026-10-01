@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"nautilus/internal/auth"
@@ -109,7 +110,15 @@ func copyFile(src, dst string, mode fs.FileMode) error {
 		return err
 	}
 	// Renaming replaces a binary that is running, which writing over it
-	// cannot do.
+	// cannot do. Windows refuses even that, but lets the running binary
+	// itself be renamed: it moves aside first.
+	if runtime.GOOS == "windows" {
+		old := dst + ".old"
+		os.Remove(old)
+		if os.Rename(dst, old) == nil {
+			defer os.Remove(old) // fails while it still runs; the next install retries
+		}
+	}
 	return os.Rename(tmp, dst)
 }
 

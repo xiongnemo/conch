@@ -23,7 +23,7 @@ func newAgentCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt, syscall.SIGTERM)
 			defer stop()
-			a := &agent.Agent{Client: daemonClient(), StatePath: filepath.Join(paths.DataDir(), "agent.json"), Log: cmd.ErrOrStderr()}
+			a := &agent.Agent{Client: daemonClient(), StatePath: filepath.Join(paths.DataDir(), "agent.json"), Log: quietAgent(cmd.ErrOrStderr())}
 			return a.Run(ctx)
 		},
 	}

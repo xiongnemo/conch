@@ -57,6 +57,11 @@ func newDaemonCmd() *cobra.Command {
 			// The service passes its directories explicitly.
 			if f.configDir != "" {
 				os.Setenv("NAUTILUS_CONFIG_DIR", f.configDir)
+				// Windows starts services in System32, where .env and
+				// profile.yaml would be looked for first.
+				if err := os.Chdir(f.configDir); err != nil {
+					return err
+				}
 			}
 			if f.dataDir != "" {
 				os.Setenv("NAUTILUS_DATA_DIR", f.dataDir)

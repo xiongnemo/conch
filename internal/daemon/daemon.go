@@ -12,6 +12,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -29,6 +30,7 @@ import (
 	"nautilus/internal/kernels"
 	"nautilus/internal/lists"
 	"nautilus/internal/model"
+	"nautilus/internal/platform/firewall"
 	"nautilus/internal/route"
 	"nautilus/internal/subscription"
 )
@@ -51,14 +53,16 @@ type Options struct {
 
 // Daemon owns one kernel process.
 type Daemon struct {
-	opts    Options
-	Events  Bus
-	sup     *kernel.Supervisor
-	ctl     control.Kernel
-	backend backend.Router
-	bin     string
-	home    string
-	socket  string
+	opts   Options
+	Events Bus
+	sup    *kernel.Supervisor
+	ctl    control.Kernel
+	// the kernel binary let through Windows' firewall, for TUN
+	firewalled string
+	backend    backend.Router
+	bin        string
+	home       string
+	socket     string
 
 	lists *lists.Store
 	subs  *subscription.Store
@@ -361,6 +365,15 @@ func (d *Daemon) apply(ctx context.Context, res *compile.Result, art *backend.Ar
 	}
 	if err := os.Rename(next, final); err != nil {
 		return err
+	}
+
+	// Windows' firewall keeps TUN's system stack from reaching the kernel.
+	if res.Settings.TUN.Enable && runtime.GOOS == "windows" && d.firewalled != d.bin {
+		if err := firewall.Allow(d.backend.Name(), d.bin); err != nil {
+			fmt.Fprintf(d.opts.Log, "警告： 没能在 Windows 防火墙里放行内核（%v），TUN 可能连不通\n", err)
+		} else {
+			d.firewalled = d.bin
+		}
 	}
 
 	restarted := !running

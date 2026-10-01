@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"syscall"
 
 	"golang.org/x/sys/windows/svc"
 
@@ -18,7 +19,9 @@ import (
 func serve(ctx context.Context, out io.Writer, run func(context.Context, io.Writer) error) error {
 	isService, err := svc.IsWindowsService()
 	if err != nil || !isService {
-		ctx, stop := signal.NotifyContext(ctx, os.Interrupt)
+		// Closing the console window, logging off and shutting down arrive
+		// as SIGTERM, with a few seconds left to restore the system proxy.
+		ctx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
 		defer stop()
 		return run(ctx, out)
 	}
