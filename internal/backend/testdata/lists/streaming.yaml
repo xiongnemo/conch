@@ -1,0 +1,7 @@
+payload:
+  - DOMAIN-SUFFIX,netflix.com
+  - DOMAIN,api.example-stream.com
+  - DOMAIN-KEYWORD,nflx
+  - IP-CIDR,23.246.0.0/18,no-resolve
+  - PROCESS-NAME,Netflix
+  - USER-AGENT,Netflix*

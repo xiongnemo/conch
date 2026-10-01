@@ -137,17 +137,17 @@ func Str(s string) *yaml.Node {
 	return &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: s}
 }
 
-// weakString returns the scalar value of n, or "" for non-scalars.
-func weakString(n *yaml.Node) string {
+// WeakString returns the scalar value of n, or "" for non-scalars.
+func WeakString(n *yaml.Node) string {
 	if n == nil || n.Kind != yaml.ScalarNode || n.Tag == "!!null" {
 		return ""
 	}
 	return n.Value
 }
 
-// weakInt accepts ints and numeric strings, like mihomo's weakly typed decoding.
-func weakInt(n *yaml.Node) (int, bool) {
-	s := strings.TrimSpace(weakString(n))
+// WeakInt accepts ints and numeric strings, like mihomo's weakly typed decoding.
+func WeakInt(n *yaml.Node) (int, bool) {
+	s := strings.TrimSpace(WeakString(n))
 	if s == "" {
 		return 0, false
 	}
@@ -155,9 +155,9 @@ func weakInt(n *yaml.Node) (int, bool) {
 	return v, err == nil
 }
 
-// weakBool accepts bools, strconv.ParseBool strings and integers.
-func weakBool(n *yaml.Node) (bool, bool) {
-	s := strings.TrimSpace(weakString(n))
+// WeakBool accepts bools, strconv.ParseBool strings and integers.
+func WeakBool(n *yaml.Node) (bool, bool) {
+	s := strings.TrimSpace(WeakString(n))
 	if s == "" {
 		return false, false
 	}

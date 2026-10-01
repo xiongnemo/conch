@@ -1,0 +1,169 @@
+# 由 nautilus 生成，请不要手动修改；需要改动时请编辑 profile.yaml
+
+mixed-port: 7890
+allow-lan: false
+mode: rule
+log-level: info
+profile:
+  store-selected: true
+proxies:
+  - name: ss-2022
+    type: ss
+    server: 192.0.2.1
+    port: 8388
+    cipher: 2022-blake3-aes-128-gcm
+    password: "AAAAAAAAAAAAAAAAAAAAAA=="
+    udp: true
+  - name: vmess-ws
+    type: vmess
+    server: v.example.com
+    port: 443
+    uuid: 00000000-0000-0000-0000-000000000001
+    alterId: 0
+    cipher: auto
+    tls: true
+    servername: v.example.com
+    network: ws
+    ws-opts:
+      path: /ray
+      headers:
+        Host: cdn.example.com
+      max-early-data: 2048
+      early-data-header-name: Sec-WebSocket-Protocol
+  - name: vless-reality
+    type: vless
+    server: r.example.com
+    port: 443
+    uuid: 00000000-0000-0000-0000-000000000002
+    flow: xtls-rprx-vision
+    tls: true
+    servername: www.microsoft.com
+    client-fingerprint: chrome
+    reality-opts:
+      public-key: BkDN6JhDpzeaKaAuy4k_dgzzDOrjd5dJdm8KtB-vHSc
+      short-id: 6ba85179e30d4fc2
+  - name: vless-xhttp
+    type: vless
+    server: x.example.com
+    port: 443
+    uuid: 00000000-0000-0000-0000-000000000003
+    tls: true
+    servername: x.example.com
+    network: xhttp
+    xhttp-opts:
+      path: /xh
+      mode: auto
+  - name: trojan-grpc
+    type: trojan
+    server: t.example.com
+    port: 443
+    password: p
+    sni: t.example.com
+    alpn:
+      - h2
+    network: grpc
+    grpc-opts:
+      grpc-service-name: svc
+  - name: trojan-upgrade
+    type: trojan
+    server: u.example.com
+    port: 443
+    password: p
+    network: ws
+    ws-opts:
+      path: /up
+      v2ray-http-upgrade: true
+  - name: trojan-pinned
+    type: trojan
+    server: p.example.com
+    port: 443
+    password: p
+    skip-cert-verify: true
+    fingerprint: 0f1e2d3c4b5a69788796a5b4c3d2e1f00f1e2d3c4b5a69788796a5b4c3d2e1f0
+  - name: socks-tls
+    type: socks5
+    server: 192.0.2.7
+    port: 1080
+    username: u
+    password: p
+    tls: true
+    skip-cert-verify: true
+  - name: http-auth
+    type: http
+    server: 192.0.2.8
+    port: 8080
+    username: u
+    password: p
+    headers:
+      User-Agent: nautilus
+  - name: hy2
+    type: hysteria2
+    server: h.example.com
+    port: 443
+    password: p
+    up: 50
+    down: 200
+    obfs: salamander
+    obfs-password: o
+    ports: "20000-30000"
+    hop-interval: 30
+    sni: h.example.com
+  - name: wg
+    type: wireguard
+    server: 192.0.2.10
+    port: 51820
+    ip: 172.16.0.2
+    mtu: 1280
+    udp: true
+    reserved:
+      - 1
+      - 2
+      - 3
+    private-key: elM/+PBAa7rn1rifSGuVKiDD9gSiGddGjleV+taVs0U=
+    public-key: DHZ/8quR7djJIv0jvfkP2aGcbDWdOpjd0opJwa0pM2E=
+  - name: tuned
+    type: vless
+    server: 192.0.2.12
+    port: 443
+    uuid: 00000000-0000-0000-0000-000000000004
+    tls: true
+    tfo: true
+    interface-name: eth0
+    routing-mark: 255
+    ip-version: ipv4
+proxy-groups:
+  - name: GLOBAL
+    type: select
+    proxies:
+      - ss-2022
+      - vmess-ws
+      - vless-reality
+      - vless-xhttp
+      - trojan-grpc
+      - trojan-upgrade
+      - trojan-pinned
+      - socks-tls
+      - http-auth
+      - hy2
+      - wg
+      - tuned
+      - DIRECT
+rules:
+  - DOMAIN-SUFFIX,home.arpa,DIRECT
+  - DOMAIN-SUFFIX,lan,DIRECT
+  - DOMAIN-SUFFIX,local,DIRECT
+  - DOMAIN-SUFFIX,localhost,DIRECT
+  - IP-CIDR6,::1/128,DIRECT,no-resolve
+  - IP-CIDR,255.255.255.255/32,DIRECT,no-resolve
+  - IP-CIDR,169.254.0.0/16,DIRECT,no-resolve
+  - IP-CIDR,192.168.0.0/16,DIRECT,no-resolve
+  - IP-CIDR,172.16.0.0/12,DIRECT,no-resolve
+  - IP-CIDR,100.64.0.0/10,DIRECT,no-resolve
+  - IP-CIDR6,fe80::/10,DIRECT,no-resolve
+  - IP-CIDR,0.0.0.0/8,DIRECT,no-resolve
+  - IP-CIDR,10.0.0.0/8,DIRECT,no-resolve
+  - IP-CIDR,127.0.0.0/8,DIRECT,no-resolve
+  - IP-CIDR6,ff00::/8,DIRECT,no-resolve
+  - IP-CIDR6,fc00::/7,DIRECT,no-resolve
+  - IP-CIDR,224.0.0.0/4,DIRECT,no-resolve
+  - MATCH,ss-2022

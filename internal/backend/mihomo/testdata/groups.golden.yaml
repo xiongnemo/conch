@@ -1,0 +1,108 @@
+# 由 nautilus 生成，请不要手动修改；需要改动时请编辑 profile.yaml
+
+mixed-port: 7890
+allow-lan: false
+mode: rule
+log-level: info
+profile:
+  store-selected: true
+proxies:
+  - name: a
+    type: trojan
+    server: 192.0.2.1
+    port: 443
+    password: p
+  - name: a2
+    type: trojan
+    server: 192.0.2.2
+    port: 443
+    password: p
+  - name: b
+    type: trojan
+    server: 192.0.2.3
+    port: 443
+    password: p
+  - name: exit
+    type: socks5
+    server: 192.0.2.4
+    port: 1080
+  - name: 出口链
+    type: socks5
+    server: 192.0.2.4
+    port: 1080
+    dialer-proxy: 自动
+proxy-groups:
+  - name: 自动
+    type: url-test
+    proxies:
+      - a
+      - a2
+    url: https://www.gstatic.com/generate_204
+    interval: 300
+    tolerance: 50
+  - name: 备用
+    type: fallback
+    proxies:
+      - a
+      - b
+      - DIRECT
+    url: https://cp.cloudflare.com
+    interval: 60
+  - name: 轮询
+    type: load-balance
+    proxies:
+      - a
+      - a2
+      - b
+    url: https://www.gstatic.com/generate_204
+    interval: 300
+    strategy: round-robin
+  - name: 一致
+    type: load-balance
+    proxies:
+      - a
+      - b
+    url: https://www.gstatic.com/generate_204
+    interval: 300
+  - name: 选择
+    type: select
+    proxies:
+      - 自动
+      - 备用
+      - 出口链
+      - DIRECT
+  - name: GLOBAL
+    type: select
+    proxies:
+      - 自动
+      - 备用
+      - 轮询
+      - 一致
+      - 选择
+      - 出口链
+      - a
+      - a2
+      - b
+      - exit
+      - DIRECT
+rules:
+  - DOMAIN-SUFFIX,a.example,轮询
+  - DOMAIN-SUFFIX,b.example,一致
+  - DOMAIN-SUFFIX,home.arpa,DIRECT
+  - DOMAIN-SUFFIX,lan,DIRECT
+  - DOMAIN-SUFFIX,local,DIRECT
+  - DOMAIN-SUFFIX,localhost,DIRECT
+  - IP-CIDR6,::1/128,DIRECT,no-resolve
+  - IP-CIDR,255.255.255.255/32,DIRECT,no-resolve
+  - IP-CIDR,169.254.0.0/16,DIRECT,no-resolve
+  - IP-CIDR,192.168.0.0/16,DIRECT,no-resolve
+  - IP-CIDR,172.16.0.0/12,DIRECT,no-resolve
+  - IP-CIDR,100.64.0.0/10,DIRECT,no-resolve
+  - IP-CIDR6,fe80::/10,DIRECT,no-resolve
+  - IP-CIDR,0.0.0.0/8,DIRECT,no-resolve
+  - IP-CIDR,10.0.0.0/8,DIRECT,no-resolve
+  - IP-CIDR,127.0.0.0/8,DIRECT,no-resolve
+  - IP-CIDR6,ff00::/8,DIRECT,no-resolve
+  - IP-CIDR6,fc00::/7,DIRECT,no-resolve
+  - IP-CIDR,224.0.0.0/4,DIRECT,no-resolve
+  - MATCH,选择

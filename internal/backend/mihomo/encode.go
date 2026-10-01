@@ -11,6 +11,7 @@ import (
 
 	"nautilus/internal/backend"
 	"nautilus/internal/compile"
+	"nautilus/internal/diag"
 	"nautilus/internal/model"
 	"nautilus/internal/route"
 )
@@ -20,7 +21,7 @@ type Backend struct{}
 func (Backend) Name() string { return "mihomo" }
 
 func (Backend) Capabilities() backend.Capabilities {
-	return backend.Capabilities{ProcessMatch: true, KeywordMatch: true, RawClash: true, Chains: true}
+	return backend.Capabilities{ProcessMatch: true, KeywordMatch: true, RawClash: true, Chains: true, TUN: true}
 }
 
 // corsNobody is an origin no page can have. mihomo treats an empty
@@ -34,7 +35,8 @@ var fakeIPFilter = []string{
 	"+.msftconnecttest.com", "+.msftncsi.com", "time.*.com", "ntp.*.com",
 }
 
-func (Backend) Encode(r *compile.Result, opts backend.Options) (*backend.Artifact, error) {
+func (Backend) Encode(r *compile.Result, opts backend.Options) (*backend.Artifact, diag.List) {
+	var d diag.List
 	s := r.Settings
 	doc := newMap()
 	doc.set("mixed-port", intNode(s.MixedPort))
@@ -101,7 +103,8 @@ func (Backend) Encode(r *compile.Result, opts backend.Options) (*backend.Artifac
 	for i, rule := range r.Rules {
 		line, err := ruleLine(rule)
 		if err != nil {
-			return nil, err
+			d.Errorf(rule.Origin.Pos, "%v", err)
+			return nil, d
 		}
 		rules.Content = append(rules.Content, str(line))
 		manifest.Rules = append(manifest.Rules, backend.ManifestRule{
@@ -123,13 +126,15 @@ func (Backend) Encode(r *compile.Result, opts backend.Options) (*backend.Artifac
 	var buf bytes.Buffer
 	enc := yaml.NewEncoder(&buf)
 	enc.SetIndent(2)
-	if err := enc.Encode(root); err != nil {
-		return nil, err
+	err := enc.Encode(root)
+	if err == nil {
+		err = enc.Close()
 	}
-	if err := enc.Close(); err != nil {
-		return nil, err
+	if err != nil {
+		d.Errorf(diag.Pos{}, "生成 mihomo 配置：%v", err)
+		return nil, d
 	}
-	return &backend.Artifact{Config: buf.Bytes(), Manifest: manifest}, nil
+	return &backend.Artifact{Config: buf.Bytes(), Manifest: manifest}, d
 }
 
 // proxyNode emits the node exactly as written, except for the name and

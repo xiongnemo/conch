@@ -45,19 +45,19 @@ func (n *Node) UnmarshalYAML(value *yaml.Node) error {
 	n.Format = FormatClash
 	n.Raw = flat
 	n.Pos = diag.Pos{Line: value.Line, Col: value.Column}
-	n.Name = weakString(Lookup(flat, "name"))
+	n.Name = WeakString(Lookup(flat, "name"))
 	n.View = viewOf(flat)
 	return nil
 }
 
 func viewOf(m *yaml.Node) NodeView {
 	v := NodeView{
-		Type:        weakString(Lookup(m, "type")),
-		Server:      weakString(Lookup(m, "server")),
-		DialerProxy: weakString(Lookup(m, "dialer-proxy")),
+		Type:        WeakString(Lookup(m, "type")),
+		Server:      WeakString(Lookup(m, "server")),
+		DialerProxy: WeakString(Lookup(m, "dialer-proxy")),
 	}
-	v.Port, _ = weakInt(Lookup(m, "port"))
-	if b, ok := weakBool(Lookup(m, "udp")); ok {
+	v.Port, _ = WeakInt(Lookup(m, "port"))
+	if b, ok := WeakBool(Lookup(m, "udp")); ok {
 		v.UDP = &b
 	}
 	return v

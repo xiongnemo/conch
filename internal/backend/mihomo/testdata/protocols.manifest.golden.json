@@ -2,216 +2,192 @@
   "backend": "mihomo",
   "proxies": [
     {
-      "name": "入口， A",
+      "name": "ss-2022",
       "kind": "node",
-      "node": "入口， A"
+      "node": "ss-2022"
     },
     {
-      "name": "中转",
+      "name": "vmess-ws",
       "kind": "node",
-      "node": "中转",
-      "upstream": "落地"
+      "node": "vmess-ws"
     },
     {
-      "name": "落地",
+      "name": "vless-reality",
       "kind": "node",
-      "node": "落地"
+      "node": "vless-reality"
     },
     {
-      "name": "手写链",
+      "name": "vless-xhttp",
       "kind": "node",
-      "node": "手写链",
-      "upstream": "入口， A"
+      "node": "vless-xhttp"
     },
     {
-      "name": "两跳",
-      "kind": "chain-exit",
-      "node": "中转",
-      "chain": "两跳",
-      "hop": 1,
-      "upstream": "入口， A"
+      "name": "trojan-grpc",
+      "kind": "node",
+      "node": "trojan-grpc"
     },
     {
-      "name": "三跳›1›入口， A",
-      "kind": "chain-hop",
-      "node": "入口， A",
-      "chain": "三跳",
-      "hop": 1,
-      "upstream": "入口组"
+      "name": "trojan-upgrade",
+      "kind": "node",
+      "node": "trojan-upgrade"
     },
     {
-      "name": "三跳›2›中转",
-      "kind": "chain-hop",
-      "node": "中转",
-      "chain": "三跳",
-      "hop": 2,
-      "upstream": "三跳›1›入口， A"
+      "name": "trojan-pinned",
+      "kind": "node",
+      "node": "trojan-pinned"
     },
     {
-      "name": "三跳",
-      "kind": "chain-exit",
-      "node": "落地",
-      "chain": "三跳",
-      "hop": 3,
-      "upstream": "三跳›2›中转"
+      "name": "socks-tls",
+      "kind": "node",
+      "node": "socks-tls"
     },
     {
-      "name": "接力",
-      "kind": "chain-exit",
-      "node": "落地",
-      "chain": "接力",
-      "hop": 1,
-      "upstream": "两跳"
+      "name": "http-auth",
+      "kind": "node",
+      "node": "http-auth"
     },
     {
-      "name": "入口组→落地",
-      "kind": "chain-exit",
-      "node": "落地",
-      "chain": "入口组→落地",
-      "hop": 1,
-      "upstream": "入口组"
+      "name": "hy2",
+      "kind": "node",
+      "node": "hy2"
+    },
+    {
+      "name": "wg",
+      "kind": "node",
+      "node": "wg"
+    },
+    {
+      "name": "tuned",
+      "kind": "node",
+      "node": "tuned"
     }
   ],
   "rules": [
     {
       "index": 0,
-      "rule": "DOMAIN-SUFFIX,a.example,接力",
-      "tier": "domain",
-      "key": "a.example",
-      "source": "../testdata/chains.profile.yaml:21"
-    },
-    {
-      "index": 1,
-      "rule": "DOMAIN-SUFFIX,b.example,入口组→落地",
-      "tier": "domain",
-      "key": "b.example",
-      "source": "../testdata/chains.profile.yaml:22"
-    },
-    {
-      "index": 2,
       "rule": "DOMAIN-SUFFIX,home.arpa,DIRECT",
       "tier": "domain",
       "key": "lan",
       "builtin": true
     },
     {
-      "index": 3,
+      "index": 1,
       "rule": "DOMAIN-SUFFIX,lan,DIRECT",
       "tier": "domain",
       "key": "lan",
       "builtin": true
     },
     {
-      "index": 4,
+      "index": 2,
       "rule": "DOMAIN-SUFFIX,local,DIRECT",
       "tier": "domain",
       "key": "lan",
       "builtin": true
     },
     {
-      "index": 5,
+      "index": 3,
       "rule": "DOMAIN-SUFFIX,localhost,DIRECT",
       "tier": "domain",
       "key": "lan",
       "builtin": true
     },
     {
-      "index": 6,
+      "index": 4,
       "rule": "IP-CIDR6,::1/128,DIRECT,no-resolve",
       "tier": "ip",
       "key": "lan",
       "builtin": true
     },
     {
-      "index": 7,
+      "index": 5,
       "rule": "IP-CIDR,255.255.255.255/32,DIRECT,no-resolve",
       "tier": "ip",
       "key": "lan",
       "builtin": true
     },
     {
-      "index": 8,
+      "index": 6,
       "rule": "IP-CIDR,169.254.0.0/16,DIRECT,no-resolve",
       "tier": "ip",
       "key": "lan",
       "builtin": true
     },
     {
-      "index": 9,
+      "index": 7,
       "rule": "IP-CIDR,192.168.0.0/16,DIRECT,no-resolve",
       "tier": "ip",
       "key": "lan",
       "builtin": true
     },
     {
-      "index": 10,
+      "index": 8,
       "rule": "IP-CIDR,172.16.0.0/12,DIRECT,no-resolve",
       "tier": "ip",
       "key": "lan",
       "builtin": true
     },
     {
-      "index": 11,
+      "index": 9,
       "rule": "IP-CIDR,100.64.0.0/10,DIRECT,no-resolve",
       "tier": "ip",
       "key": "lan",
       "builtin": true
     },
     {
-      "index": 12,
+      "index": 10,
       "rule": "IP-CIDR6,fe80::/10,DIRECT,no-resolve",
       "tier": "ip",
       "key": "lan",
       "builtin": true
     },
     {
-      "index": 13,
+      "index": 11,
       "rule": "IP-CIDR,0.0.0.0/8,DIRECT,no-resolve",
       "tier": "ip",
       "key": "lan",
       "builtin": true
     },
     {
-      "index": 14,
+      "index": 12,
       "rule": "IP-CIDR,10.0.0.0/8,DIRECT,no-resolve",
       "tier": "ip",
       "key": "lan",
       "builtin": true
     },
     {
-      "index": 15,
+      "index": 13,
       "rule": "IP-CIDR,127.0.0.0/8,DIRECT,no-resolve",
       "tier": "ip",
       "key": "lan",
       "builtin": true
     },
     {
-      "index": 16,
+      "index": 14,
       "rule": "IP-CIDR6,ff00::/8,DIRECT,no-resolve",
       "tier": "ip",
       "key": "lan",
       "builtin": true
     },
     {
-      "index": 17,
+      "index": 15,
       "rule": "IP-CIDR6,fc00::/7,DIRECT,no-resolve",
       "tier": "ip",
       "key": "lan",
       "builtin": true
     },
     {
-      "index": 18,
+      "index": 16,
       "rule": "IP-CIDR,224.0.0.0/4,DIRECT,no-resolve",
       "tier": "ip",
       "key": "lan",
       "builtin": true
     },
     {
-      "index": 19,
-      "rule": "MATCH,三跳",
+      "index": 17,
+      "rule": "MATCH,ss-2022",
       "tier": "default",
       "key": "default",
-      "source": "../testdata/chains.profile.yaml:19"
+      "source": "../testdata/protocols.profile.yaml:28"
     }
   ]
 }

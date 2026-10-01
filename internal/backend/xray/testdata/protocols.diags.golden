@@ -1,0 +1,1 @@
+警告 ../testdata/protocols.profile.yaml:18：节点 "socks-tls"：设置了 skip-cert-verify，但 xray 已移除跳过证书校验的选项，这个节点会正常校验证书；如果服务器用的是自签证书，请在节点上写 fingerprint: <证书 sha256> 来固定证书

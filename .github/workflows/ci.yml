@@ -16,14 +16,20 @@ jobs:
       - run: go test ./...
       - name: Goldens are up to date
         run: |
-          go test ./internal/backend/mihomo -run TestGolden -update
-          git diff --exit-code
-      - name: Install mihomo, verified against the embedded checksums
+          go test ./internal/backend/... -run TestGolden -update
+          test -z "$(git status --porcelain)" || { git status --porcelain; git diff; exit 1; }
+      - name: Install mihomo and xray, verified against the embedded checksums
         run: |
-          go run ./cmd/nautilus kernel install
-          echo "NAUTILUS_MIHOMO=$(go run ./cmd/nautilus kernel path)" >> "$GITHUB_ENV"
-      - name: mihomo accepts every golden config, chains work end to end
-        run: go test ./internal/backend/mihomo ./internal/e2e -run 'Mihomo|Chain' -count=1 -v
+          go build -o /tmp/nautilus ./cmd/nautilus
+          /tmp/nautilus kernel install mihomo
+          /tmp/nautilus kernel install xray --geodata
+          {
+            echo "NAUTILUS_MIHOMO=$(/tmp/nautilus kernel path mihomo)"
+            echo "NAUTILUS_XRAY=$(/tmp/nautilus kernel path xray)"
+            echo "NAUTILUS_XRAY_ASSETS=$HOME/.local/share/nautilus/home/xray"
+          } >> "$GITHUB_ENV"
+      - name: Kernels accept every golden config, chains work end to end
+        run: go test ./internal/backend/... ./internal/e2e -run 'Accepted|Chain' -count=1 -v
 
   cross:
     runs-on: ubuntu-latest

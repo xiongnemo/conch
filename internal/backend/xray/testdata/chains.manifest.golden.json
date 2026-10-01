@@ -1,5 +1,5 @@
 {
-  "backend": "mihomo",
+  "backend": "xray",
   "proxies": [
     {
       "name": "入口， A",
@@ -74,144 +74,142 @@
   ],
   "rules": [
     {
-      "index": 0,
-      "rule": "DOMAIN-SUFFIX,a.example,接力",
+      "index": 2,
+      "rule": "{\"domain\":[\"domain:a.example\"],\"outboundTag\":\"接力\"}",
       "tier": "domain",
       "key": "a.example",
       "source": "../testdata/chains.profile.yaml:21"
     },
     {
-      "index": 1,
-      "rule": "DOMAIN-SUFFIX,b.example,入口组→落地",
+      "index": 3,
+      "rule": "{\"domain\":[\"domain:b.example\"],\"outboundTag\":\"入口组→落地\"}",
       "tier": "domain",
       "key": "b.example",
       "source": "../testdata/chains.profile.yaml:22"
     },
     {
-      "index": 2,
-      "rule": "DOMAIN-SUFFIX,home.arpa,DIRECT",
-      "tier": "domain",
-      "key": "lan",
-      "builtin": true
-    },
-    {
-      "index": 3,
-      "rule": "DOMAIN-SUFFIX,lan,DIRECT",
-      "tier": "domain",
-      "key": "lan",
-      "builtin": true
-    },
-    {
       "index": 4,
-      "rule": "DOMAIN-SUFFIX,local,DIRECT",
+      "rule": "{\"domain\":[\"domain:home.arpa\"],\"outboundTag\":\"DIRECT\"}",
       "tier": "domain",
       "key": "lan",
       "builtin": true
     },
     {
       "index": 5,
-      "rule": "DOMAIN-SUFFIX,localhost,DIRECT",
+      "rule": "{\"domain\":[\"domain:lan\"],\"outboundTag\":\"DIRECT\"}",
       "tier": "domain",
       "key": "lan",
       "builtin": true
     },
     {
       "index": 6,
-      "rule": "IP-CIDR6,::1/128,DIRECT,no-resolve",
-      "tier": "ip",
+      "rule": "{\"domain\":[\"domain:local\"],\"outboundTag\":\"DIRECT\"}",
+      "tier": "domain",
       "key": "lan",
       "builtin": true
     },
     {
       "index": 7,
-      "rule": "IP-CIDR,255.255.255.255/32,DIRECT,no-resolve",
-      "tier": "ip",
+      "rule": "{\"domain\":[\"domain:localhost\"],\"outboundTag\":\"DIRECT\"}",
+      "tier": "domain",
       "key": "lan",
       "builtin": true
     },
     {
       "index": 8,
-      "rule": "IP-CIDR,169.254.0.0/16,DIRECT,no-resolve",
+      "rule": "{\"ip\":[\"::1/128\"],\"outboundTag\":\"DIRECT\"}",
       "tier": "ip",
       "key": "lan",
       "builtin": true
     },
     {
       "index": 9,
-      "rule": "IP-CIDR,192.168.0.0/16,DIRECT,no-resolve",
+      "rule": "{\"ip\":[\"255.255.255.255/32\"],\"outboundTag\":\"DIRECT\"}",
       "tier": "ip",
       "key": "lan",
       "builtin": true
     },
     {
       "index": 10,
-      "rule": "IP-CIDR,172.16.0.0/12,DIRECT,no-resolve",
+      "rule": "{\"ip\":[\"169.254.0.0/16\"],\"outboundTag\":\"DIRECT\"}",
       "tier": "ip",
       "key": "lan",
       "builtin": true
     },
     {
       "index": 11,
-      "rule": "IP-CIDR,100.64.0.0/10,DIRECT,no-resolve",
+      "rule": "{\"ip\":[\"192.168.0.0/16\"],\"outboundTag\":\"DIRECT\"}",
       "tier": "ip",
       "key": "lan",
       "builtin": true
     },
     {
       "index": 12,
-      "rule": "IP-CIDR6,fe80::/10,DIRECT,no-resolve",
+      "rule": "{\"ip\":[\"172.16.0.0/12\"],\"outboundTag\":\"DIRECT\"}",
       "tier": "ip",
       "key": "lan",
       "builtin": true
     },
     {
       "index": 13,
-      "rule": "IP-CIDR,0.0.0.0/8,DIRECT,no-resolve",
+      "rule": "{\"ip\":[\"100.64.0.0/10\"],\"outboundTag\":\"DIRECT\"}",
       "tier": "ip",
       "key": "lan",
       "builtin": true
     },
     {
       "index": 14,
-      "rule": "IP-CIDR,10.0.0.0/8,DIRECT,no-resolve",
+      "rule": "{\"ip\":[\"fe80::/10\"],\"outboundTag\":\"DIRECT\"}",
       "tier": "ip",
       "key": "lan",
       "builtin": true
     },
     {
       "index": 15,
-      "rule": "IP-CIDR,127.0.0.0/8,DIRECT,no-resolve",
+      "rule": "{\"ip\":[\"0.0.0.0/8\"],\"outboundTag\":\"DIRECT\"}",
       "tier": "ip",
       "key": "lan",
       "builtin": true
     },
     {
       "index": 16,
-      "rule": "IP-CIDR6,ff00::/8,DIRECT,no-resolve",
+      "rule": "{\"ip\":[\"10.0.0.0/8\"],\"outboundTag\":\"DIRECT\"}",
       "tier": "ip",
       "key": "lan",
       "builtin": true
     },
     {
       "index": 17,
-      "rule": "IP-CIDR6,fc00::/7,DIRECT,no-resolve",
+      "rule": "{\"ip\":[\"127.0.0.0/8\"],\"outboundTag\":\"DIRECT\"}",
       "tier": "ip",
       "key": "lan",
       "builtin": true
     },
     {
       "index": 18,
-      "rule": "IP-CIDR,224.0.0.0/4,DIRECT,no-resolve",
+      "rule": "{\"ip\":[\"ff00::/8\"],\"outboundTag\":\"DIRECT\"}",
       "tier": "ip",
       "key": "lan",
       "builtin": true
     },
     {
       "index": 19,
-      "rule": "MATCH,三跳",
-      "tier": "default",
-      "key": "default",
-      "source": "../testdata/chains.profile.yaml:19"
+      "rule": "{\"ip\":[\"fc00::/7\"],\"outboundTag\":\"DIRECT\"}",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 20,
+      "rule": "{\"ip\":[\"224.0.0.0/4\"],\"outboundTag\":\"DIRECT\"}",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
     }
-  ]
+  ],
+  "tags": {
+    "REJECT": "REJECT»",
+    "三跳": "三跳»",
+    "入口组": "入口组»"
+  }
 }

@@ -1,0 +1,22 @@
+# 各种出口组：嵌套、故障转移、负载均衡策略、测速地址不同、组作为链的第一跳
+nodes:
+  - { name: a, type: trojan, server: 192.0.2.1, port: 443, password: p }
+  - { name: a2, type: trojan, server: 192.0.2.2, port: 443, password: p }
+  - { name: b, type: trojan, server: 192.0.2.3, port: 443, password: p }
+  - { name: exit, type: socks5, server: 192.0.2.4, port: 1080 }
+
+groups:
+  - { name: 自动, type: url-test, members: [a, a2], tolerance: 50 }
+  - { name: 备用, type: fallback, members: [a, b, DIRECT], url: https://cp.cloudflare.com, interval: 60 }
+  - { name: 轮询, type: load-balance, members: [a, a2, b], strategy: round-robin }
+  - { name: 一致, type: load-balance, members: [a, b] }
+  - { name: 选择, type: select, members: [自动, 备用, 出口链, DIRECT] }
+
+chains:
+  出口链: [自动, exit]
+
+routes:
+  default: 选择
+  entries:
+    a.example: 轮询
+    b.example: 一致

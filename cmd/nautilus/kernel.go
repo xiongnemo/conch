@@ -19,7 +19,7 @@ func newKernelInstallCmd() *cobra.Command {
 	o := kernels.InstallOptions{Target: kernels.Host()}
 	var geodata bool
 	cmd := &cobra.Command{
-		Use:   "install [mihomo]",
+		Use:   "install [mihomo|xray]",
 		Short: "下载并校验内核",
 		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -35,7 +35,7 @@ func newKernelInstallCmd() *cobra.Command {
 			}
 			fmt.Fprintf(cmd.OutOrStdout(), "已安装 %s %s：%s\n", inst.Kernel, inst.Version, inst.Path)
 			if geodata {
-				return kernels.FetchGeodata(cmd.Context(), nil, o.Mirror, paths.KernelHome(o.Kernel), cmd.ErrOrStderr())
+				return kernels.FetchGeodata(cmd.Context(), nil, o.Kernel, o.Mirror, paths.KernelHome(o.Kernel), cmd.ErrOrStderr())
 			}
 			return nil
 		},
@@ -50,7 +50,7 @@ func newKernelInstallCmd() *cobra.Command {
 
 func newKernelPathCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   "path [mihomo]",
+		Use:   "path [mihomo|xray]",
 		Short: "显示当前内核的路径",
 		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -71,14 +71,18 @@ func newKernelPathCmd() *cobra.Command {
 func newKernelGeodataCmd() *cobra.Command {
 	var mirror, dir string
 	cmd := &cobra.Command{
-		Use:   "geodata",
-		Short: "下载 mihomo 的 geodata（GeoIP / GeoSite / ASN）并校验",
-		Args:  cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, _ []string) error {
-			if dir == "" {
-				dir = paths.KernelHome("mihomo")
+		Use:   "geodata [mihomo|xray]",
+		Short: "下载内核需要的 geodata（GeoIP / GeoSite）并校验",
+		Args:  cobra.MaximumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			kernel := "mihomo"
+			if len(args) == 1 {
+				kernel = args[0]
 			}
-			if err := kernels.FetchGeodata(cmd.Context(), nil, mirror, dir, cmd.ErrOrStderr()); err != nil {
+			if dir == "" {
+				dir = paths.KernelHome(kernel)
+			}
+			if err := kernels.FetchGeodata(cmd.Context(), nil, kernel, mirror, dir, cmd.ErrOrStderr()); err != nil {
 				return err
 			}
 			fmt.Fprintf(cmd.OutOrStdout(), "geodata 已保存到 %s\n", dir)

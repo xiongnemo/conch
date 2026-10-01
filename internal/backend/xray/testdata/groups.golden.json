@@ -1,0 +1,414 @@
+{
+  "log": {
+    "loglevel": "info"
+  },
+  "inbounds": [
+    {
+      "tag": "›mixed",
+      "protocol": "mixed",
+      "listen": "127.0.0.1",
+      "port": 7890,
+      "settings": {
+        "udp": true
+      },
+      "sniffing": {
+        "enabled": true,
+        "destOverride": [
+          "http",
+          "tls",
+          "quic"
+        ],
+        "routeOnly": true
+      }
+    }
+  ],
+  "outbounds": [
+    {
+      "tag": "选择",
+      "protocol": "loopback",
+      "settings": {
+        "inboundTag": "›group›选择"
+      }
+    },
+    {
+      "tag": "DIRECT",
+      "protocol": "freedom"
+    },
+    {
+      "tag": "REJECT»",
+      "protocol": "blackhole"
+    },
+    {
+      "tag": "REJECT-DROP",
+      "protocol": "blackhole"
+    },
+    {
+      "tag": "a»",
+      "protocol": "trojan",
+      "settings": {
+        "address": "192.0.2.1",
+        "port": 443,
+        "password": "p"
+      },
+      "streamSettings": {
+        "security": "tls",
+        "tlsSettings": {}
+      }
+    },
+    {
+      "tag": "a2",
+      "protocol": "trojan",
+      "settings": {
+        "address": "192.0.2.2",
+        "port": 443,
+        "password": "p"
+      },
+      "streamSettings": {
+        "security": "tls",
+        "tlsSettings": {}
+      }
+    },
+    {
+      "tag": "b",
+      "protocol": "trojan",
+      "settings": {
+        "address": "192.0.2.3",
+        "port": 443,
+        "password": "p"
+      },
+      "streamSettings": {
+        "security": "tls",
+        "tlsSettings": {}
+      }
+    },
+    {
+      "tag": "exit",
+      "protocol": "socks",
+      "settings": {
+        "address": "192.0.2.4",
+        "port": 1080
+      }
+    },
+    {
+      "tag": "出口链",
+      "protocol": "socks",
+      "settings": {
+        "address": "192.0.2.4",
+        "port": 1080
+      },
+      "streamSettings": {
+        "sockopt": {
+          "dialerProxy": "自动"
+        }
+      }
+    },
+    {
+      "tag": "自动",
+      "protocol": "loopback",
+      "settings": {
+        "inboundTag": "›group›自动"
+      }
+    },
+    {
+      "tag": "备用»",
+      "protocol": "loopback",
+      "settings": {
+        "inboundTag": "›group›备用"
+      }
+    },
+    {
+      "tag": "备用›fallback›2",
+      "protocol": "loopback",
+      "settings": {
+        "inboundTag": "›group›备用›fallback›2"
+      }
+    },
+    {
+      "tag": "备用›fallback›3",
+      "protocol": "loopback",
+      "settings": {
+        "inboundTag": "›group›备用›fallback›3"
+      }
+    },
+    {
+      "tag": "轮询",
+      "protocol": "loopback",
+      "settings": {
+        "inboundTag": "›group›轮询"
+      }
+    },
+    {
+      "tag": "一致",
+      "protocol": "loopback",
+      "settings": {
+        "inboundTag": "›group›一致"
+      }
+    },
+    {
+      "tag": "GLOBAL",
+      "protocol": "loopback",
+      "settings": {
+        "inboundTag": "›group›GLOBAL"
+      }
+    }
+  ],
+  "routing": {
+    "domainStrategy": "IPIfNonMatch",
+    "rules": [
+      {
+        "inboundTag": [
+          "›group›自动"
+        ],
+        "balancerTag": "自动"
+      },
+      {
+        "inboundTag": [
+          "›group›备用"
+        ],
+        "balancerTag": "备用"
+      },
+      {
+        "inboundTag": [
+          "›group›备用›fallback›2"
+        ],
+        "balancerTag": "备用›fallback›2"
+      },
+      {
+        "inboundTag": [
+          "›group›备用›fallback›3"
+        ],
+        "balancerTag": "备用›fallback›3"
+      },
+      {
+        "inboundTag": [
+          "›group›轮询"
+        ],
+        "balancerTag": "轮询"
+      },
+      {
+        "inboundTag": [
+          "›group›一致"
+        ],
+        "balancerTag": "一致"
+      },
+      {
+        "inboundTag": [
+          "›group›选择"
+        ],
+        "balancerTag": "选择"
+      },
+      {
+        "inboundTag": [
+          "›group›GLOBAL"
+        ],
+        "balancerTag": "GLOBAL"
+      },
+      {
+        "domain": [
+          "domain:a.example"
+        ],
+        "balancerTag": "轮询"
+      },
+      {
+        "domain": [
+          "domain:b.example"
+        ],
+        "balancerTag": "一致"
+      },
+      {
+        "domain": [
+          "domain:home.arpa"
+        ],
+        "outboundTag": "DIRECT"
+      },
+      {
+        "domain": [
+          "domain:lan"
+        ],
+        "outboundTag": "DIRECT"
+      },
+      {
+        "domain": [
+          "domain:local"
+        ],
+        "outboundTag": "DIRECT"
+      },
+      {
+        "domain": [
+          "domain:localhost"
+        ],
+        "outboundTag": "DIRECT"
+      },
+      {
+        "ip": [
+          "::1/128"
+        ],
+        "outboundTag": "DIRECT"
+      },
+      {
+        "ip": [
+          "255.255.255.255/32"
+        ],
+        "outboundTag": "DIRECT"
+      },
+      {
+        "ip": [
+          "169.254.0.0/16"
+        ],
+        "outboundTag": "DIRECT"
+      },
+      {
+        "ip": [
+          "192.168.0.0/16"
+        ],
+        "outboundTag": "DIRECT"
+      },
+      {
+        "ip": [
+          "172.16.0.0/12"
+        ],
+        "outboundTag": "DIRECT"
+      },
+      {
+        "ip": [
+          "100.64.0.0/10"
+        ],
+        "outboundTag": "DIRECT"
+      },
+      {
+        "ip": [
+          "fe80::/10"
+        ],
+        "outboundTag": "DIRECT"
+      },
+      {
+        "ip": [
+          "0.0.0.0/8"
+        ],
+        "outboundTag": "DIRECT"
+      },
+      {
+        "ip": [
+          "10.0.0.0/8"
+        ],
+        "outboundTag": "DIRECT"
+      },
+      {
+        "ip": [
+          "127.0.0.0/8"
+        ],
+        "outboundTag": "DIRECT"
+      },
+      {
+        "ip": [
+          "ff00::/8"
+        ],
+        "outboundTag": "DIRECT"
+      },
+      {
+        "ip": [
+          "fc00::/7"
+        ],
+        "outboundTag": "DIRECT"
+      },
+      {
+        "ip": [
+          "224.0.0.0/4"
+        ],
+        "outboundTag": "DIRECT"
+      }
+    ],
+    "balancers": [
+      {
+        "tag": "自动",
+        "selector": [
+          "a»",
+          "a2"
+        ],
+        "strategy": {
+          "type": "leastPing"
+        },
+        "fallbackTag": "a»"
+      },
+      {
+        "tag": "备用",
+        "selector": [
+          "a»"
+        ],
+        "strategy": {
+          "type": "random"
+        },
+        "fallbackTag": "备用›fallback›2"
+      },
+      {
+        "tag": "备用›fallback›2",
+        "selector": [
+          "b"
+        ],
+        "strategy": {
+          "type": "random"
+        },
+        "fallbackTag": "备用›fallback›3"
+      },
+      {
+        "tag": "备用›fallback›3",
+        "selector": [
+          "DIRECT"
+        ],
+        "strategy": {
+          "type": "random"
+        }
+      },
+      {
+        "tag": "轮询",
+        "selector": [
+          "a»",
+          "a2",
+          "b"
+        ],
+        "strategy": {
+          "type": "roundRobin"
+        }
+      },
+      {
+        "tag": "一致",
+        "selector": [
+          "a»",
+          "b"
+        ],
+        "strategy": {
+          "type": "random"
+        }
+      },
+      {
+        "tag": "选择",
+        "selector": [
+          "自动"
+        ],
+        "strategy": {
+          "type": "random"
+        }
+      },
+      {
+        "tag": "GLOBAL",
+        "selector": [
+          "自动"
+        ],
+        "strategy": {
+          "type": "random"
+        }
+      }
+    ]
+  },
+  "observatory": {
+    "subjectSelector": [
+      "a»",
+      "a2",
+      "b",
+      "DIRECT"
+    ],
+    "probeURL": "https://www.gstatic.com/generate_204",
+    "probeInterval": "60s",
+    "enableConcurrency": true
+  }
+}

@@ -1,5 +1,8 @@
-// Package e2e runs compiled configs in real kernels. The tests need a
-// mihomo binary: NAUTILUS_MIHOMO=$(nautilus kernel path) go test ./internal/e2e
+// Package e2e runs compiled configs in real kernels, entirely on loopback.
+// The hop servers are mihomo instances, so NAUTILUS_MIHOMO is required;
+// set NAUTILUS_XRAY as well to also test xray as the client:
+//
+//	NAUTILUS_MIHOMO=$(nautilus kernel path mihomo) NAUTILUS_XRAY=$(nautilus kernel path xray) go test ./internal/e2e
 package e2e
 
 import (
@@ -19,17 +22,10 @@ import (
 
 	"nautilus/internal/backend"
 	"nautilus/internal/backend/mihomo"
+	"nautilus/internal/backend/xray"
 	"nautilus/internal/compile"
 	"nautilus/internal/model"
 )
-
-func mihomoBin(t *testing.T) string {
-	bin := os.Getenv("NAUTILUS_MIHOMO")
-	if bin == "" {
-		t.Skip("NAUTILUS_MIHOMO not set")
-	}
-	return bin
-}
 
 func freePort(t *testing.T) int {
 	l, err := net.Listen("tcp", "127.0.0.1:0")
@@ -57,21 +53,53 @@ func (b *syncBuffer) String() string {
 	return b.buf.String()
 }
 
-// kernel is a running mihomo process with its combined output captured.
+// kernel is a running kernel process with its combined output captured.
 type kernel struct {
 	name string
 	out  *syncBuffer
 }
 
-func startKernel(t *testing.T, bin, name, config string, port int) *kernel {
+// client describes a kernel that runs nautilus-compiled configs.
+type client struct {
+	name   string
+	bin    string
+	router backend.Router
+	file   string                          // config file name
+	args   func(dir, file string) []string // command line
+}
+
+func mihomoArgs(dir, file string) []string { return []string{"-d", dir, "-f", file} }
+
+func xrayArgs(_, file string) []string { return []string{"run", "-c", file} }
+
+func clients() []client {
+	var out []client
+	if bin := os.Getenv("NAUTILUS_MIHOMO"); bin != "" {
+		out = append(out, client{"mihomo", bin, mihomo.Backend{}, "config.yaml", mihomoArgs})
+	}
+	if bin := os.Getenv("NAUTILUS_XRAY"); bin != "" {
+		out = append(out, client{"xray", bin, xray.Backend{}, "config.json", xrayArgs})
+	}
+	return out
+}
+
+func hopServerBin(t *testing.T) string {
+	bin := os.Getenv("NAUTILUS_MIHOMO")
+	if bin == "" {
+		t.Skip("NAUTILUS_MIHOMO not set")
+	}
+	return bin
+}
+
+func start(t *testing.T, name, bin, file, config string, args func(dir, file string) []string, port int) *kernel {
 	t.Helper()
 	dir := t.TempDir()
-	path := filepath.Join(dir, "config.yaml")
+	path := filepath.Join(dir, file)
 	if err := os.WriteFile(path, []byte(config), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	k := &kernel{name: name, out: &syncBuffer{}}
-	cmd := exec.Command(bin, "-d", dir, "-f", path)
+	cmd := exec.Command(bin, args(dir, path)...)
 	cmd.Stdout, cmd.Stderr = k.out, k.out
 	if err := cmd.Start(); err != nil {
 		t.Fatal(err)
@@ -97,20 +125,21 @@ func startKernel(t *testing.T, bin, name, config string, port int) *kernel {
 	}
 }
 
-// compileProfile compiles a nautilus profile into a mihomo config.
-func compileProfile(t *testing.T, src string) string {
+// compileProfile compiles a nautilus profile for a backend.
+func compileProfile(t *testing.T, b backend.Router, src string) string {
 	t.Helper()
 	p, err := model.Parse([]byte(src), "profile.yaml")
 	if err != nil {
 		t.Fatal(err)
 	}
 	res := compile.Compile(p)
-	if err := res.Diags.Err(); err != nil {
+	diags := append(res.Diags, backend.Check(res, b.Capabilities(), b.Name())...)
+	if err := diags.Err(); err != nil {
 		t.Fatal(err)
 	}
-	art, err := mihomo.Backend{}.Encode(res, backend.Options{})
-	if err != nil {
-		t.Fatal(err)
+	art, d := b.Encode(res, backend.Options{})
+	if art == nil {
+		t.Fatal(d.Err())
 	}
 	return string(art.Config)
 }
@@ -128,12 +157,19 @@ func getVia(t *testing.T, proxyPort int, target string) string {
 	return string(body)
 }
 
-// TestChainTraversesHopsInOrder checks that traffic routed to a chain
-// enters the first hop, reaches the second hop through the first, and only
-// then reaches the destination; and that other traffic bypasses the chain.
+// TestChainTraversesHopsInOrder checks, for every client kernel, that
+// traffic routed to a chain enters the first hop, reaches the second hop
+// through the first and only then the destination; that a group works as
+// a chain's first hop and as the default route; and that other traffic
+// bypasses the chain.
 func TestChainTraversesHopsInOrder(t *testing.T) {
-	bin := mihomoBin(t)
+	hopBin := hopServerBin(t)
+	for _, c := range clients() {
+		t.Run(c.name, func(t *testing.T) { testChain(t, hopBin, c) })
+	}
+}
 
+func testChain(t *testing.T, hopBin string, c client) {
 	echo := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "echo %s", r.URL.Path)
 	})}
@@ -146,59 +182,69 @@ func TestChainTraversesHopsInOrder(t *testing.T) {
 	echoPort := echoLn.Addr().(*net.TCPAddr).Port
 
 	hop1Port, hop2Port, mixedPort := freePort(t), freePort(t), freePort(t)
-	hop1 := startKernel(t, bin, "hop1", fmt.Sprintf(`
+	hop1 := start(t, "hop1", hopBin, "config.yaml", fmt.Sprintf(`
 mode: direct
 log-level: info
 listeners:
   - { name: hop1-in, type: socks, listen: 127.0.0.1, port: %d, udp: true }
-`, hop1Port), hop1Port)
-	// The last hop resolves the test domain itself, as a real exit would.
-	hop2 := startKernel(t, bin, "hop2", fmt.Sprintf(`
+`, hop1Port), mihomoArgs, hop1Port)
+	// The last hop resolves the test domains itself, as a real exit would.
+	hop2 := start(t, "hop2", hopBin, "config.yaml", fmt.Sprintf(`
 mode: direct
 log-level: info
 hosts:
   echo-chain.test: 127.0.0.1
+  echo-group.test: 127.0.0.1
+  echo-default.test: 127.0.0.1
 listeners:
   - { name: hop2-in, type: shadowsocks, listen: 127.0.0.1, port: %d, cipher: aes-128-gcm, password: test-pass, udp: true }
-`, hop2Port), hop2Port)
+`, hop2Port), mihomoArgs, hop2Port)
 
-	client := startKernel(t, bin, "client", compileProfile(t, fmt.Sprintf(`
+	start(t, "client", c.bin, c.file, compileProfile(t, c.router, fmt.Sprintf(`
 nodes:
   - { name: hop1, type: socks5, server: 127.0.0.1, port: %d, udp: true }
   - { name: hop2, type: ss, server: 127.0.0.1, port: %d, cipher: aes-128-gcm, password: test-pass, udp: true }
+groups:
+  - { name: 入口组, type: select, members: [hop1] }
+  - { name: 默认组, type: select, members: [测试链, DIRECT] }
 chains:
   测试链: [hop1, hop2]
+  组链: [入口组, hop2]
 routes:
-  default: DIRECT
+  default: 默认组
   entries:
     echo-chain.test: 测试链
+    echo-group.test: 组链
 inbound: { mixed-port: %d }
-`, hop1Port, hop2Port, mixedPort)), mixedPort)
+`, hop1Port, hop2Port, mixedPort)), c.args, mixedPort)
 
-	if got := getVia(t, mixedPort, fmt.Sprintf("http://echo-chain.test:%d/chain", echoPort)); got != "echo /chain" {
-		t.Fatalf("chained request returned %q", got)
+	hosts := []string{"echo-chain.test", "echo-group.test", "echo-default.test"}
+	for _, host := range hosts {
+		if got := getVia(t, mixedPort, fmt.Sprintf("http://%s:%d/%s", host, echoPort, host)); got != "echo /"+host {
+			t.Fatalf("request to %s returned %q", host, got)
+		}
 	}
-	// Direct traffic (127.0.0.1 is covered by the built-in lan entry).
+	// 127.0.0.1 is covered by the built-in lan entry.
 	if got := getVia(t, mixedPort, fmt.Sprintf("http://127.0.0.1:%d/direct", echoPort)); got != "echo /direct" {
 		t.Fatalf("direct request returned %q", got)
 	}
 
-	waitFor(t, "hop1 to forward to hop2", func() bool {
-		return strings.Contains(hop1.out.String(), fmt.Sprintf("127.0.0.1:%d", hop2Port))
+	// Each chained request is a new connection from hop1 to hop2.
+	waitFor(t, "hop1 to forward three connections to hop2", func() bool {
+		return strings.Count(hop1.out.String(), fmt.Sprintf("--> 127.0.0.1:%d", hop2Port)) >= len(hosts)
 	})
-	waitFor(t, "hop2 to reach the destination", func() bool {
-		return strings.Contains(hop2.out.String(), fmt.Sprintf("echo-chain.test:%d", echoPort))
-	})
-	if strings.Contains(hop1.out.String(), fmt.Sprintf("echo-chain.test:%d", echoPort)) {
-		t.Error("hop1 connected to the destination itself; the chain was skipped")
-	}
-	for _, k := range []*kernel{hop1, hop2} {
-		if strings.Contains(k.out.String(), "/direct") || strings.Contains(k.out.String(), fmt.Sprintf("127.0.0.1:%d", echoPort)) {
-			t.Errorf("direct traffic went through %s", k.name)
+	for _, host := range hosts {
+		waitFor(t, "hop2 to reach "+host, func() bool {
+			return strings.Contains(hop2.out.String(), fmt.Sprintf("%s:%d", host, echoPort))
+		})
+		if strings.Contains(hop1.out.String(), fmt.Sprintf("%s:%d", host, echoPort)) {
+			t.Errorf("hop1 connected to %s itself; the chain was skipped", host)
 		}
 	}
-	if !strings.Contains(client.out.String(), "测试链") {
-		t.Error("client log does not mention the chain")
+	for _, k := range []*kernel{hop1, hop2} {
+		if strings.Contains(k.out.String(), fmt.Sprintf("127.0.0.1:%d", echoPort)) {
+			t.Errorf("direct traffic went through %s", k.name)
+		}
 	}
 }
 

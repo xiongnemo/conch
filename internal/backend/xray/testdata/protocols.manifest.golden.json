@@ -1,0 +1,189 @@
+{
+  "backend": "xray",
+  "proxies": [
+    {
+      "name": "ss-2022",
+      "kind": "node",
+      "node": "ss-2022"
+    },
+    {
+      "name": "vmess-ws",
+      "kind": "node",
+      "node": "vmess-ws"
+    },
+    {
+      "name": "vless-reality",
+      "kind": "node",
+      "node": "vless-reality"
+    },
+    {
+      "name": "vless-xhttp",
+      "kind": "node",
+      "node": "vless-xhttp"
+    },
+    {
+      "name": "trojan-grpc",
+      "kind": "node",
+      "node": "trojan-grpc"
+    },
+    {
+      "name": "trojan-upgrade",
+      "kind": "node",
+      "node": "trojan-upgrade"
+    },
+    {
+      "name": "trojan-pinned",
+      "kind": "node",
+      "node": "trojan-pinned"
+    },
+    {
+      "name": "socks-tls",
+      "kind": "node",
+      "node": "socks-tls"
+    },
+    {
+      "name": "http-auth",
+      "kind": "node",
+      "node": "http-auth"
+    },
+    {
+      "name": "hy2",
+      "kind": "node",
+      "node": "hy2"
+    },
+    {
+      "name": "wg",
+      "kind": "node",
+      "node": "wg"
+    },
+    {
+      "name": "tuned",
+      "kind": "node",
+      "node": "tuned"
+    }
+  ],
+  "rules": [
+    {
+      "index": 1,
+      "rule": "{\"domain\":[\"domain:home.arpa\"],\"outboundTag\":\"DIRECT\"}",
+      "tier": "domain",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 2,
+      "rule": "{\"domain\":[\"domain:lan\"],\"outboundTag\":\"DIRECT\"}",
+      "tier": "domain",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 3,
+      "rule": "{\"domain\":[\"domain:local\"],\"outboundTag\":\"DIRECT\"}",
+      "tier": "domain",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 4,
+      "rule": "{\"domain\":[\"domain:localhost\"],\"outboundTag\":\"DIRECT\"}",
+      "tier": "domain",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 5,
+      "rule": "{\"ip\":[\"::1/128\"],\"outboundTag\":\"DIRECT\"}",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 6,
+      "rule": "{\"ip\":[\"255.255.255.255/32\"],\"outboundTag\":\"DIRECT\"}",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 7,
+      "rule": "{\"ip\":[\"169.254.0.0/16\"],\"outboundTag\":\"DIRECT\"}",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 8,
+      "rule": "{\"ip\":[\"192.168.0.0/16\"],\"outboundTag\":\"DIRECT\"}",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 9,
+      "rule": "{\"ip\":[\"172.16.0.0/12\"],\"outboundTag\":\"DIRECT\"}",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 10,
+      "rule": "{\"ip\":[\"100.64.0.0/10\"],\"outboundTag\":\"DIRECT\"}",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 11,
+      "rule": "{\"ip\":[\"fe80::/10\"],\"outboundTag\":\"DIRECT\"}",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 12,
+      "rule": "{\"ip\":[\"0.0.0.0/8\"],\"outboundTag\":\"DIRECT\"}",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 13,
+      "rule": "{\"ip\":[\"10.0.0.0/8\"],\"outboundTag\":\"DIRECT\"}",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 14,
+      "rule": "{\"ip\":[\"127.0.0.0/8\"],\"outboundTag\":\"DIRECT\"}",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 15,
+      "rule": "{\"ip\":[\"ff00::/8\"],\"outboundTag\":\"DIRECT\"}",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 16,
+      "rule": "{\"ip\":[\"fc00::/7\"],\"outboundTag\":\"DIRECT\"}",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 17,
+      "rule": "{\"ip\":[\"224.0.0.0/4\"],\"outboundTag\":\"DIRECT\"}",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    }
+  ],
+  "tags": {
+    "REJECT": "REJECT»"
+  }
+}

@@ -1,0 +1,5 @@
+# domain behavior, mihomo syntax
++.hulu.com
+.disney.com
+*.max.com
+primevideo.com

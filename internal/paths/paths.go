@@ -49,6 +49,11 @@ func KernelHome(kernel string) string {
 	return filepath.Join(DataDir(), "home", kernel)
 }
 
+// ListsDir caches rule lists that nautilus downloads on a kernel's behalf.
+func ListsDir() string {
+	return filepath.Join(DataDir(), "lists")
+}
+
 func home() string {
 	if h, err := os.UserHomeDir(); err == nil {
 		return h

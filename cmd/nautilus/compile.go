@@ -10,10 +10,19 @@ import (
 
 	"nautilus/internal/backend"
 	"nautilus/internal/backend/mihomo"
+	"nautilus/internal/backend/xray"
 	"nautilus/internal/compile"
 	"nautilus/internal/diag"
+	"nautilus/internal/lists"
 	"nautilus/internal/model"
+	"nautilus/internal/paths"
+	"nautilus/internal/route"
 )
+
+var backends = map[string]backend.Router{
+	"mihomo": mihomo.Backend{},
+	"xray":   xray.Backend{},
+}
 
 func newCompileCmd() *cobra.Command {
 	var (
@@ -21,6 +30,7 @@ func newCompileCmd() *cobra.Command {
 		outPath      string
 		manifestPath string
 		backendName  string
+		offline      bool
 		opts         backend.Options
 	)
 	cmd := &cobra.Command{
@@ -28,14 +38,19 @@ func newCompileCmd() *cobra.Command {
 		Short: "把 profile 编译成内核配置（不启动内核）",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			if backendName != "mihomo" {
-				return fmt.Errorf("暂时只支持 mihomo 后端")
+			b, ok := backends[backendName]
+			if !ok {
+				return fmt.Errorf("不认识的后端 %q（可以用 mihomo 或 xray）", backendName)
 			}
 			p, err := model.Load(profilePath)
 			if err != nil {
 				return err
 			}
-			art, diags := build(p, mihomo.Backend{}, opts)
+			store := &lists.Store{Dir: paths.ListsDir(), Offline: offline, Log: cmd.ErrOrStderr()}
+			opts.Lists = func(pv route.Provider) ([]lists.Entry, []string, error) {
+				return store.Load(cmd.Context(), pv)
+			}
+			art, diags := build(p, b, opts)
 			printDiags(cmd.ErrOrStderr(), diags)
 			if art == nil {
 				return errReported
@@ -57,7 +72,8 @@ func newCompileCmd() *cobra.Command {
 	f.StringVarP(&profilePath, "profile", "p", "profile.yaml", "profile 文件")
 	f.StringVarP(&outPath, "output", "o", "-", "输出文件，- 表示标准输出")
 	f.StringVar(&manifestPath, "manifest", "", "同时输出 manifest（JSON）到这个文件")
-	f.StringVar(&backendName, "backend", "mihomo", "内核后端")
+	f.StringVar(&backendName, "backend", "mihomo", "内核后端：mihomo 或 xray")
+	f.BoolVar(&offline, "offline", false, "不下载规则列表，只用已缓存的")
 	f.StringVar(&opts.ControllerUnix, "controller-unix", "", "内核 API 的 unix socket 路径")
 	f.StringVar(&opts.ControllerPipe, "controller-pipe", "", "内核 API 的 Windows 命名管道")
 	f.StringVar(&opts.Controller, "controller", "", "内核 API 的 TCP 地址（仅用于调试）")
@@ -72,12 +88,8 @@ func build(p *model.Profile, b backend.Router, opts backend.Options) (*backend.A
 	if diags.HasErrors() {
 		return nil, diags
 	}
-	art, err := b.Encode(res, opts)
-	if err != nil {
-		diags.Errorf(diag.Pos{}, "%v", err)
-		return nil, diags
-	}
-	return art, diags
+	art, encDiags := b.Encode(res, opts)
+	return art, append(diags, encDiags...)
 }
 
 func printDiags(w io.Writer, diags diag.List) {

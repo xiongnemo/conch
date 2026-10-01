@@ -13,6 +13,7 @@ import (
 )
 
 //go:generate go run ./gen -kernel mihomo -repo MetaCubeX/mihomo -version v1.19.32 -file kernels.json
+//go:generate go run ./gen -kernel xray -repo XTLS/Xray-core -version v26.3.27 -file kernels.json
 
 //go:embed kernels.json
 var manifestJSON []byte
@@ -79,11 +80,26 @@ func amd64Level() int {
 	return 3
 }
 
-// AssetName returns the release asset of a kernel for a target.
-func AssetName(kernel, version string, t Target) (string, error) {
-	if kernel != "mihomo" {
-		return "", fmt.Errorf("还不支持自动选择 %s 的安装包，请用 --asset 指定", kernel)
+// Asset is a release file and what to take out of it.
+type Asset struct {
+	Name string
+	// Files maps archive members (path.Match patterns) to local file names.
+	// A .gz asset holds a single file, so its only key is "".
+	Files map[string]string
+}
+
+// AssetFor returns the release asset of a kernel for a target.
+func AssetFor(kernel, version string, t Target) (Asset, error) {
+	switch kernel {
+	case "mihomo":
+		return mihomoAsset(version, t)
+	case "xray":
+		return xrayAsset(t)
 	}
+	return Asset{}, fmt.Errorf("不认识的内核 %q", kernel)
+}
+
+func mihomoAsset(version string, t Target) (Asset, error) {
 	var arch string
 	switch t.Arch {
 	case "amd64":
@@ -97,13 +113,46 @@ func AssetName(kernel, version string, t Target) (string, error) {
 	case "loong64":
 		arch = "loong64-abi2"
 	default:
-		return "", fmt.Errorf("不认识的 CPU 架构 %s，请用 --asset 指定安装包", t.Arch)
+		return Asset{}, fmt.Errorf("不认识的 CPU 架构 %s，请用 --asset 指定安装包", t.Arch)
 	}
-	ext := ".gz"
+	bin := BinaryName("mihomo", t.OS)
 	if t.OS == "windows" {
-		ext = ".zip"
+		return Asset{Name: fmt.Sprintf("mihomo-windows-%s-%s.zip", arch, version), Files: map[string]string{"*.exe": bin}}, nil
 	}
-	return fmt.Sprintf("mihomo-%s-%s-%s%s", t.OS, arch, version, ext), nil
+	return Asset{Name: fmt.Sprintf("mihomo-%s-%s-%s.gz", t.OS, arch, version), Files: map[string]string{"": bin}}, nil
+}
+
+func xrayAsset(t Target) (Asset, error) {
+	osName := map[string]string{"linux": "linux", "darwin": "macos", "windows": "windows", "freebsd": "freebsd", "openbsd": "openbsd"}[t.OS]
+	var arch string
+	switch t.Arch {
+	case "amd64":
+		arch = "64"
+	case "386":
+		arch = "32"
+	case "arm64":
+		arch = "arm64-v8a"
+	case "arm":
+		arch = map[int]string{5: "arm32-v5", 6: "arm32-v6", 7: "arm32-v7a"}[t.ARM]
+	case "mips":
+		arch = "mips32"
+	case "mipsle":
+		arch = "mips32le"
+	case "mips64", "mips64le", "riscv64", "loong64", "ppc64", "ppc64le", "s390x":
+		arch = t.Arch
+	}
+	if osName == "" || arch == "" {
+		return Asset{}, fmt.Errorf("xray 没有 %s/%s 的安装包，请用 --asset 指定", t.OS, t.Arch)
+	}
+	bin := BinaryName("xray", t.OS)
+	files := map[string]string{bin: bin}
+	switch {
+	case t.OS == "windows":
+		files["wintun.dll"] = "wintun.dll" // needed for TUN
+	case (t.Arch == "mips" || t.Arch == "mipsle") && t.Float == "softfloat":
+		files = map[string]string{"xray_softfloat": bin}
+	}
+	return Asset{Name: fmt.Sprintf("Xray-%s-%s.zip", osName, arch), Files: files}, nil
 }
 
 // BinaryName is the executable's file name on disk.

@@ -4,16 +4,17 @@ import (
 	"archive/zip"
 	"compress/gzip"
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
+
+	"nautilus/internal/fetch"
 )
 
 type InstallOptions struct {
@@ -54,57 +55,62 @@ func Install(ctx context.Context, o InstallOptions) (*Installed, error) {
 	if version == "" {
 		version = k.Releases[0].Version
 	}
-	asset := o.Asset
-	if asset == "" {
-		if asset, err = AssetName(o.Kernel, version, o.Target); err != nil {
-			return nil, err
+	asset, err := AssetFor(o.Kernel, version, o.Target)
+	if o.Asset != "" {
+		// An explicit asset is normally a variant for this machine (e.g. a
+		// "compatible" build), so the extraction plan still applies.
+		asset.Name = o.Asset
+		if strings.HasSuffix(o.Asset, ".gz") {
+			asset.Files = map[string]string{"": BinaryName(o.Kernel, o.Target.OS)}
 		}
+	} else if err != nil {
+		return nil, err
 	}
 
 	var want string
 	if rel := k.Release(version); rel != nil {
-		want = rel.Assets[asset]
+		want = rel.Assets[asset.Name]
 	} else {
 		fmt.Fprintf(o.Log, "%s %s 不在内置清单里，改用 GitHub 提供的校验值\n", o.Kernel, version)
 		digests, err := githubDigests(ctx, o.HTTP, k.Repo, version)
 		if err != nil {
 			return nil, err
 		}
-		want = digests[asset]
+		want = digests[asset.Name]
 	}
 	if want == "" {
-		return nil, fmt.Errorf("%s %s 没有 %s 这个安装包（可以用 --asset 指定）", o.Kernel, version, asset)
+		return nil, fmt.Errorf("%s %s 没有 %s 这个安装包（可以用 --asset 指定）", o.Kernel, version, asset.Name)
 	}
 
 	dest := filepath.Join(o.Dir, "kernels", o.Kernel, version)
 	if err := os.MkdirAll(dest, 0o755); err != nil {
 		return nil, err
 	}
-	tmp, err := os.CreateTemp(dest, asset+".*.part")
+	tmp, err := os.CreateTemp(dest, asset.Name+".*.part")
 	if err != nil {
 		return nil, err
 	}
 	defer os.Remove(tmp.Name())
 	defer tmp.Close()
 
-	url := Mirrored(o.Mirror, fmt.Sprintf("https://github.com/%s/releases/download/%s/%s", k.Repo, version, asset))
+	url := fetch.Mirrored(o.Mirror, fmt.Sprintf("https://github.com/%s/releases/download/%s/%s", k.Repo, version, asset.Name))
 	fmt.Fprintf(o.Log, "下载 %s\n", url)
-	got, err := Fetch(ctx, o.HTTP, url, tmp)
+	got, err := fetch.To(ctx, o.HTTP, url, tmp)
 	if err != nil {
 		return nil, err
 	}
 	if got != want {
-		return nil, fmt.Errorf("%s 校验失败（期望 sha256 %s，实际 %s），文件可能不完整或被篡改", asset, want, got)
+		return nil, fmt.Errorf("%s 校验失败（期望 sha256 %s，实际 %s），文件可能不完整或被篡改", asset.Name, want, got)
 	}
 
-	bin := filepath.Join(dest, BinaryName(o.Kernel, o.Target.OS))
-	if err := unpack(tmp.Name(), asset, bin); err != nil {
-		return nil, fmt.Errorf("解压 %s：%w", asset, err)
+	bin := BinaryName(o.Kernel, o.Target.OS)
+	if err := unpack(tmp.Name(), asset, dest, bin); err != nil {
+		return nil, fmt.Errorf("解压 %s：%w", asset.Name, err)
 	}
 	if err := os.WriteFile(filepath.Join(o.Dir, "kernels", o.Kernel, "current"), []byte(version+"\n"), 0o644); err != nil {
 		return nil, err
 	}
-	return &Installed{Kernel: o.Kernel, Version: version, Path: bin}, nil
+	return &Installed{Kernel: o.Kernel, Version: version, Path: filepath.Join(dest, bin)}, nil
 }
 
 // Current returns the path of the kernel marked as current.
@@ -122,40 +128,6 @@ func Current(dir, kernel, goos string) (*Installed, error) {
 		Version: version,
 		Path:    filepath.Join(dir, "kernels", kernel, version, BinaryName(kernel, goos)),
 	}, nil
-}
-
-// Mirrored prefixes a GitHub URL with a mirror such as https://ghfast.top.
-func Mirrored(mirror, url string) string {
-	if mirror == "" {
-		return url
-	}
-	return strings.TrimSuffix(mirror, "/") + "/" + url
-}
-
-// Fetch streams url into w and returns the sha256 of what was written.
-// It refuses HTML responses, which mirrors return for errors and captive
-// portals return for everything.
-func Fetch(ctx context.Context, client *http.Client, url string, w io.Writer) (string, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
-	if err != nil {
-		return "", err
-	}
-	resp, err := client.Do(req)
-	if err != nil {
-		return "", fmt.Errorf("下载 %s：%w", url, err)
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("下载 %s：服务器返回 %s", url, resp.Status)
-	}
-	if strings.HasPrefix(resp.Header.Get("Content-Type"), "text/html") {
-		return "", fmt.Errorf("下载 %s：服务器返回的是网页而不是文件，请检查网络或镜像地址", url)
-	}
-	h := sha256.New()
-	if _, err := io.Copy(io.MultiWriter(w, h), resp.Body); err != nil {
-		return "", fmt.Errorf("下载 %s：%w", url, err)
-	}
-	return hex.EncodeToString(h.Sum(nil)), nil
 }
 
 func githubDigests(ctx context.Context, client *http.Client, repo, version string) (map[string]string, error) {
@@ -191,51 +163,63 @@ func githubDigests(ctx context.Context, client *http.Client, repo, version strin
 	return out, nil
 }
 
-// unpack extracts the kernel binary from a .gz or .zip asset into bin.
-func unpack(archive, asset, bin string) error {
+// unpack extracts the files named by asset.Files into dir. The kernel
+// binary must be present; other files (e.g. wintun.dll) are optional.
+func unpack(archive string, asset Asset, dir, bin string) error {
 	f, err := os.Open(archive)
 	if err != nil {
 		return err
 	}
 	defer f.Close()
-	var src io.Reader
-	switch {
-	case strings.HasSuffix(asset, ".gz"):
+	if strings.HasSuffix(asset.Name, ".gz") {
 		zr, err := gzip.NewReader(f)
 		if err != nil {
 			return err
 		}
 		defer zr.Close()
-		src = zr
-	case strings.HasSuffix(asset, ".zip"):
-		st, err := f.Stat()
-		if err != nil {
-			return err
-		}
-		zr, err := zip.NewReader(f, st.Size())
-		if err != nil {
-			return err
-		}
-		var exe *zip.File
+		return writeFile(filepath.Join(dir, bin), zr)
+	}
+	if !strings.HasSuffix(asset.Name, ".zip") {
+		return fmt.Errorf("不支持的安装包格式")
+	}
+	st, err := f.Stat()
+	if err != nil {
+		return err
+	}
+	zr, err := zip.NewReader(f, st.Size())
+	if err != nil {
+		return err
+	}
+	for pattern, local := range asset.Files {
+		var member *zip.File
 		for _, zf := range zr.File {
-			if !zf.FileInfo().IsDir() && strings.HasSuffix(strings.ToLower(zf.Name), ".exe") {
-				exe = zf
+			if ok, _ := path.Match(pattern, zf.Name); ok && !zf.FileInfo().IsDir() {
+				member = zf
 				break
 			}
 		}
-		if exe == nil {
-			return fmt.Errorf("压缩包里没有可执行文件")
+		if member == nil {
+			if local == bin {
+				return fmt.Errorf("压缩包里没有 %s", pattern)
+			}
+			continue
 		}
-		rc, err := exe.Open()
+		rc, err := member.Open()
 		if err != nil {
 			return err
 		}
-		defer rc.Close()
-		src = rc
-	default:
-		return fmt.Errorf("不支持的安装包格式")
+		err = writeFile(filepath.Join(dir, local), rc)
+		rc.Close()
+		if err != nil {
+			return err
+		}
 	}
-	tmp := bin + ".tmp"
+	return nil
+}
+
+// writeFile atomically writes an executable file.
+func writeFile(dst string, src io.Reader) error {
+	tmp := dst + ".tmp"
 	out, err := os.OpenFile(tmp, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o755)
 	if err != nil {
 		return err
@@ -249,5 +233,5 @@ func unpack(archive, asset, bin string) error {
 		os.Remove(tmp)
 		return err
 	}
-	return os.Rename(tmp, bin)
+	return os.Rename(tmp, dst)
 }

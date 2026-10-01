@@ -17,6 +17,11 @@ type Provider struct {
 	Format   string // mrs | yaml | text
 	URL      string
 	TextURL  string // plain-text variant, used for local explanations
+
+	// Geo and Category identify geosite:/geoip: categories, which some
+	// kernels (xray) load from their own geodata files instead of a URL.
+	Geo      string // geosite | geoip
+	Category string
 }
 
 const defaultListBase = "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/"
@@ -65,13 +70,16 @@ func resolveList(ref *model.ListRef, base string) (Provider, error) {
 		if ref.Behavior != "" || ref.Format != "" {
 			return Provider{}, fmt.Errorf("%s 列表的 behavior/format 是固定的，不需要填写", kind.prefix)
 		}
-		dir := "geo/" + strings.TrimSuffix(kind.prefix, ":") + "/"
+		geo := strings.TrimSuffix(kind.prefix, ":")
+		dir := "geo/" + geo + "/"
 		return Provider{
-			Name:     strings.TrimSuffix(kind.prefix, ":") + "-" + cat,
+			Name:     geo + "-" + cat,
 			Behavior: kind.behavior,
 			Format:   "mrs",
 			URL:      base + dir + cat + ".mrs",
 			TextURL:  base + dir + cat + ".list",
+			Geo:      geo,
+			Category: cat,
 		}, nil
 	}
 	if strings.HasPrefix(lower, "https://") || strings.HasPrefix(lower, "http://") {

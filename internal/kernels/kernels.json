@@ -100,5 +100,47 @@
         }
       }
     ]
+  },
+  "xray": {
+    "repo": "XTLS/Xray-core",
+    "releases": [
+      {
+        "version": "v26.3.27",
+        "assets": {
+          "Xray-android-amd64.zip": "bfa1dd4cb3cd94f92af6c718ac6933cc84bd3ddd8343aa1e413162152930bee5",
+          "Xray-android-arm64-v8a.zip": "57149ffd48b629c07bf76938e73ab2729fde5910091497eab3e93d1c190f4c1b",
+          "Xray-freebsd-32.zip": "d2e5d9cf175f4449b5506e2de45de144b5e1160cada1f8c350087aba465b127f",
+          "Xray-freebsd-64.zip": "c0fcd6962fc8a382e14441370ddbdb6a56e7108c73e817938c626770ac4a1358",
+          "Xray-freebsd-arm32-v7a.zip": "ffc017f8a25452996897f5aa04b7cde4a08d9b11a716c2e906afc93be36d7103",
+          "Xray-freebsd-arm64-v8a.zip": "0f0adda9c445696f7bdd7c3788358988359cc9c5218c7487851de7db7ec6dabd",
+          "Xray-linux-32.zip": "d1eeb0d9a9106eefd286fbb73595c2dfe1c48c56aa91ba1c9aefe04f188d0927",
+          "Xray-linux-64.zip": "23cd9af937744d97776ee35ecad4972cf4b2109d1e0fe6be9930467608f7c8ae",
+          "Xray-linux-arm32-v5.zip": "0da9a632e15e82504831f61bf6b46c21e3081bcc79ad46bdc16e7dc2f0dc9088",
+          "Xray-linux-arm32-v6.zip": "0c6e751e2bba3f3ff09a793dd6a6bc45fd6fd89f49b49dfc0cf6d922dc123bec",
+          "Xray-linux-arm32-v7a.zip": "c7265ae13c63ca0241a037df4ef960ad37938c8a67d984cc08834b2cfdf5654b",
+          "Xray-linux-arm64-v8a.zip": "4d30283ae614e3057f730f67cd088a42be6fdf91f8639d82cb69e48cde80413c",
+          "Xray-linux-loong64.zip": "4f9c917976d4e454740aa7b4e0ef9c13c950d91152aaa7926aaa652698e6e6c0",
+          "Xray-linux-mips32.zip": "a562f2edbdabc0f1a17eee2226fa9f710e6b61c2d5e2bf3435157b5ce40b1c67",
+          "Xray-linux-mips32le.zip": "fe1ded07a64fe0a406c6c1089f09b6c2999fc2309509ca4c98d93469c0cbf9df",
+          "Xray-linux-mips64.zip": "40432515e6d98033b3934a38dc4f2dac1801e80e3da88c3d230310d17e79dca7",
+          "Xray-linux-mips64le.zip": "7f660cb026ab9251bd70c30ecf383243d133eb098c57287bf3f4e0c01c66c898",
+          "Xray-linux-ppc64.zip": "60be6b12dbfdd7e9ce915165ef337bfcde4cacce26ba2a27d34c4e6470d4ad7b",
+          "Xray-linux-ppc64le.zip": "2f9ad6c4f35966b1e012c69d601a98bb8b63aba933d303ba6d7b5b67f2ab2acb",
+          "Xray-linux-riscv64.zip": "627ea5870b6fd05d95b7f4ceb5a54d7f2664dd075b30a7ac46ee9a6f9653d6f8",
+          "Xray-linux-s390x.zip": "a209bcea3df9b0dc1ef5938695679ba1308ad9678a671279d7b1b6c5ceec09c7",
+          "Xray-macos-64.zip": "f5b0471d3459eff1b82e48af0aeac186abcc3298210070afbbbd8437a4e8b203",
+          "Xray-macos-arm64-v8a.zip": "2e93a67e8aa1936ecefb307e120830fcbd4c643ab9b1c46a2d0838d5f8409eaf",
+          "Xray-openbsd-32.zip": "668e987feb5229942a3905890ea73c4745a5667f3e22a0dccf364c9c50a763d1",
+          "Xray-openbsd-64.zip": "d7aa882f986a25402b2fbffee0be936ba47096a04c27fd58fe5f811883a6b0d2",
+          "Xray-openbsd-arm32-v7a.zip": "a146b49d097b99e6ca84d9fe740fdf7725a584c6439b0f63ace0f0a278507378",
+          "Xray-openbsd-arm64-v8a.zip": "0ac29826dd98d16838cefabf4af1d66a177d985d88919588842b30f8128daacc",
+          "Xray-win7-32.zip": "33bc2686a77f6fe438616982b347f852eb7f9572dbe97adc1459f8fb639aea13",
+          "Xray-win7-64.zip": "02a4798854975435981a5c6fb4aaf7059f58d22d73d2762363cd56788d92d758",
+          "Xray-windows-32.zip": "956a5ec00bce747c7936dc4ff7ac570df1c8030b0a4a8640f843488365084db3",
+          "Xray-windows-64.zip": "d004c39288ce9ada487c6f398c7c545f7d749e44bdfdd59dbc9f865afba4e1ad",
+          "Xray-windows-arm64-v8a.zip": "35d4ed6ec21224fb22b07c2c3f672e2350cd536f2c74d309150175a76365ea88"
+        }
+      }
+    ]
   }
 }

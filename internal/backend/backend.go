@@ -5,6 +5,7 @@ package backend
 import (
 	"nautilus/internal/compile"
 	"nautilus/internal/diag"
+	"nautilus/internal/lists"
 	"nautilus/internal/route"
 )
 
@@ -12,8 +13,13 @@ import (
 type Router interface {
 	Name() string
 	Capabilities() Capabilities
-	Encode(r *compile.Result, opts Options) (*Artifact, error)
+	// Encode returns a nil artifact when the diagnostics contain errors.
+	Encode(r *compile.Result, opts Options) (*Artifact, diag.List)
 }
+
+// ListLoader returns the entries of a rule list, for backends that cannot
+// download Clash rule-providers and must inline them instead.
+type ListLoader func(p route.Provider) (entries []lists.Entry, skipped []string, err error)
 
 // Options are runtime settings that are not part of the user's profile.
 type Options struct {
@@ -24,6 +30,8 @@ type Options struct {
 	ControllerPipe string
 	// Controller is a TCP address for the kernel API, for debugging only.
 	Controller string
+	// Lists loads rule lists for backends that inline them.
+	Lists ListLoader
 }
 
 // Artifact is an encoded kernel configuration.
@@ -38,6 +46,7 @@ type Capabilities struct {
 	KeywordMatch bool // ~keyword entries
 	RawClash     bool // { clash: [...] } list items
 	Chains       bool
+	TUN          bool
 }
 
 // Check reports profile features the backend cannot express, so users get
@@ -57,7 +66,23 @@ func Check(r *compile.Result, caps Capabilities, backendName string) diag.List {
 	if len(r.Chains) > 0 && !caps.Chains {
 		d.Errorf(r.Chains[0].Pos, "%s 后端不支持链式代理", backendName)
 	}
-	return d
+	if r.Settings.TUN.Enable && !caps.TUN {
+		d.Errorf(diag.Pos{}, "%s 后端暂不支持 TUN：它不会自己配置系统路由，需要 nautilus 来做（计划在 M4 实现）", backendName)
+	}
+	return dedupe(d)
+}
+
+// dedupe drops repeated diagnostics, e.g. one per line of the same list item.
+func dedupe(l diag.List) diag.List {
+	seen := map[diag.Diagnostic]bool{}
+	var out diag.List
+	for _, d := range l {
+		if !seen[d] {
+			seen[d] = true
+			out = append(out, d)
+		}
+	}
+	return out
 }
 
 // Manifest maps emitted objects back to what the user wrote, so runtime
@@ -66,6 +91,8 @@ type Manifest struct {
 	Backend string          `json:"backend"`
 	Proxies []ManifestProxy `json:"proxies"`
 	Rules   []ManifestRule  `json:"rules"`
+	// Tags maps emitted names to kernel identifiers where they differ.
+	Tags map[string]string `json:"tags,omitempty"`
 }
 
 type ManifestProxy struct {

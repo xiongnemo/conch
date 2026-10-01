@@ -1,0 +1,344 @@
+{
+  "log": {
+    "loglevel": "info"
+  },
+  "inbounds": [
+    {
+      "tag": "›mixed",
+      "protocol": "mixed",
+      "listen": "127.0.0.1",
+      "port": 7890,
+      "settings": {
+        "udp": true
+      },
+      "sniffing": {
+        "enabled": true,
+        "destOverride": [
+          "http",
+          "tls",
+          "quic"
+        ],
+        "routeOnly": true
+      }
+    }
+  ],
+  "outbounds": [
+    {
+      "tag": "三跳»",
+      "protocol": "socks",
+      "settings": {
+        "address": "192.0.2.3",
+        "port": 3
+      },
+      "streamSettings": {
+        "sockopt": {
+          "dialerProxy": "三跳›2›中转"
+        }
+      }
+    },
+    {
+      "tag": "DIRECT",
+      "protocol": "freedom"
+    },
+    {
+      "tag": "REJECT»",
+      "protocol": "blackhole"
+    },
+    {
+      "tag": "REJECT-DROP",
+      "protocol": "blackhole"
+    },
+    {
+      "tag": "入口， A",
+      "protocol": "shadowsocks",
+      "settings": {
+        "address": "192.0.2.1",
+        "port": 1,
+        "method": "aes-128-gcm",
+        "password": "x"
+      }
+    },
+    {
+      "tag": "中转",
+      "protocol": "shadowsocks",
+      "settings": {
+        "address": "192.0.2.2",
+        "port": 2,
+        "method": "aes-128-gcm",
+        "password": "x"
+      },
+      "streamSettings": {
+        "sockopt": {
+          "dialerProxy": "落地"
+        }
+      }
+    },
+    {
+      "tag": "落地",
+      "protocol": "socks",
+      "settings": {
+        "address": "192.0.2.3",
+        "port": 3
+      }
+    },
+    {
+      "tag": "手写链",
+      "protocol": "socks",
+      "settings": {
+        "address": "192.0.2.4",
+        "port": 4
+      },
+      "streamSettings": {
+        "sockopt": {
+          "dialerProxy": "入口， A"
+        }
+      }
+    },
+    {
+      "tag": "两跳",
+      "protocol": "shadowsocks",
+      "settings": {
+        "address": "192.0.2.2",
+        "port": 2,
+        "method": "aes-128-gcm",
+        "password": "x"
+      },
+      "streamSettings": {
+        "sockopt": {
+          "dialerProxy": "入口， A"
+        }
+      }
+    },
+    {
+      "tag": "三跳›1›入口， A",
+      "protocol": "shadowsocks",
+      "settings": {
+        "address": "192.0.2.1",
+        "port": 1,
+        "method": "aes-128-gcm",
+        "password": "x"
+      },
+      "streamSettings": {
+        "sockopt": {
+          "dialerProxy": "入口组»"
+        }
+      }
+    },
+    {
+      "tag": "三跳›2›中转",
+      "protocol": "shadowsocks",
+      "settings": {
+        "address": "192.0.2.2",
+        "port": 2,
+        "method": "aes-128-gcm",
+        "password": "x"
+      },
+      "streamSettings": {
+        "sockopt": {
+          "dialerProxy": "三跳›1›入口， A"
+        }
+      }
+    },
+    {
+      "tag": "接力",
+      "protocol": "socks",
+      "settings": {
+        "address": "192.0.2.3",
+        "port": 3
+      },
+      "streamSettings": {
+        "sockopt": {
+          "dialerProxy": "两跳"
+        }
+      }
+    },
+    {
+      "tag": "入口组→落地",
+      "protocol": "socks",
+      "settings": {
+        "address": "192.0.2.3",
+        "port": 3
+      },
+      "streamSettings": {
+        "sockopt": {
+          "dialerProxy": "入口组»"
+        }
+      }
+    },
+    {
+      "tag": "入口组»",
+      "protocol": "loopback",
+      "settings": {
+        "inboundTag": "›group›入口组"
+      }
+    },
+    {
+      "tag": "GLOBAL",
+      "protocol": "loopback",
+      "settings": {
+        "inboundTag": "›group›GLOBAL"
+      }
+    }
+  ],
+  "routing": {
+    "domainStrategy": "IPIfNonMatch",
+    "rules": [
+      {
+        "inboundTag": [
+          "›group›入口组"
+        ],
+        "balancerTag": "入口组"
+      },
+      {
+        "inboundTag": [
+          "›group›GLOBAL"
+        ],
+        "balancerTag": "GLOBAL"
+      },
+      {
+        "domain": [
+          "domain:a.example"
+        ],
+        "outboundTag": "接力"
+      },
+      {
+        "domain": [
+          "domain:b.example"
+        ],
+        "outboundTag": "入口组→落地"
+      },
+      {
+        "domain": [
+          "domain:home.arpa"
+        ],
+        "outboundTag": "DIRECT"
+      },
+      {
+        "domain": [
+          "domain:lan"
+        ],
+        "outboundTag": "DIRECT"
+      },
+      {
+        "domain": [
+          "domain:local"
+        ],
+        "outboundTag": "DIRECT"
+      },
+      {
+        "domain": [
+          "domain:localhost"
+        ],
+        "outboundTag": "DIRECT"
+      },
+      {
+        "ip": [
+          "::1/128"
+        ],
+        "outboundTag": "DIRECT"
+      },
+      {
+        "ip": [
+          "255.255.255.255/32"
+        ],
+        "outboundTag": "DIRECT"
+      },
+      {
+        "ip": [
+          "169.254.0.0/16"
+        ],
+        "outboundTag": "DIRECT"
+      },
+      {
+        "ip": [
+          "192.168.0.0/16"
+        ],
+        "outboundTag": "DIRECT"
+      },
+      {
+        "ip": [
+          "172.16.0.0/12"
+        ],
+        "outboundTag": "DIRECT"
+      },
+      {
+        "ip": [
+          "100.64.0.0/10"
+        ],
+        "outboundTag": "DIRECT"
+      },
+      {
+        "ip": [
+          "fe80::/10"
+        ],
+        "outboundTag": "DIRECT"
+      },
+      {
+        "ip": [
+          "0.0.0.0/8"
+        ],
+        "outboundTag": "DIRECT"
+      },
+      {
+        "ip": [
+          "10.0.0.0/8"
+        ],
+        "outboundTag": "DIRECT"
+      },
+      {
+        "ip": [
+          "127.0.0.0/8"
+        ],
+        "outboundTag": "DIRECT"
+      },
+      {
+        "ip": [
+          "ff00::/8"
+        ],
+        "outboundTag": "DIRECT"
+      },
+      {
+        "ip": [
+          "fc00::/7"
+        ],
+        "outboundTag": "DIRECT"
+      },
+      {
+        "ip": [
+          "224.0.0.0/4"
+        ],
+        "outboundTag": "DIRECT"
+      }
+    ],
+    "balancers": [
+      {
+        "tag": "入口组",
+        "selector": [
+          "入口， A",
+          "中转"
+        ],
+        "strategy": {
+          "type": "roundRobin"
+        }
+      },
+      {
+        "tag": "GLOBAL",
+        "selector": [
+          "入口组»"
+        ],
+        "strategy": {
+          "type": "random"
+        }
+      }
+    ]
+  },
+  "observatory": {
+    "subjectSelector": [
+      "入口， A",
+      "中转"
+    ],
+    "probeURL": "https://www.gstatic.com/generate_204",
+    "probeInterval": "300s",
+    "enableConcurrency": true
+  }
+}

@@ -1,0 +1,404 @@
+{
+  "log": {
+    "loglevel": "info"
+  },
+  "inbounds": [
+    {
+      "tag": "›mixed",
+      "protocol": "mixed",
+      "listen": "127.0.0.1",
+      "port": 7890,
+      "settings": {
+        "udp": true
+      },
+      "sniffing": {
+        "enabled": true,
+        "destOverride": [
+          "http",
+          "tls",
+          "quic"
+        ],
+        "routeOnly": true
+      }
+    }
+  ],
+  "outbounds": [
+    {
+      "tag": "ss-2022",
+      "protocol": "shadowsocks",
+      "settings": {
+        "address": "192.0.2.1",
+        "port": 8388,
+        "method": "2022-blake3-aes-128-gcm",
+        "password": "AAAAAAAAAAAAAAAAAAAAAA=="
+      }
+    },
+    {
+      "tag": "DIRECT",
+      "protocol": "freedom"
+    },
+    {
+      "tag": "REJECT»",
+      "protocol": "blackhole"
+    },
+    {
+      "tag": "REJECT-DROP",
+      "protocol": "blackhole"
+    },
+    {
+      "tag": "vmess-ws",
+      "protocol": "vmess",
+      "settings": {
+        "address": "v.example.com",
+        "port": 443,
+        "id": "00000000-0000-0000-0000-000000000001",
+        "security": "auto"
+      },
+      "streamSettings": {
+        "network": "ws",
+        "security": "tls",
+        "tlsSettings": {
+          "serverName": "v.example.com"
+        },
+        "wsSettings": {
+          "host": "cdn.example.com",
+          "path": "/ray?ed=2048"
+        }
+      }
+    },
+    {
+      "tag": "vless-reality",
+      "protocol": "vless",
+      "settings": {
+        "address": "r.example.com",
+        "port": 443,
+        "id": "00000000-0000-0000-0000-000000000002",
+        "flow": "xtls-rprx-vision",
+        "encryption": "none"
+      },
+      "streamSettings": {
+        "security": "reality",
+        "realitySettings": {
+          "serverName": "www.microsoft.com",
+          "fingerprint": "chrome",
+          "publicKey": "BkDN6JhDpzeaKaAuy4k_dgzzDOrjd5dJdm8KtB-vHSc",
+          "shortId": "6ba85179e30d4fc2"
+        }
+      }
+    },
+    {
+      "tag": "vless-xhttp",
+      "protocol": "vless",
+      "settings": {
+        "address": "x.example.com",
+        "port": 443,
+        "id": "00000000-0000-0000-0000-000000000003",
+        "encryption": "none"
+      },
+      "streamSettings": {
+        "network": "xhttp",
+        "security": "tls",
+        "tlsSettings": {
+          "serverName": "x.example.com"
+        },
+        "xhttpSettings": {
+          "path": "/xh",
+          "mode": "auto"
+        }
+      }
+    },
+    {
+      "tag": "trojan-grpc",
+      "protocol": "trojan",
+      "settings": {
+        "address": "t.example.com",
+        "port": 443,
+        "password": "p"
+      },
+      "streamSettings": {
+        "network": "grpc",
+        "security": "tls",
+        "tlsSettings": {
+          "serverName": "t.example.com",
+          "alpn": [
+            "h2"
+          ]
+        },
+        "grpcSettings": {
+          "serviceName": "svc"
+        }
+      }
+    },
+    {
+      "tag": "trojan-upgrade",
+      "protocol": "trojan",
+      "settings": {
+        "address": "u.example.com",
+        "port": 443,
+        "password": "p"
+      },
+      "streamSettings": {
+        "network": "httpupgrade",
+        "security": "tls",
+        "tlsSettings": {},
+        "httpupgradeSettings": {
+          "path": "/up"
+        }
+      }
+    },
+    {
+      "tag": "trojan-pinned",
+      "protocol": "trojan",
+      "settings": {
+        "address": "p.example.com",
+        "port": 443,
+        "password": "p"
+      },
+      "streamSettings": {
+        "security": "tls",
+        "tlsSettings": {
+          "pinnedPeerCertSha256": "0f1e2d3c4b5a69788796a5b4c3d2e1f00f1e2d3c4b5a69788796a5b4c3d2e1f0"
+        }
+      }
+    },
+    {
+      "tag": "socks-tls",
+      "protocol": "socks",
+      "settings": {
+        "address": "192.0.2.7",
+        "port": 1080,
+        "user": "u",
+        "pass": "p"
+      },
+      "streamSettings": {
+        "security": "tls",
+        "tlsSettings": {}
+      }
+    },
+    {
+      "tag": "http-auth",
+      "protocol": "http",
+      "settings": {
+        "address": "192.0.2.8",
+        "port": 8080,
+        "user": "u",
+        "pass": "p",
+        "headers": {
+          "User-Agent": "nautilus"
+        }
+      }
+    },
+    {
+      "tag": "hy2",
+      "protocol": "hysteria",
+      "settings": {
+        "version": 2,
+        "address": "h.example.com",
+        "port": 443
+      },
+      "streamSettings": {
+        "network": "hysteria",
+        "security": "tls",
+        "tlsSettings": {
+          "serverName": "h.example.com"
+        },
+        "hysteriaSettings": {
+          "version": 2,
+          "auth": "p"
+        },
+        "finalmask": {
+          "udp": [
+            {
+              "type": "salamander",
+              "settings": {
+                "password": "o"
+              }
+            }
+          ],
+          "quicParams": {
+            "congestion": "brutal",
+            "brutalUp": "50 mbps",
+            "brutalDown": "200 mbps",
+            "udpHop": {
+              "ports": "20000-30000",
+              "interval": 30
+            }
+          }
+        }
+      }
+    },
+    {
+      "tag": "wg",
+      "protocol": "wireguard",
+      "settings": {
+        "secretKey": "elM/+PBAa7rn1rifSGuVKiDD9gSiGddGjleV+taVs0U=",
+        "address": [
+          "172.16.0.2/32"
+        ],
+        "peers": [
+          {
+            "publicKey": "DHZ/8quR7djJIv0jvfkP2aGcbDWdOpjd0opJwa0pM2E=",
+            "endpoint": "192.0.2.10:51820"
+          }
+        ],
+        "mtu": 1280,
+        "reserved": [
+          1,
+          2,
+          3
+        ]
+      }
+    },
+    {
+      "tag": "tuned",
+      "protocol": "vless",
+      "settings": {
+        "address": "192.0.2.12",
+        "port": 443,
+        "id": "00000000-0000-0000-0000-000000000004",
+        "encryption": "none"
+      },
+      "streamSettings": {
+        "security": "tls",
+        "tlsSettings": {},
+        "sockopt": {
+          "domainStrategy": "UseIPv4",
+          "tcpFastOpen": true,
+          "interface": "eth0",
+          "mark": 255
+        }
+      }
+    },
+    {
+      "tag": "GLOBAL",
+      "protocol": "loopback",
+      "settings": {
+        "inboundTag": "›group›GLOBAL"
+      }
+    }
+  ],
+  "routing": {
+    "domainStrategy": "IPIfNonMatch",
+    "rules": [
+      {
+        "inboundTag": [
+          "›group›GLOBAL"
+        ],
+        "balancerTag": "GLOBAL"
+      },
+      {
+        "domain": [
+          "domain:home.arpa"
+        ],
+        "outboundTag": "DIRECT"
+      },
+      {
+        "domain": [
+          "domain:lan"
+        ],
+        "outboundTag": "DIRECT"
+      },
+      {
+        "domain": [
+          "domain:local"
+        ],
+        "outboundTag": "DIRECT"
+      },
+      {
+        "domain": [
+          "domain:localhost"
+        ],
+        "outboundTag": "DIRECT"
+      },
+      {
+        "ip": [
+          "::1/128"
+        ],
+        "outboundTag": "DIRECT"
+      },
+      {
+        "ip": [
+          "255.255.255.255/32"
+        ],
+        "outboundTag": "DIRECT"
+      },
+      {
+        "ip": [
+          "169.254.0.0/16"
+        ],
+        "outboundTag": "DIRECT"
+      },
+      {
+        "ip": [
+          "192.168.0.0/16"
+        ],
+        "outboundTag": "DIRECT"
+      },
+      {
+        "ip": [
+          "172.16.0.0/12"
+        ],
+        "outboundTag": "DIRECT"
+      },
+      {
+        "ip": [
+          "100.64.0.0/10"
+        ],
+        "outboundTag": "DIRECT"
+      },
+      {
+        "ip": [
+          "fe80::/10"
+        ],
+        "outboundTag": "DIRECT"
+      },
+      {
+        "ip": [
+          "0.0.0.0/8"
+        ],
+        "outboundTag": "DIRECT"
+      },
+      {
+        "ip": [
+          "10.0.0.0/8"
+        ],
+        "outboundTag": "DIRECT"
+      },
+      {
+        "ip": [
+          "127.0.0.0/8"
+        ],
+        "outboundTag": "DIRECT"
+      },
+      {
+        "ip": [
+          "ff00::/8"
+        ],
+        "outboundTag": "DIRECT"
+      },
+      {
+        "ip": [
+          "fc00::/7"
+        ],
+        "outboundTag": "DIRECT"
+      },
+      {
+        "ip": [
+          "224.0.0.0/4"
+        ],
+        "outboundTag": "DIRECT"
+      }
+    ],
+    "balancers": [
+      {
+        "tag": "GLOBAL",
+        "selector": [
+          "ss-2022"
+        ],
+        "strategy": {
+          "type": "random"
+        }
+      }
+    ]
+  }
+}

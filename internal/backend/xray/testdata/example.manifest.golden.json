@@ -1,0 +1,243 @@
+{
+  "backend": "xray",
+  "proxies": [
+    {
+      "name": "香港 01",
+      "kind": "node",
+      "node": "香港 01"
+    },
+    {
+      "name": "香港 02",
+      "kind": "node",
+      "node": "香港 02"
+    },
+    {
+      "name": "日本 01",
+      "kind": "node",
+      "node": "日本 01"
+    },
+    {
+      "name": "home",
+      "kind": "node",
+      "node": "home"
+    },
+    {
+      "name": "AI-Exit",
+      "kind": "chain-exit",
+      "node": "home",
+      "chain": "AI-Exit",
+      "hop": 1,
+      "upstream": "香港自动"
+    },
+    {
+      "name": "日本 01→home",
+      "kind": "chain-exit",
+      "node": "home",
+      "chain": "日本 01→home",
+      "hop": 1,
+      "upstream": "日本 01"
+    }
+  ],
+  "rules": [
+    {
+      "index": 3,
+      "rule": "{\"process\":[\"Telegram\"],\"balancerTag\":\"香港自动\"}",
+      "tier": "app",
+      "key": "app:Telegram",
+      "source": "../../../examples/profile.yaml:30"
+    },
+    {
+      "index": 4,
+      "rule": "{\"domain\":[\"full:api.example.com\"],\"outboundTag\":\"DIRECT\"}",
+      "tier": "domain",
+      "key": "=api.example.com",
+      "source": "../../../examples/profile.yaml:27"
+    },
+    {
+      "index": 5,
+      "rule": "{\"domain\":[\"domain:mail.google.com\"],\"outboundTag\":\"DIRECT\"}",
+      "tier": "domain",
+      "key": "mail.google.com",
+      "source": "../../../examples/profile.yaml:26"
+    },
+    {
+      "index": 6,
+      "rule": "{\"domain\":[\"domain:claude.ai\"],\"outboundTag\":\"日本 01→home\"}",
+      "tier": "domain",
+      "key": "claude.ai",
+      "source": "../../../examples/profile.yaml:24"
+    },
+    {
+      "index": 7,
+      "rule": "{\"domain\":[\"domain:google.com\"],\"balancerTag\":\"节点选择\"}",
+      "tier": "domain",
+      "key": "google.com",
+      "source": "../../../examples/profile.yaml:25"
+    },
+    {
+      "index": 8,
+      "rule": "{\"domain\":[\"domain:home.arpa\"],\"outboundTag\":\"DIRECT\"}",
+      "tier": "domain",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 9,
+      "rule": "{\"domain\":[\"domain:openai.com\"],\"outboundTag\":\"AI-Exit\"}",
+      "tier": "domain",
+      "key": "openai.com",
+      "source": "../../../examples/profile.yaml:23"
+    },
+    {
+      "index": 10,
+      "rule": "{\"domain\":[\"domain:lan\"],\"outboundTag\":\"DIRECT\"}",
+      "tier": "domain",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 11,
+      "rule": "{\"domain\":[\"domain:local\"],\"outboundTag\":\"DIRECT\"}",
+      "tier": "domain",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 12,
+      "rule": "{\"domain\":[\"domain:localhost\"],\"outboundTag\":\"DIRECT\"}",
+      "tier": "domain",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 13,
+      "rule": "{\"ip\":[\"::1/128\"],\"outboundTag\":\"DIRECT\"}",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 14,
+      "rule": "{\"ip\":[\"255.255.255.255/32\"],\"outboundTag\":\"DIRECT\"}",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 15,
+      "rule": "{\"ip\":[\"149.154.160.0/20\"],\"balancerTag\":\"香港自动\"}",
+      "tier": "ip",
+      "key": "149.154.160.0/20",
+      "source": "../../../examples/profile.yaml:29"
+    },
+    {
+      "index": 16,
+      "rule": "{\"ip\":[\"169.254.0.0/16\"],\"outboundTag\":\"DIRECT\"}",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 17,
+      "rule": "{\"ip\":[\"192.168.0.0/16\"],\"outboundTag\":\"DIRECT\"}",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 18,
+      "rule": "{\"ip\":[\"172.16.0.0/12\"],\"outboundTag\":\"DIRECT\"}",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 19,
+      "rule": "{\"ip\":[\"100.64.0.0/10\"],\"outboundTag\":\"DIRECT\"}",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 20,
+      "rule": "{\"ip\":[\"fe80::/10\"],\"outboundTag\":\"DIRECT\"}",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 21,
+      "rule": "{\"ip\":[\"0.0.0.0/8\"],\"outboundTag\":\"DIRECT\"}",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 22,
+      "rule": "{\"ip\":[\"10.0.0.0/8\"],\"outboundTag\":\"DIRECT\"}",
+      "tier": "ip",
+      "key": "10.0.0.0/8",
+      "source": "../../../examples/profile.yaml:28"
+    },
+    {
+      "index": 23,
+      "rule": "{\"ip\":[\"127.0.0.0/8\"],\"outboundTag\":\"DIRECT\"}",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 24,
+      "rule": "{\"ip\":[\"ff00::/8\"],\"outboundTag\":\"DIRECT\"}",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 25,
+      "rule": "{\"ip\":[\"fc00::/7\"],\"outboundTag\":\"DIRECT\"}",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 26,
+      "rule": "{\"ip\":[\"224.0.0.0/4\"],\"outboundTag\":\"DIRECT\"}",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 27,
+      "rule": "{\"domain\":[\"geosite:category-ads-all\"],\"outboundTag\":\"REJECT»\"}",
+      "tier": "list",
+      "key": "ads",
+      "source": "../../../examples/profile.yaml:32"
+    },
+    {
+      "index": 28,
+      "rule": "{\"domain\":[\"geosite:gfw\"],\"balancerTag\":\"节点选择\"}",
+      "tier": "list",
+      "key": "gfwlist",
+      "source": "../../../examples/profile.yaml:33"
+    },
+    {
+      "index": 29,
+      "rule": "{\"domain\":[\"geosite:cn\"],\"outboundTag\":\"DIRECT\"}",
+      "tier": "list",
+      "key": "geosite:cn",
+      "source": "../../../examples/profile.yaml:34"
+    },
+    {
+      "index": 30,
+      "rule": "{\"ip\":[\"geoip:cn\"],\"outboundTag\":\"DIRECT\"}",
+      "tier": "list",
+      "key": "geoip:cn",
+      "source": "../../../examples/profile.yaml:35"
+    }
+  ],
+  "tags": {
+    "REJECT": "REJECT»",
+    "日本 01": "日本 01»"
+  }
+}

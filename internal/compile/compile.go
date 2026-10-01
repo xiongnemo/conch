@@ -17,6 +17,10 @@ import (
 // user-supplied names, so generated names can never collide with them.
 const HopSep = "›"
 
+// TagEnd is reserved for backends that need prefix-free identifiers (xray
+// selects balancer members by tag prefix); user names never contain it.
+const TagEnd = "»"
+
 // GlobalGroup is the group mihomo uses in global mode.
 const GlobalGroup = "GLOBAL"
 
@@ -125,10 +129,11 @@ func Compile(p *model.Profile) *Result {
 }
 
 // sanitize makes a name safe for every backend: Clash rule lines split on
-// commas and trim spaces, and HopSep is reserved for generated names.
+// commas and trim spaces, and HopSep and TagEnd are reserved.
 func sanitize(name string) string {
 	name = strings.TrimSpace(name)
 	name = strings.ReplaceAll(name, ",", "，")
+	name = strings.ReplaceAll(name, TagEnd, ">>")
 	return strings.ReplaceAll(name, HopSep, ">")
 }
 

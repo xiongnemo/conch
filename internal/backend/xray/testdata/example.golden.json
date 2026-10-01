@@ -1,0 +1,376 @@
+{
+  "log": {
+    "loglevel": "info"
+  },
+  "inbounds": [
+    {
+      "tag": "›mixed",
+      "protocol": "mixed",
+      "listen": "127.0.0.1",
+      "port": 7890,
+      "settings": {
+        "udp": true
+      },
+      "sniffing": {
+        "enabled": true,
+        "destOverride": [
+          "http",
+          "tls",
+          "quic"
+        ],
+        "routeOnly": true
+      }
+    }
+  ],
+  "outbounds": [
+    {
+      "tag": "节点选择",
+      "protocol": "loopback",
+      "settings": {
+        "inboundTag": "›group›节点选择"
+      }
+    },
+    {
+      "tag": "DIRECT",
+      "protocol": "freedom"
+    },
+    {
+      "tag": "REJECT»",
+      "protocol": "blackhole"
+    },
+    {
+      "tag": "REJECT-DROP",
+      "protocol": "blackhole"
+    },
+    {
+      "tag": "香港 01",
+      "protocol": "shadowsocks",
+      "settings": {
+        "address": "hk1.example.com",
+        "port": 8388,
+        "method": "aes-128-gcm",
+        "password": "pass"
+      }
+    },
+    {
+      "tag": "香港 02",
+      "protocol": "trojan",
+      "settings": {
+        "address": "hk2.example.com",
+        "port": 443,
+        "password": "pass"
+      },
+      "streamSettings": {
+        "security": "tls",
+        "tlsSettings": {
+          "serverName": "hk2.example.com"
+        }
+      }
+    },
+    {
+      "tag": "日本 01»",
+      "protocol": "vless",
+      "settings": {
+        "address": "jp1.example.com",
+        "port": 443,
+        "id": "00000000-0000-0000-0000-000000000000",
+        "flow": "xtls-rprx-vision",
+        "encryption": "none"
+      },
+      "streamSettings": {
+        "security": "reality",
+        "realitySettings": {
+          "serverName": "www.example.com",
+          "fingerprint": "chrome",
+          "publicKey": "BkDN6JhDpzeaKaAuy4k_dgzzDOrjd5dJdm8KtB-vHSc",
+          "shortId": "01"
+        }
+      }
+    },
+    {
+      "tag": "home",
+      "protocol": "socks",
+      "settings": {
+        "address": "203.0.113.10",
+        "port": 1080,
+        "user": "u",
+        "pass": "p"
+      }
+    },
+    {
+      "tag": "AI-Exit",
+      "protocol": "socks",
+      "settings": {
+        "address": "203.0.113.10",
+        "port": 1080,
+        "user": "u",
+        "pass": "p"
+      },
+      "streamSettings": {
+        "sockopt": {
+          "dialerProxy": "香港自动"
+        }
+      }
+    },
+    {
+      "tag": "日本 01→home",
+      "protocol": "socks",
+      "settings": {
+        "address": "203.0.113.10",
+        "port": 1080,
+        "user": "u",
+        "pass": "p"
+      },
+      "streamSettings": {
+        "sockopt": {
+          "dialerProxy": "日本 01»"
+        }
+      }
+    },
+    {
+      "tag": "香港自动",
+      "protocol": "loopback",
+      "settings": {
+        "inboundTag": "›group›香港自动"
+      }
+    },
+    {
+      "tag": "GLOBAL",
+      "protocol": "loopback",
+      "settings": {
+        "inboundTag": "›group›GLOBAL"
+      }
+    }
+  ],
+  "routing": {
+    "domainStrategy": "IPIfNonMatch",
+    "rules": [
+      {
+        "inboundTag": [
+          "›group›香港自动"
+        ],
+        "balancerTag": "香港自动"
+      },
+      {
+        "inboundTag": [
+          "›group›节点选择"
+        ],
+        "balancerTag": "节点选择"
+      },
+      {
+        "inboundTag": [
+          "›group›GLOBAL"
+        ],
+        "balancerTag": "GLOBAL"
+      },
+      {
+        "process": [
+          "Telegram"
+        ],
+        "balancerTag": "香港自动"
+      },
+      {
+        "domain": [
+          "full:api.example.com"
+        ],
+        "outboundTag": "DIRECT"
+      },
+      {
+        "domain": [
+          "domain:mail.google.com"
+        ],
+        "outboundTag": "DIRECT"
+      },
+      {
+        "domain": [
+          "domain:claude.ai"
+        ],
+        "outboundTag": "日本 01→home"
+      },
+      {
+        "domain": [
+          "domain:google.com"
+        ],
+        "balancerTag": "节点选择"
+      },
+      {
+        "domain": [
+          "domain:home.arpa"
+        ],
+        "outboundTag": "DIRECT"
+      },
+      {
+        "domain": [
+          "domain:openai.com"
+        ],
+        "outboundTag": "AI-Exit"
+      },
+      {
+        "domain": [
+          "domain:lan"
+        ],
+        "outboundTag": "DIRECT"
+      },
+      {
+        "domain": [
+          "domain:local"
+        ],
+        "outboundTag": "DIRECT"
+      },
+      {
+        "domain": [
+          "domain:localhost"
+        ],
+        "outboundTag": "DIRECT"
+      },
+      {
+        "ip": [
+          "::1/128"
+        ],
+        "outboundTag": "DIRECT"
+      },
+      {
+        "ip": [
+          "255.255.255.255/32"
+        ],
+        "outboundTag": "DIRECT"
+      },
+      {
+        "ip": [
+          "149.154.160.0/20"
+        ],
+        "balancerTag": "香港自动"
+      },
+      {
+        "ip": [
+          "169.254.0.0/16"
+        ],
+        "outboundTag": "DIRECT"
+      },
+      {
+        "ip": [
+          "192.168.0.0/16"
+        ],
+        "outboundTag": "DIRECT"
+      },
+      {
+        "ip": [
+          "172.16.0.0/12"
+        ],
+        "outboundTag": "DIRECT"
+      },
+      {
+        "ip": [
+          "100.64.0.0/10"
+        ],
+        "outboundTag": "DIRECT"
+      },
+      {
+        "ip": [
+          "fe80::/10"
+        ],
+        "outboundTag": "DIRECT"
+      },
+      {
+        "ip": [
+          "0.0.0.0/8"
+        ],
+        "outboundTag": "DIRECT"
+      },
+      {
+        "ip": [
+          "10.0.0.0/8"
+        ],
+        "outboundTag": "DIRECT"
+      },
+      {
+        "ip": [
+          "127.0.0.0/8"
+        ],
+        "outboundTag": "DIRECT"
+      },
+      {
+        "ip": [
+          "ff00::/8"
+        ],
+        "outboundTag": "DIRECT"
+      },
+      {
+        "ip": [
+          "fc00::/7"
+        ],
+        "outboundTag": "DIRECT"
+      },
+      {
+        "ip": [
+          "224.0.0.0/4"
+        ],
+        "outboundTag": "DIRECT"
+      },
+      {
+        "domain": [
+          "geosite:category-ads-all"
+        ],
+        "outboundTag": "REJECT»"
+      },
+      {
+        "domain": [
+          "geosite:gfw"
+        ],
+        "balancerTag": "节点选择"
+      },
+      {
+        "domain": [
+          "geosite:cn"
+        ],
+        "outboundTag": "DIRECT"
+      },
+      {
+        "ip": [
+          "geoip:cn"
+        ],
+        "outboundTag": "DIRECT"
+      }
+    ],
+    "balancers": [
+      {
+        "tag": "香港自动",
+        "selector": [
+          "香港 01",
+          "香港 02"
+        ],
+        "strategy": {
+          "type": "leastPing"
+        },
+        "fallbackTag": "香港 01"
+      },
+      {
+        "tag": "节点选择",
+        "selector": [
+          "香港自动"
+        ],
+        "strategy": {
+          "type": "random"
+        }
+      },
+      {
+        "tag": "GLOBAL",
+        "selector": [
+          "香港自动"
+        ],
+        "strategy": {
+          "type": "random"
+        }
+      }
+    ]
+  },
+  "observatory": {
+    "subjectSelector": [
+      "香港 01",
+      "香港 02"
+    ],
+    "probeURL": "https://www.gstatic.com/generate_204",
+    "probeInterval": "300s",
+    "enableConcurrency": true
+  }
+}

@@ -1,0 +1,1 @@
+警告 ../testdata/groups.profile.yaml:10：出口组 "备用"：xray 只能用一个测速地址，统一使用 https://www.gstatic.com/generate_204
