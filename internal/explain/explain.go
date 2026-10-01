@@ -4,7 +4,9 @@
 package explain
 
 import (
+	"net"
 	"net/netip"
+	"net/url"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -21,6 +23,28 @@ type Query struct {
 	Port    int    // 0 when unknown
 	Process string // process name or path; empty when unknown
 	Network string // tcp or udp
+}
+
+// ParseQuery reads what users type: a host, an IP, host:port or a URL.
+func ParseQuery(arg string) Query {
+	arg = strings.TrimSpace(arg)
+	q := Query{Host: arg}
+	if u, err := url.Parse(arg); err == nil && u.Host != "" {
+		q.Host = u.Hostname()
+		if p, err := strconv.Atoi(u.Port()); err == nil {
+			q.Port = p
+		} else if u.Scheme == "https" {
+			q.Port = 443
+		} else if u.Scheme == "http" {
+			q.Port = 80
+		}
+		return q
+	}
+	if h, p, err := net.SplitHostPort(arg); err == nil {
+		q.Host = h
+		q.Port, _ = strconv.Atoi(p)
+	}
+	return q
 }
 
 // Hit is a rule that matches, or might match, the query.

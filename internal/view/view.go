@@ -147,16 +147,49 @@ func Explain(res *compile.Result, ex *explain.Explanation) Explanation {
 		v.Resolved = ex.Resolved[0].String()
 	}
 	for _, h := range ex.Shadowed {
-		v.Shadowed = append(v.Shadowed, Rule(h.Rule)+" → "+h.Rule.Target)
+		// Subscriptions often repeat a rule; once is enough.
+		if line := Rule(h.Rule) + " → " + h.Rule.Target; !slices.Contains(v.Shadowed, line) {
+			v.Shadowed = append(v.Shadowed, line)
+		}
 	}
+	// A subscription's app rules (often phone app ids) take one line per
+	// exit; the rest one line each.
+	type apps struct {
+		at    int
+		names []string
+	}
+	grouped := map[[2]string]*apps{}
 	for _, h := range ex.Relevant() {
+		r := h.Rule
+		if r.Origin.Imported && (r.Match == route.MatchProcessName || r.Match == route.MatchProcessPath) {
+			k := [2]string{r.Origin.Key, r.Target}
+			if grouped[k] == nil {
+				grouped[k] = &apps{at: len(v.Uncertain)}
+				v.Uncertain = append(v.Uncertain, "")
+			}
+			grouped[k].names = append(grouped[k].names, r.Value)
+			v.Uncertain[grouped[k].at] = appRules(k[0], k[1], grouped[k].names)
+			continue
+		}
 		note := h.Note
 		if note == "" {
 			note = "需要运行时判断"
 		}
-		v.Uncertain = append(v.Uncertain, fmt.Sprintf("%s → %s（%s）", Rule(h.Rule), h.Rule.Target, note))
+		v.Uncertain = append(v.Uncertain, fmt.Sprintf("%s → %s（%s）", Rule(r), r.Target, note))
 	}
 	return v
+}
+
+// appRules describes a subscription's app rules that go to one exit.
+func appRules(sub, target string, names []string) string {
+	if len(names) == 1 {
+		return fmt.Sprintf("订阅 %s 的规则 进程 %s → %s（取决于发起连接的应用）", sub, names[0], target)
+	}
+	shown := strings.Join(names[:min(len(names), 2)], "、")
+	if len(names) > 2 {
+		shown += " 等"
+	}
+	return fmt.Sprintf("订阅 %s 的 %d 条按应用的规则（%s）→ %s（取决于发起连接的应用）", sub, len(names), shown, target)
 }
 
 // Rule names the entry, list or subscription rule a compiled rule came from.

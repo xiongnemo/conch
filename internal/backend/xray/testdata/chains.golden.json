@@ -515,7 +515,7 @@
       {
         "tag": "GLOBAL",
         "selector": [
-          "入口组»"
+          "三跳»"
         ],
         "strategy": {
           "type": "random"

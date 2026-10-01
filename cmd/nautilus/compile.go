@@ -14,6 +14,7 @@ import (
 	"nautilus/internal/backend/singbox"
 	"nautilus/internal/backend/xray"
 	"nautilus/internal/compile"
+	"nautilus/internal/daemon"
 	"nautilus/internal/diag"
 	"nautilus/internal/lists"
 	"nautilus/internal/model"
@@ -60,10 +61,14 @@ func (pl *pipeline) listLoader(ctx context.Context) backend.ListLoader {
 	}
 }
 
-// compile returns the compiled profile and every diagnostic so far.
+// compile returns the compiled profile, with the routes, nodes and chains
+// of managed.yaml as the daemon adds them, and every diagnostic so far.
 func (pl *pipeline) compile(ctx context.Context) (*compile.Result, diag.List, error) {
 	p, err := model.Load(pl.profilePath)
 	if err != nil {
+		return nil, nil, err
+	}
+	if err := daemon.WithManaged(p, pl.profilePath); err != nil {
 		return nil, nil, err
 	}
 	res, diags := pl.compileProfile(ctx, p)

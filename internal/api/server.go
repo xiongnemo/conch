@@ -185,7 +185,11 @@ func (s *Server) delay(w http.ResponseWriter, r *http.Request) {
 	if hops, err := s.D.ChainDelay(r.Context(), body.Name); err == nil {
 		// A chain: the delay through each hop, the last being end to end.
 		last := hops[len(hops)-1]
-		writeJSON(w, map[string]any{"delay": last.Delay, "error": last.Error, "hops": hops})
+		out := map[string]any{"delay": last.Delay, "hops": hops}
+		if last.Error != "" {
+			out["error"] = last.Error
+		}
+		writeJSON(w, out)
 		return
 	}
 	d, err := s.D.Delay(r.Context(), body.Name)
@@ -234,7 +238,8 @@ func (s *Server) deleteRoute(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) explain(w http.ResponseWriter, r *http.Request) {
-	q := explain.Query{Host: r.URL.Query().Get("target"), Process: r.URL.Query().Get("app")}
+	q := explain.ParseQuery(r.URL.Query().Get("target"))
+	q.Process = r.URL.Query().Get("app")
 	if q.Host == "" {
 		fail(w, errors.New("缺少 target"))
 		return

@@ -16,8 +16,8 @@ proxy-groups:
   - name: GLOBAL
     type: select
     proxies:
-      - proxy
       - DIRECT
+      - proxy
 rule-providers:
   list-gfwlist-except:
     type: inline

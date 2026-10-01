@@ -19,6 +19,7 @@ import (
 	"nautilus/internal/compile"
 	"nautilus/internal/diag"
 	"nautilus/internal/lists"
+	"nautilus/internal/model"
 	"nautilus/internal/route"
 )
 
@@ -64,13 +65,16 @@ func (Backend) Encode(r *compile.Result, opts backend.Options) (*backend.Artifac
 
 	cfg := config{Log: e.log()}
 	cfg.Outbounds = append(cfg.Outbounds, outbound{Type: "direct", Tag: "DIRECT"})
+	warned := map[*model.Node]bool{}
 	for _, p := range r.Proxies {
 		o, ep, warns, err := e.nodeOutbound(p)
 		if err != nil {
 			e.d.Errorf(p.Node.Pos, "节点 %q：%v", p.Node.Name, err)
 			continue
 		}
-		if p.Kind == compile.ProxyNode || p.Hop == 1 { // chain copies share their node's warnings
+		// Chain copies share their node's warnings; report them once.
+		if !warned[p.Node] {
+			warned[p.Node] = true
 			for _, w := range warns {
 				e.d.Warnf(p.Node.Pos, "节点 %q：%s", p.Node.Name, w)
 			}

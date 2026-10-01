@@ -140,11 +140,11 @@ proxy-groups:
   - name: GLOBAL
     type: select
     proxies:
+      - 三跳
       - 入口组
       - 出口选择
       - 出口自动
       - 两跳
-      - 三跳
       - 接力
       - 中间组
       - 末尾组

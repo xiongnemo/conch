@@ -46,8 +46,8 @@
       "type": "selector",
       "tag": "GLOBAL",
       "outbounds": [
-        "proxy",
-        "DIRECT"
+        "DIRECT",
+        "proxy"
       ]
     }
   ],

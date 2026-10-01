@@ -384,7 +384,7 @@
       {
         "tag": "GLOBAL",
         "selector": [
-          "香港自动"
+          "节点选择"
         ],
         "strategy": {
           "type": "random"

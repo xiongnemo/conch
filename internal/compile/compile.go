@@ -133,7 +133,26 @@ func Compile(p *model.Profile) *Result {
 	c.addGlobal()
 	tab := route.Build(&p.Routes, c.resolveVia, c.d)
 	res.Rules, res.Providers = tab.Rules, tab.Providers
+	res.globalStartsAtDefault()
 	return res
+}
+
+// globalStartsAtDefault puts the default exit first in GLOBAL, so global
+// mode sends everything where unmatched traffic goes until the user picks
+// another member.
+func (r *Result) globalStartsAtDefault() {
+	i := slices.IndexFunc(r.Rules, func(rule route.Rule) bool { return rule.Match == route.MatchFinal })
+	if i < 0 {
+		return
+	}
+	for _, g := range r.Groups {
+		if g.Name != GlobalGroup {
+			continue
+		}
+		if j := slices.Index(g.Members, r.Rules[i].Target); j > 0 {
+			g.Members = slices.Insert(slices.Delete(g.Members, j, j+1), 0, r.Rules[i].Target)
+		}
+	}
 }
 
 // Select records the member chosen in each select group. Unknown groups

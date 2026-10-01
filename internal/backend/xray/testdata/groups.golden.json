@@ -413,7 +413,7 @@
       {
         "tag": "GLOBAL",
         "selector": [
-          "自动"
+          "选择"
         ],
         "strategy": {
           "type": "random"

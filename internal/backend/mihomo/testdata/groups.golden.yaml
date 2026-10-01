@@ -74,11 +74,11 @@ proxy-groups:
   - name: GLOBAL
     type: select
     proxies:
+      - 选择
       - 自动
       - 备用
       - 轮询
       - 一致
-      - 选择
       - 出口链
       - a
       - a2

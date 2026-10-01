@@ -125,8 +125,8 @@
       "type": "selector",
       "tag": "GLOBAL",
       "outbounds": [
-        "香港自动",
         "节点选择",
+        "香港自动",
         "AI-Exit",
         "日本 01→home",
         "香港 01",

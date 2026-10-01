@@ -215,7 +215,7 @@
       {
         "tag": "GLOBAL",
         "selector": [
-          "proxy"
+          "DIRECT"
         ],
         "strategy": {
           "type": "random"

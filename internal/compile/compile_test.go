@@ -323,6 +323,20 @@ routes:
 	if global.Name != GlobalGroup || !slices.Equal(global.Members, want) {
 		t.Errorf("GLOBAL = %v, want %v (no chain hops)", global.Members, want)
 	}
+
+	// Global mode starts out at the default exit.
+	res = mustCompile(t, `
+groups:
+  - { name: Auto, type: auto, filter: "^[ab]$" }
+chains:
+  X: [Auto, c]
+routes:
+  default: X
+`)
+	global = res.Groups[len(res.Groups)-1]
+	if want := []string{"X", "Auto", "a", "b", "c", "h", "q", "DIRECT"}; !slices.Equal(global.Members, want) {
+		t.Errorf("GLOBAL = %v, want %v (the default exit first)", global.Members, want)
+	}
 }
 
 func TestSettings(t *testing.T) {

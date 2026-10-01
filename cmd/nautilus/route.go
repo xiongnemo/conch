@@ -7,8 +7,6 @@ import (
 	"io"
 	"net"
 	"net/netip"
-	"net/url"
-	"strconv"
 	"strings"
 	"time"
 
@@ -42,6 +40,19 @@ func newRouteCmd() *cobra.Command {
 			if _, err := lookupBackend(backendName); err != nil {
 				return err
 			}
+			q := explain.ParseQuery(args[0])
+			q.Process = process
+			// The running daemon knows the temporary entries and its kernel.
+			if askDaemon(cmd, "backend", "no-resolve") {
+				v, err := daemonClient().Explain(cmd.Context(), args[0], process)
+				if !errors.Is(err, api.ErrNotRunning) {
+					if err != nil {
+						return err
+					}
+					printExplanation(cmd.OutOrStdout(), q.Host, v)
+					return nil
+				}
+			}
 			if err := pl.resolve(); err != nil {
 				return err
 			}
@@ -54,15 +65,13 @@ func newRouteCmd() *cobra.Command {
 				printDiags(cmd.ErrOrStderr(), diags)
 				return errReported
 			}
-			q := parseQuery(args[0])
-			q.Process = process
 			e := &explain.Explainer{Result: res, Xray: backendName == "xray", Lists: plainLoader(cmd.Context(), &pl)}
 			if !noResolve {
 				e.Resolve = func(host string) ([]netip.Addr, error) {
 					return net.DefaultResolver.LookupNetIP(cmd.Context(), "ip", host)
 				}
 			}
-			printExplanation(cmd.OutOrStdout(), res, q, e.Explain(q))
+			printExplanation(cmd.OutOrStdout(), q.Host, view.Explain(res, e.Explain(q)))
 			return nil
 		},
 	}
@@ -75,6 +84,16 @@ func newRouteCmd() *cobra.Command {
 		Short: "按层显示路由表",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
+			if askDaemon(cmd) {
+				t, err := daemonClient().Routes(cmd.Context())
+				if !errors.Is(err, api.ErrNotRunning) {
+					if err != nil {
+						return err
+					}
+					printTable(cmd.OutOrStdout(), t)
+					return nil
+				}
+			}
 			if err := pl.resolve(); err != nil {
 				return err
 			}
@@ -137,6 +156,18 @@ func newRouteCmd() *cobra.Command {
 	return cmd
 }
 
+// askDaemon reports whether to answer from the running daemon: unless
+// the command was pointed at a profile, told to stay offline, or given one
+// of the extra flags only the offline answer honours.
+func askDaemon(cmd *cobra.Command, offlineFlags ...string) bool {
+	for _, f := range append([]string{"profile", "offline"}, offlineFlags...) {
+		if cmd.Flags().Changed(f) {
+			return false
+		}
+	}
+	return true
+}
+
 func daemonClient() *api.Client {
 	settings, _, _ := loadSettings()
 	return api.NewClient(settings)
@@ -195,30 +226,8 @@ func plainLoader(ctx context.Context, pl *pipeline) func(route.Provider) ([]list
 	}
 }
 
-// parseQuery accepts a host, an IP, host:port or a URL.
-func parseQuery(arg string) explain.Query {
-	q := explain.Query{Host: arg}
-	if u, err := url.Parse(arg); err == nil && u.Host != "" {
-		q.Host = u.Hostname()
-		if p, err := strconv.Atoi(u.Port()); err == nil {
-			q.Port = p
-		} else if u.Scheme == "https" {
-			q.Port = 443
-		} else if u.Scheme == "http" {
-			q.Port = 80
-		}
-		return q
-	}
-	if h, p, err := net.SplitHostPort(arg); err == nil {
-		q.Host = h
-		q.Port, _ = strconv.Atoi(p)
-	}
-	return q
-}
-
-func printExplanation(w io.Writer, res *compile.Result, q explain.Query, ex *explain.Explanation) {
-	v := view.Explain(res, ex)
-	fmt.Fprintf(w, "%s → %s\n", q.Host, v.Target)
+func printExplanation(w io.Writer, host string, v view.Explanation) {
+	fmt.Fprintf(w, "%s → %s\n", host, v.Target)
 	fmt.Fprintf(w, "  命中：%s\n", v.Matched)
 	if v.Resolved != "" {
 		fmt.Fprintf(w, "  （本机解析为 %s 后按 IP 匹配）\n", v.Resolved)

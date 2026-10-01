@@ -152,3 +152,20 @@ func TestModes(t *testing.T) {
 		t.Errorf("global mode: %+v", ex)
 	}
 }
+
+// What users type into `route get` and the "这个地址怎么走" box.
+func TestParseQuery(t *testing.T) {
+	for in, want := range map[string]Query{
+		"google.com":                        {Host: "google.com"},
+		" 1.1.1.1 ":                         {Host: "1.1.1.1"},
+		"example.com:8443":                  {Host: "example.com", Port: 8443},
+		"[2001:db8::1]:53":                  {Host: "2001:db8::1", Port: 53},
+		"https://www.youtube.com/watch?v=x": {Host: "www.youtube.com", Port: 443},
+		"http://example.com/a":              {Host: "example.com", Port: 80},
+		"socks5://192.0.2.1:1080":           {Host: "192.0.2.1", Port: 1080},
+	} {
+		if got := ParseQuery(in); got != want {
+			t.Errorf("ParseQuery(%q) = %+v, want %+v", in, got, want)
+		}
+	}
+}
