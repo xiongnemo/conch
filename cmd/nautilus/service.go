@@ -36,6 +36,13 @@ func newServiceCmd() *cobra.Command {
 				return err
 			}
 			o.NoAgent = noAgent
+			// A packaged binary (deb, rpm, Homebrew) stays where it is.
+			if exe, err := os.Executable(); err == nil && runtime.GOOS != "windows" {
+				switch filepath.Dir(exe) {
+				case "/usr/bin", "/usr/local/bin", "/opt/homebrew/bin":
+					o.Layout.Bin = exe
+				}
+			}
 			if u := o.User; u != nil {
 				if p, err := resolveProfile(""); err == nil {
 					o.Profile = p
