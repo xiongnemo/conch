@@ -18,6 +18,17 @@ func TestGolden(t *testing.T) {
 	backendtest.Golden(t, Backend{}, ".json")
 }
 
+// xray cannot find processes on macOS, so there app entries are an error
+// that says so.
+func TestNoAppEntriesOnMacOS(t *testing.T) {
+	backend.TargetOS = "darwin"
+	t.Cleanup(func() { backend.TargetOS = "linux" })
+	art, d := backendtest.Build(t, Backend{}, "../../../examples/profile.yaml", backend.Options{Lists: backendtest.Lists})
+	if art != nil || !strings.Contains(d.Err().Error(), "xray 后端在 macOS 上不支持按应用分流（app:Telegram）") {
+		t.Errorf("diagnostics: %v", d)
+	}
+}
+
 // TestGoldenAcceptedByXray runs every golden config through `xray run -test`.
 // It needs an xray binary and the geodata its rules reference:
 //

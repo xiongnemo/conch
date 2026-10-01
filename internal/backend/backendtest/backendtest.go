@@ -25,6 +25,11 @@ import (
 
 var update = flag.Bool("update", false, "rewrite golden files")
 
+func init() {
+	// The goldens are configs for Linux, whatever OS runs the tests.
+	backend.TargetOS = "linux"
+}
+
 // Cases maps case names to profile paths, relative to a backend package.
 // The example profile is included so the documentation never goes stale.
 func Cases(t *testing.T) map[string]string {

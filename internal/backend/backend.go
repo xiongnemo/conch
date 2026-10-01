@@ -3,6 +3,8 @@
 package backend
 
 import (
+	"cmp"
+	"runtime"
 	"slices"
 	"strings"
 
@@ -11,6 +13,14 @@ import (
 	"nautilus/internal/lists"
 	"nautilus/internal/route"
 )
+
+// TargetOS is the OS compiled configs run on, which is the OS nautilus
+// runs on. Some capabilities depend on it; tests pin it so that goldens are
+// the same everywhere.
+var TargetOS = runtime.GOOS
+
+// osNames are the OS names users know.
+var osNames = map[string]string{"darwin": "macOS", "linux": "Linux", "windows": "Windows", "freebsd": "FreeBSD"}
 
 // Router is a primary kernel: it owns inbounds, routing, DNS and TUN.
 type Router interface {
@@ -88,7 +98,8 @@ func Check(r *compile.Result, caps Capabilities, backendName string) diag.List {
 	for _, rule := range r.Rules {
 		switch {
 		case (rule.Match == route.MatchProcessName || rule.Match == route.MatchProcessPath) && !caps.ProcessMatch:
-			d.Errorf(rule.Origin.Pos, "%s 后端不支持按应用分流（%s）", backendName, rule.Origin.Key)
+			// Only ever because of the OS: every backend matches processes somewhere.
+			d.Errorf(rule.Origin.Pos, "%s 后端在 %s 上不支持按应用分流（%s）", backendName, cmp.Or(osNames[TargetOS], TargetOS), rule.Origin.Key)
 		case rule.Match == route.MatchDomainKeyword && !caps.KeywordMatch:
 			d.Errorf(rule.Origin.Pos, "%s 后端不支持关键词条目（%s）", backendName, rule.Origin.Key)
 		case rule.Match == route.MatchRaw && !caps.RawClash && !rule.Origin.Imported:

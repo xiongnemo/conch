@@ -11,7 +11,7 @@ import (
 	"fmt"
 	"net"
 	"net/url"
-	"runtime"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -28,7 +28,7 @@ func (Backend) Name() string { return "sing-box" }
 
 func (Backend) Capabilities() backend.Capabilities {
 	// sing-box finds processes on Linux, Windows and macOS.
-	process := runtime.GOOS == "linux" || runtime.GOOS == "windows" || runtime.GOOS == "darwin"
+	process := slices.Contains([]string{"linux", "windows", "darwin"}, backend.TargetOS)
 	return backend.Capabilities{ProcessMatch: process, KeywordMatch: true, Chains: true, TUN: true}
 }
 

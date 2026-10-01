@@ -81,11 +81,13 @@ inbound: { mixed-port: %d }
 	var loaded struct {
 		ID string `json:"id"`
 	}
-	if err := b.call("", "Extensions.loadUnpacked", map[string]any{"path": extDir}, &loaded); err != nil {
+	if err := b.call("", "Extensions.loadUnpacked", map[string]any{"path": extDir}, &loaded); errors.Is(err, errNoReply) {
+		b.fatal(t, err)
+	} else if err != nil {
 		t.Skip("this Chrome cannot load unpacked extensions:", err)
 	}
 	if err := b.call("", "Browser.grantPermissions", map[string]any{"permissions": []string{"localNetworkAccess"}, "origin": "chrome-extension://" + loaded.ID}, nil); err != nil {
-		t.Log("DEBUG grant", err)
+		t.Log("cannot grant the extension local network access:", err) // older Chrome does not ask for it
 	}
 	sitePage := b.open(t, siteURL)
 	popup := b.open(t, "chrome-extension://"+loaded.ID+"/popup.html")
@@ -164,9 +166,22 @@ func grantAllSites(t *testing.T, ext string) string {
 // --remote-debugging-pipe, the only transport that may load extensions.
 type browser struct {
 	w       io.Writer
+	log     string // Chrome's stderr
 	mu      sync.Mutex
 	next    int
 	pending map[int]chan cdpReply
+}
+
+var errNoReply = errors.New("no reply")
+
+// fatal fails the test with the end of Chrome's log.
+func (b *browser) fatal(t *testing.T, err error) {
+	t.Helper()
+	data, _ := os.ReadFile(b.log)
+	if len(data) > 4000 {
+		data = data[len(data)-4000:]
+	}
+	t.Fatalf("%v; Chrome's log ends with:\n%s", err, data)
 }
 
 type cdpReply struct {
@@ -191,12 +206,18 @@ func launchChrome(t *testing.T, bin string) *browser {
 		// Cookies wait for the OS keyring otherwise, stalling requests for seconds.
 		"--password-store=basic", "about:blank")
 	cmd.ExtraFiles = []*os.File{toChrome, fromChrome} // fd 3: commands in, fd 4: replies out
+	log, err := os.Create(filepath.Join(t.TempDir(), "chrome.log"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer log.Close()
+	cmd.Stderr = log
 	if err := cmd.Start(); err != nil {
 		t.Fatal(err)
 	}
 	toChrome.Close()
 	fromChrome.Close()
-	b := &browser{w: chromeIn, pending: map[int]chan cdpReply{}}
+	b := &browser{w: chromeIn, log: log.Name(), pending: map[int]chan cdpReply{}}
 	t.Cleanup(func() {
 		// Closing lets Chrome's helper processes finish writing to the
 		// profile before the test removes it.
@@ -233,6 +254,20 @@ func launchChrome(t *testing.T, bin string) *browser {
 			}
 		}
 	}()
+	// The first start on a fresh machine can take a while, building caches.
+	var version struct {
+		Product string `json:"product"`
+	}
+	for start := time.Now(); ; {
+		err := b.call("", "Browser.getVersion", map[string]any{}, &version)
+		if err == nil {
+			break
+		}
+		if !errors.Is(err, errNoReply) || time.Since(start) > time.Minute {
+			b.fatal(t, fmt.Errorf("Chrome did not start: %w", err))
+		}
+	}
+	t.Log(version.Product)
 	return b
 }
 
@@ -261,7 +296,7 @@ func (b *browser) call(session, method string, params, result any) error {
 		}
 		return nil
 	case <-time.After(15 * time.Second):
-		return fmt.Errorf("%s: no reply", method)
+		return fmt.Errorf("%s: %w", method, errNoReply)
 	}
 }
 

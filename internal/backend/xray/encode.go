@@ -14,7 +14,6 @@ import (
 	"cmp"
 	"encoding/json"
 	"fmt"
-	"runtime"
 	"slices"
 	"strconv"
 	"strings"
@@ -32,7 +31,7 @@ func (Backend) Name() string { return "xray" }
 
 func (Backend) Capabilities() backend.Capabilities {
 	// xray v26.3.27 finds processes on Windows and Linux only.
-	return backend.Capabilities{ProcessMatch: runtime.GOOS != "darwin", KeywordMatch: true, Chains: true}
+	return backend.Capabilities{ProcessMatch: backend.TargetOS != "darwin", KeywordMatch: true, Chains: true}
 }
 
 const (
