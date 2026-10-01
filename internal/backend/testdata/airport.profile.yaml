@@ -1,0 +1,17 @@
+# 用机场的整套分组和规则，再加一条"机场自动选择 → 自己的落地"的链
+subscriptions:
+  - { name: airport-a, url: "https://example.com/sub", import: [nodes, groups, rules], exclude: "剩余流量|过期" }
+
+nodes:
+  - { name: home, type: socks5, server: 203.0.113.10, port: 1080 }
+
+chains:
+  AI-Exit: [自动选择, home]
+
+routes:
+  # 没写 default：沿用机场规则里的 MATCH（节点选择）
+  entries:
+    openai.com: AI-Exit
+  lists:
+    - { list: ads, via: REJECT }
+    - { list: airport-a }

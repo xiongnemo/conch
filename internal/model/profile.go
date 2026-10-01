@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"slices"
 	"strings"
 
 	"go.yaml.in/yaml/v3"
@@ -15,6 +16,8 @@ import (
 // Profile is what the user writes: where traffic may go (nodes, groups,
 // chains) and which traffic goes where (routes).
 type Profile struct {
+	Subscriptions []*Subscription `yaml:"subscriptions"`
+
 	Nodes    []*Node  `yaml:"nodes"`
 	Groups   []*Group `yaml:"groups"`
 	Chains   Chains   `yaml:"chains"`
@@ -26,6 +29,40 @@ type Profile struct {
 	LogLevel string   `yaml:"log-level"`
 
 	File string `yaml:"-"`
+}
+
+// Subscription is a URL that provides nodes and, optionally, the
+// provider's own groups and rules.
+type Subscription struct {
+	Name      string   `yaml:"name"`
+	URL       string   `yaml:"url"`
+	Interval  string   `yaml:"interval"`   // e.g. 12h
+	UserAgent string   `yaml:"user-agent"` // default clash.meta
+	Import    []string `yaml:"import"`     // nodes | groups | rules; default nodes
+	Filter    string   `yaml:"filter"`     // keep only nodes whose names match
+	Exclude   string   `yaml:"exclude"`    // drop nodes whose names match
+
+	Pos diag.Pos `yaml:"-"`
+}
+
+func (s *Subscription) UnmarshalYAML(value *yaml.Node) error {
+	if err := checkKeys(value, reflect.TypeFor[Subscription](), "订阅"); err != nil {
+		return err
+	}
+	type plain Subscription
+	if err := value.Decode((*plain)(s)); err != nil {
+		return err
+	}
+	s.Pos = diag.Pos{Line: value.Line, Col: value.Column}
+	return nil
+}
+
+// Imports reports whether the subscription should import a part.
+func (s *Subscription) Imports(part string) bool {
+	if len(s.Import) == 0 {
+		return part == "nodes"
+	}
+	return slices.Contains(s.Import, part)
 }
 
 // Group is an outbound group: several outbounds behind one name.
@@ -115,6 +152,26 @@ type Routes struct {
 	ListMirror string     `yaml:"list-mirror"`
 
 	DefaultPos diag.Pos `yaml:"-"`
+	// Imported holds rule lists that came with subscriptions, by
+	// subscription name; a { list: <name> } item expands to them.
+	Imported map[string]*ImportedRules `yaml:"-"`
+}
+
+// ImportedRules is a subscription's own rule list, in Clash syntax, with
+// targets already renamed to the names they were imported under.
+type ImportedRules struct {
+	Lines     []string
+	Providers map[string]*RuleProvider // rule-providers the lines reference, by original name
+	Pos       diag.Pos                 // the subscription entry
+}
+
+// RuleProvider is a rule set referenced by imported rules.
+type RuleProvider struct {
+	Name     string // name in the emitted config
+	Behavior string // domain | ipcidr | classical
+	Format   string // yaml | text | mrs
+	URL      string
+	Payload  []string // inline providers
 }
 
 func (r *Routes) UnmarshalYAML(value *yaml.Node) error {
@@ -282,6 +339,9 @@ func Parse(data []byte, file string) (*Profile, error) {
 }
 
 func (p *Profile) setFile(file string) {
+	for _, s := range p.Subscriptions {
+		s.Pos.File = file
+	}
 	for _, n := range p.Nodes {
 		n.Pos.File = file
 	}

@@ -5,8 +5,10 @@ package lists
 import (
 	"bufio"
 	"bytes"
+	"encoding/base64"
 	"fmt"
 	"net/netip"
+	"net/url"
 	"regexp"
 	"strings"
 
@@ -34,6 +36,20 @@ const (
 type Entry struct {
 	Kind  Kind
 	Value string
+	// Exception marks AutoProxy "@@" rules: matching traffic is excluded
+	// from the list and goes direct.
+	Exception bool
+}
+
+// Select returns the entries whose Exception flag equals exceptions.
+func Select(entries []Entry, exceptions bool) []Entry {
+	var out []Entry
+	for _, e := range entries {
+		if e.Exception == exceptions {
+			out = append(out, e)
+		}
+	}
+	return out
 }
 
 // Parse decodes a Clash rule-provider file. skipped lists entries no
@@ -41,6 +57,8 @@ type Entry struct {
 func Parse(data []byte, format, behavior string) (entries []Entry, skipped []string, err error) {
 	var lines []string
 	switch format {
+	case "autoproxy":
+		return parseAutoProxy(data)
 	case "yaml":
 		var doc struct {
 			Payload []string `yaml:"payload"`
@@ -90,30 +108,87 @@ func Parse(data []byte, format, behavior string) (entries []Entry, skipped []str
 	return entries, skipped, nil
 }
 
+// parseAutoProxy parses an AutoProxy list such as gfwlist, which is often
+// base64-encoded. Rules are reduced to host matches; URL-path and regex
+// rules cannot be expressed that way and are skipped.
+func parseAutoProxy(data []byte) ([]Entry, []string, error) {
+	text := string(data)
+	if !strings.Contains(text, "[AutoProxy") && !strings.Contains(text, "||") {
+		decoded, err := base64.StdEncoding.DecodeString(strings.Join(strings.Fields(text), ""))
+		if err != nil {
+			return nil, nil, fmt.Errorf("不是 AutoProxy 格式的列表")
+		}
+		text = string(decoded)
+	}
+	var entries []Entry
+	var skipped []string
+	for _, line := range strings.Split(text, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "!") || strings.HasPrefix(line, "[") {
+			continue
+		}
+		rule, exception := strings.CutPrefix(line, "@@")
+		var host string
+		suffix := true
+		switch {
+		case strings.HasPrefix(rule, "/") && strings.HasSuffix(rule, "/"):
+			skipped = append(skipped, line) // URL regex
+			continue
+		case strings.HasPrefix(rule, "||"):
+			host = rule[2:]
+		case strings.HasPrefix(rule, "|"):
+			u, err := url.Parse(rule[1:])
+			if err != nil || u.Hostname() == "" {
+				skipped = append(skipped, line)
+				continue
+			}
+			host, suffix = u.Hostname(), false
+		default:
+			host = strings.TrimPrefix(rule, ".")
+		}
+		host = strings.ToLower(strings.TrimSuffix(strings.SplitN(host, "/", 2)[0], "^"))
+		if host == "" || strings.ContainsAny(host, "*?:%") || !strings.Contains(host, ".") {
+			skipped = append(skipped, line)
+			continue
+		}
+		e := Entry{Kind: DomainSuffix, Value: host, Exception: exception}
+		if ip, ok := ipEntry(host); ok {
+			e = Entry{Kind: IPCIDR, Value: ip.Value, Exception: exception}
+		} else if !suffix {
+			e.Kind = Domain
+		}
+		entries = append(entries, e)
+	}
+	if len(entries) == 0 {
+		return nil, skipped, fmt.Errorf("规则列表是空的")
+	}
+	return entries, skipped, nil
+}
+
 // domainEntry parses mihomo's domain-behavior syntax: "+.x" is x and its
 // subdomains, ".x" only subdomains, "*.x" exactly one more label, and a
 // plain name is exact.
 func domainEntry(s string) (Entry, bool) {
 	switch {
 	case strings.HasPrefix(s, "+."):
-		return Entry{DomainSuffix, strings.ToLower(s[2:])}, true
+		return Entry{Kind: DomainSuffix, Value: strings.ToLower(s[2:])}, true
 	case strings.HasPrefix(s, "*."):
-		return Entry{DomainRegex, `^[^.]+\.` + regexp.QuoteMeta(strings.ToLower(s[2:])) + `$`}, true
+		return Entry{Kind: DomainRegex, Value: `^[^.]+\.` + regexp.QuoteMeta(strings.ToLower(s[2:])) + `$`}, true
 	case strings.HasPrefix(s, "."):
-		return Entry{DomainRegex, `\.` + regexp.QuoteMeta(strings.ToLower(s[1:])) + `$`}, true
+		return Entry{Kind: DomainRegex, Value: `\.` + regexp.QuoteMeta(strings.ToLower(s[1:])) + `$`}, true
 	case strings.ContainsAny(s, "*+ /,"):
 		return Entry{}, false
 	default:
-		return Entry{Domain, strings.ToLower(s)}, true
+		return Entry{Kind: Domain, Value: strings.ToLower(s)}, true
 	}
 }
 
 func ipEntry(s string) (Entry, bool) {
 	if p, err := netip.ParsePrefix(s); err == nil {
-		return Entry{IPCIDR, p.Masked().String()}, true
+		return Entry{Kind: IPCIDR, Value: p.Masked().String()}, true
 	}
 	if a, err := netip.ParseAddr(s); err == nil {
-		return Entry{IPCIDR, netip.PrefixFrom(a, a.BitLen()).String()}, true
+		return Entry{Kind: IPCIDR, Value: netip.PrefixFrom(a, a.BitLen()).String()}, true
 	}
 	return Entry{}, false
 }
@@ -129,30 +204,30 @@ func classicalEntry(s string) (Entry, bool) {
 	value = strings.TrimSpace(value)
 	switch strings.ToUpper(strings.TrimSpace(typ)) {
 	case "DOMAIN":
-		return Entry{Domain, strings.ToLower(value)}, true
+		return Entry{Kind: Domain, Value: strings.ToLower(value)}, true
 	case "DOMAIN-SUFFIX":
-		return Entry{DomainSuffix, strings.ToLower(value)}, true
+		return Entry{Kind: DomainSuffix, Value: strings.ToLower(value)}, true
 	case "DOMAIN-KEYWORD":
-		return Entry{DomainKeyword, strings.ToLower(value)}, true
+		return Entry{Kind: DomainKeyword, Value: strings.ToLower(value)}, true
 	case "DOMAIN-REGEX":
 		if _, err := regexp.Compile(value); err != nil {
 			return Entry{}, false
 		}
-		return Entry{DomainRegex, value}, true
+		return Entry{Kind: DomainRegex, Value: value}, true
 	case "GEOSITE":
-		return Entry{GeoSite, strings.ToLower(value)}, true
+		return Entry{Kind: GeoSite, Value: strings.ToLower(value)}, true
 	case "IP-CIDR", "IP-CIDR6":
 		return ipEntry(value)
 	case "GEOIP":
-		return Entry{GeoIP, strings.ToLower(value)}, true
+		return Entry{Kind: GeoIP, Value: strings.ToLower(value)}, true
 	case "PROCESS-NAME":
-		return Entry{ProcessName, value}, true
+		return Entry{Kind: ProcessName, Value: value}, true
 	case "PROCESS-PATH":
-		return Entry{ProcessPath, value}, true
+		return Entry{Kind: ProcessPath, Value: value}, true
 	case "DST-PORT":
-		return Entry{DstPort, value}, true
+		return Entry{Kind: DstPort, Value: value}, true
 	case "NETWORK":
-		return Entry{Network, strings.ToLower(value)}, true
+		return Entry{Kind: Network, Value: strings.ToLower(value)}, true
 	}
 	return Entry{}, false
 }

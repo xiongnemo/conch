@@ -20,6 +20,7 @@ import (
 	"nautilus/internal/lists"
 	"nautilus/internal/model"
 	"nautilus/internal/route"
+	"nautilus/internal/subscription"
 )
 
 var update = flag.Bool("update", false, "rewrite golden files")
@@ -48,6 +49,27 @@ func Lists(p route.Provider) ([]lists.Entry, []string, error) {
 	return lists.Parse(data, p.Format, p.Behavior)
 }
 
+// Subscriptions loads ../testdata/subs/<name>.yaml for every subscription
+// of a profile; proxy-providers are served from the same directory.
+func Subscriptions(t *testing.T, p *model.Profile) map[string]*subscription.Snapshot {
+	t.Helper()
+	snaps := map[string]*subscription.Snapshot{}
+	for _, sub := range p.Subscriptions {
+		body, err := os.ReadFile(filepath.Join("../testdata/subs", sub.Name+".yaml"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		snap, err := subscription.Parse(body, func(url string) ([]byte, error) {
+			return os.ReadFile(filepath.Join("../testdata/subs", filepath.Base(url)))
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		snaps[sub.Name] = snap
+	}
+	return snaps
+}
+
 // Build compiles a profile for a backend the way the CLI does.
 func Build(t *testing.T, b backend.Router, path string, opts backend.Options) (*backend.Artifact, diag.List) {
 	t.Helper()
@@ -55,8 +77,11 @@ func Build(t *testing.T, b backend.Router, path string, opts backend.Options) (*
 	if err != nil {
 		t.Fatal(err)
 	}
+	var diags diag.List
+	subscription.Apply(p, Subscriptions(t, p), &diags)
 	res := compile.Compile(p)
-	diags := append(res.Diags, backend.Check(res, b.Capabilities(), b.Name())...)
+	diags = append(diags, res.Diags...)
+	diags = append(diags, backend.Check(res, b.Capabilities(), b.Name())...)
 	if diags.HasErrors() {
 		return nil, diags
 	}

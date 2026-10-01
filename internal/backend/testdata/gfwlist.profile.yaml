@@ -1,0 +1,7 @@
+# 直接订阅 AutoProxy 格式的 gfwlist：@@ 例外规则先走直连，正则规则跳过
+nodes:
+  - { name: proxy, type: trojan, server: 192.0.2.1, port: 443, password: p }
+routes:
+  default: DIRECT
+  lists:
+    - { list: "https://example.com/gfwlist.txt", format: autoproxy, via: proxy }

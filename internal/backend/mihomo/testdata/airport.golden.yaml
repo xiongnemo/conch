@@ -1,0 +1,171 @@
+# 由 nautilus 生成，请不要手动修改；需要改动时请编辑 profile.yaml
+
+mixed-port: 7890
+allow-lan: false
+mode: rule
+log-level: info
+profile:
+  store-selected: true
+proxies:
+  - name: home
+    type: socks5
+    server: 203.0.113.10
+    port: 1080
+  - name: "\U0001F1ED\U0001F1F0 香港 01"
+    type: ss
+    server: hk1.airport.example
+    port: 8001
+    cipher: aes-128-gcm
+    password: p1
+    udp: true
+  - name: "\U0001F1ED\U0001F1F0 香港 02"
+    type: vmess
+    server: hk2.airport.example
+    port: 443
+    uuid: 00000000-0000-0000-0000-00000000aa01
+    alterId: 0
+    cipher: auto
+    tls: true
+    network: ws
+    ws-opts:
+      path: /hk2
+      headers:
+        Host: hk2.airport.example
+  - name: "\U0001F1EF\U0001F1F5 日本 01"
+    type: trojan
+    server: jp1.airport.example
+    port: 443
+    password: p3
+    sni: jp1.airport.example
+    udp: true
+  - name: airport-a/home
+    type: trojan
+    server: conflict.airport.example
+    port: 443
+    password: p
+  - name: '[扩展] 香港 IEPL'
+    type: trojan
+    server: iepl.airport.example
+    port: 443
+    password: px
+  - name: AI-Exit
+    type: socks5
+    server: 203.0.113.10
+    port: 1080
+    dialer-proxy: 自动选择
+  - name: 中转
+    type: trojan
+    server: jp1.airport.example
+    port: 443
+    password: p3
+    sni: jp1.airport.example
+    udp: true
+    dialer-proxy: "\U0001F1ED\U0001F1F0 香港 01"
+proxy-groups:
+  - name: 节点选择
+    type: select
+    proxies:
+      - 自动选择
+      - 香港节点
+      - 中转
+      - DIRECT
+  - name: 自动选择
+    type: url-test
+    proxies:
+      - "\U0001F1ED\U0001F1F0 香港 01"
+      - "\U0001F1ED\U0001F1F0 香港 02"
+      - "\U0001F1EF\U0001F1F5 日本 01"
+    url: http://www.gstatic.com/generate_204
+    interval: 300
+  - name: 香港节点
+    type: select
+    proxies:
+      - '[扩展] 香港 IEPL'
+      - "\U0001F1ED\U0001F1F0 香港 01"
+      - "\U0001F1ED\U0001F1F0 香港 02"
+  - name: 广告拦截
+    type: select
+    proxies:
+      - REJECT
+      - DIRECT
+  - name: GLOBAL
+    type: select
+    proxies:
+      - 节点选择
+      - 自动选择
+      - 香港节点
+      - 广告拦截
+      - AI-Exit
+      - 中转
+      - home
+      - "\U0001F1ED\U0001F1F0 香港 01"
+      - "\U0001F1ED\U0001F1F0 香港 02"
+      - "\U0001F1EF\U0001F1F5 日本 01"
+      - airport-a/home
+      - '[扩展] 香港 IEPL'
+      - DIRECT
+rule-providers:
+  geosite-category-ads-all:
+    type: http
+    behavior: domain
+    format: mrs
+    url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/category-ads-all.mrs
+    interval: 86400
+  airport-a-streaming:
+    type: http
+    behavior: classical
+    format: yaml
+    url: https://example.com/rules/streaming.yaml
+    interval: 86400
+  airport-a-corp:
+    type: inline
+    behavior: domain
+    payload:
+      - +.corp.example
+  geosite-cn:
+    type: http
+    behavior: domain
+    format: mrs
+    url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/cn.mrs
+    interval: 86400
+  geoip-private:
+    type: http
+    behavior: ipcidr
+    format: mrs
+    url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geoip/private.mrs
+    interval: 86400
+  geoip-cn:
+    type: http
+    behavior: ipcidr
+    format: mrs
+    url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geoip/cn.mrs
+    interval: 86400
+rules:
+  - DOMAIN-SUFFIX,home.arpa,DIRECT
+  - DOMAIN-SUFFIX,openai.com,AI-Exit
+  - DOMAIN-SUFFIX,lan,DIRECT
+  - DOMAIN-SUFFIX,local,DIRECT
+  - DOMAIN-SUFFIX,localhost,DIRECT
+  - IP-CIDR6,::1/128,DIRECT,no-resolve
+  - IP-CIDR,255.255.255.255/32,DIRECT,no-resolve
+  - IP-CIDR,169.254.0.0/16,DIRECT,no-resolve
+  - IP-CIDR,192.168.0.0/16,DIRECT,no-resolve
+  - IP-CIDR,172.16.0.0/12,DIRECT,no-resolve
+  - IP-CIDR,100.64.0.0/10,DIRECT,no-resolve
+  - IP-CIDR6,fe80::/10,DIRECT,no-resolve
+  - IP-CIDR,0.0.0.0/8,DIRECT,no-resolve
+  - IP-CIDR,10.0.0.0/8,DIRECT,no-resolve
+  - IP-CIDR,127.0.0.0/8,DIRECT,no-resolve
+  - IP-CIDR6,ff00::/8,DIRECT,no-resolve
+  - IP-CIDR6,fc00::/7,DIRECT,no-resolve
+  - IP-CIDR,224.0.0.0/4,DIRECT,no-resolve
+  - RULE-SET,geosite-category-ads-all,REJECT
+  - DOMAIN-SUFFIX,ads.example,广告拦截
+  - RULE-SET,airport-a-streaming,节点选择
+  - RULE-SET,airport-a-corp,DIRECT
+  - RULE-SET,geosite-cn,DIRECT
+  - RULE-SET,geoip-private,DIRECT,no-resolve
+  - RULE-SET,geoip-cn,DIRECT
+  - AND,((NETWORK,UDP),(DST-PORT,443)),REJECT
+  - DST-PORT,22,DIRECT
+  - MATCH,节点选择

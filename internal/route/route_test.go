@@ -74,7 +74,7 @@ func build(t *testing.T, src string, known ...string) (*Table, diag.List) {
 }
 
 func ruleString(r Rule) string {
-	kind := [...]string{"path", "app", "exact", "suffix", "keyword", "ip", "list", "raw", "default"}[r.Match]
+	kind := [...]string{"path", "app", "exact", "suffix", "keyword", "ip", "list", "port", "network", "raw", "default"}[r.Match]
 	s := fmt.Sprintf("%s:%s→%s", kind, r.Value, r.Target)
 	if r.NoResolve {
 		s += "(no-resolve)"

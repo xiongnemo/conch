@@ -12,6 +12,7 @@ import (
 	"nautilus/internal/backend"
 	"nautilus/internal/compile"
 	"nautilus/internal/diag"
+	"nautilus/internal/lists"
 	"nautilus/internal/model"
 	"nautilus/internal/route"
 )
@@ -88,11 +89,29 @@ func (Backend) Encode(r *compile.Result, opts backend.Options) (*backend.Artifac
 		providers := newMap()
 		for _, pv := range r.Providers {
 			m := newMap()
-			m.set("type", str("http"))
-			m.set("behavior", str(pv.Behavior))
-			m.set("format", str(pv.Format))
-			m.set("url", str(pv.URL))
-			m.set("interval", intNode(providerInterval))
+			if pv.Format == "autoproxy" {
+				// mihomo cannot read AutoProxy lists; inline them converted.
+				payload, skipped, err := autoProxyPayload(pv, opts.Lists)
+				if err != nil {
+					d.Errorf(diag.Pos{}, "%v", err)
+					return nil, d
+				}
+				if len(skipped) > 0 && !pv.Exceptions {
+					d.Warnf(diag.Pos{}, "规则列表 %s 中有 %d 条规则无法按域名表达，已跳过（例如 %q）", pv.URL, len(skipped), skipped[0])
+				}
+				pv = route.Provider{Name: pv.Name, Behavior: "classical", Payload: payload}
+			}
+			if pv.URL == "" {
+				m.set("type", str("inline"))
+				m.set("behavior", str(pv.Behavior))
+				m.set("payload", strSeq(pv.Payload))
+			} else {
+				m.set("type", str("http"))
+				m.set("behavior", str(pv.Behavior))
+				m.set("format", str(pv.Format))
+				m.set("url", str(pv.URL))
+				m.set("interval", intNode(providerInterval))
+			}
 			providers.set(pv.Name, m.node)
 		}
 		doc.set("rule-providers", providers.node)
@@ -135,6 +154,33 @@ func (Backend) Encode(r *compile.Result, opts backend.Options) (*backend.Artifac
 		return nil, d
 	}
 	return &backend.Artifact{Config: buf.Bytes(), Manifest: manifest}, d
+}
+
+// autoProxyPayload converts an AutoProxy list to classical rule lines.
+func autoProxyPayload(p route.Provider, load backend.ListLoader) ([]string, []string, error) {
+	if load == nil {
+		return nil, nil, fmt.Errorf("需要先下载规则列表 %s", p.URL)
+	}
+	entries, skipped, err := load(p)
+	if err != nil {
+		return nil, nil, err
+	}
+	var payload []string
+	for _, e := range lists.Select(entries, p.Exceptions) {
+		switch e.Kind {
+		case lists.Domain:
+			payload = append(payload, "DOMAIN,"+e.Value)
+		case lists.DomainSuffix:
+			payload = append(payload, "DOMAIN-SUFFIX,"+e.Value)
+		case lists.IPCIDR:
+			payload = append(payload, "IP-CIDR,"+e.Value+",no-resolve")
+		}
+	}
+	if len(payload) == 0 {
+		// An empty provider is invalid; this one can never match.
+		payload = []string{"DOMAIN,nautilus.invalid"}
+	}
+	return payload, skipped, nil
 }
 
 // proxyNode emits the node exactly as written, except for the name and
@@ -218,6 +264,13 @@ func ruleLine(r route.Rule) (string, error) {
 		}
 	case route.MatchRuleSet:
 		typ = "RULE-SET"
+		if r.NoResolve {
+			return fmt.Sprintf("RULE-SET,%s,%s,no-resolve", r.Value, r.Target), nil
+		}
+	case route.MatchDstPort:
+		typ = "DST-PORT"
+	case route.MatchNetwork:
+		typ = "NETWORK"
 	case route.MatchRaw:
 		fields := append([]string(nil), r.RawFields...)
 		fields[r.TargetField] = r.Target

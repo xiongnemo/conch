@@ -251,6 +251,16 @@ func (e *encoder) rules() []rule {
 			xs = []rule{{IP: []string{r.Value}}}
 		case route.MatchRuleSet:
 			xs = e.listRules(r)
+		case route.MatchDstPort:
+			xs = []rule{{Port: r.Value}}
+		case route.MatchNetwork:
+			xs = []rule{{Network: r.Value}}
+		case route.MatchRaw:
+			if r.Origin.Imported {
+				continue // reported by backend.Check
+			}
+			e.d.Errorf(r.Origin.Pos, "xray 不支持 clash 原始规则")
+			continue
 		case route.MatchFinal:
 			continue // the default route is the first outbound
 		default:
@@ -290,22 +300,45 @@ func (e *encoder) listRules(r route.Rule) []rule {
 		return []rule{{IP: []string{"geoip:" + p.Category}}}
 	}
 	if p.Format == "mrs" {
-		e.d.Errorf(r.Origin.Pos, "xray 无法读取 mrs 格式的规则列表 %s，请改用 yaml 或 text 格式的版本", p.URL)
+		e.listProblem(r, "xray 无法读取 mrs 格式的规则列表 %s，请改用 yaml 或 text 格式的版本", p.URL)
 		return nil
 	}
-	if e.opts.Lists == nil {
-		e.d.Errorf(r.Origin.Pos, "xray 需要先下载规则列表 %s", p.URL)
+	var entries []lists.Entry
+	var skipped []string
+	var err error
+	switch {
+	case p.URL == "":
+		entries, skipped, err = lists.Parse([]byte(strings.Join(p.Payload, "\n")), "text", p.Behavior)
+	case e.opts.Lists == nil:
+		e.listProblem(r, "xray 需要先下载规则列表 %s", p.URL)
 		return nil
+	default:
+		entries, skipped, err = e.opts.Lists(p)
 	}
-	entries, skipped, err := e.opts.Lists(p)
+	if p.Format == "autoproxy" {
+		entries = lists.Select(entries, p.Exceptions)
+		if len(entries) == 0 && err == nil {
+			return nil // e.g. a list without "@@" exceptions
+		}
+	}
 	if err != nil {
-		e.d.Errorf(r.Origin.Pos, "%v", err)
+		e.listProblem(r, "%v", err)
 		return nil
 	}
-	if len(skipped) > 0 {
+	if len(skipped) > 0 && !p.Exceptions {
 		e.d.Warnf(r.Origin.Pos, "规则列表 %s 中有 %d 条 xray 无法表达的规则，已跳过（例如 %q）", p.URL, len(skipped), skipped[0])
 	}
 	return entryRules(entries)
+}
+
+// listProblem reports a list xray cannot use. For a list the user wrote it
+// is an error; for one a subscription brought along, the list is skipped.
+func (e *encoder) listProblem(r route.Rule, format string, args ...any) {
+	if r.Origin.Imported {
+		e.d.Warnf(r.Origin.Pos, "已跳过订阅 %q 的一个规则集："+format, append([]any{r.Origin.Key}, args...)...)
+		return
+	}
+	e.d.Errorf(r.Origin.Pos, format, args...)
 }
 
 // entryRules groups list entries by the field xray matches them on. Fields

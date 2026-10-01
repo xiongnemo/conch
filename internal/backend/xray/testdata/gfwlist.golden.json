@@ -1,0 +1,206 @@
+{
+  "log": {
+    "loglevel": "info"
+  },
+  "inbounds": [
+    {
+      "tag": "›mixed",
+      "protocol": "mixed",
+      "listen": "127.0.0.1",
+      "port": 7890,
+      "settings": {
+        "udp": true
+      },
+      "sniffing": {
+        "enabled": true,
+        "destOverride": [
+          "http",
+          "tls",
+          "quic"
+        ],
+        "routeOnly": true
+      }
+    }
+  ],
+  "outbounds": [
+    {
+      "tag": "DIRECT",
+      "protocol": "freedom"
+    },
+    {
+      "tag": "REJECT»",
+      "protocol": "blackhole"
+    },
+    {
+      "tag": "REJECT-DROP",
+      "protocol": "blackhole"
+    },
+    {
+      "tag": "proxy",
+      "protocol": "trojan",
+      "settings": {
+        "address": "192.0.2.1",
+        "port": 443,
+        "password": "p"
+      },
+      "streamSettings": {
+        "security": "tls",
+        "tlsSettings": {}
+      }
+    },
+    {
+      "tag": "GLOBAL",
+      "protocol": "loopback",
+      "settings": {
+        "inboundTag": "›group›GLOBAL"
+      }
+    }
+  ],
+  "routing": {
+    "domainStrategy": "IPIfNonMatch",
+    "rules": [
+      {
+        "inboundTag": [
+          "›group›GLOBAL"
+        ],
+        "balancerTag": "GLOBAL"
+      },
+      {
+        "domain": [
+          "domain:home.arpa"
+        ],
+        "outboundTag": "DIRECT"
+      },
+      {
+        "domain": [
+          "domain:lan"
+        ],
+        "outboundTag": "DIRECT"
+      },
+      {
+        "domain": [
+          "domain:local"
+        ],
+        "outboundTag": "DIRECT"
+      },
+      {
+        "domain": [
+          "domain:localhost"
+        ],
+        "outboundTag": "DIRECT"
+      },
+      {
+        "ip": [
+          "::1/128"
+        ],
+        "outboundTag": "DIRECT"
+      },
+      {
+        "ip": [
+          "255.255.255.255/32"
+        ],
+        "outboundTag": "DIRECT"
+      },
+      {
+        "ip": [
+          "169.254.0.0/16"
+        ],
+        "outboundTag": "DIRECT"
+      },
+      {
+        "ip": [
+          "192.168.0.0/16"
+        ],
+        "outboundTag": "DIRECT"
+      },
+      {
+        "ip": [
+          "172.16.0.0/12"
+        ],
+        "outboundTag": "DIRECT"
+      },
+      {
+        "ip": [
+          "100.64.0.0/10"
+        ],
+        "outboundTag": "DIRECT"
+      },
+      {
+        "ip": [
+          "fe80::/10"
+        ],
+        "outboundTag": "DIRECT"
+      },
+      {
+        "ip": [
+          "0.0.0.0/8"
+        ],
+        "outboundTag": "DIRECT"
+      },
+      {
+        "ip": [
+          "10.0.0.0/8"
+        ],
+        "outboundTag": "DIRECT"
+      },
+      {
+        "ip": [
+          "127.0.0.0/8"
+        ],
+        "outboundTag": "DIRECT"
+      },
+      {
+        "ip": [
+          "ff00::/8"
+        ],
+        "outboundTag": "DIRECT"
+      },
+      {
+        "ip": [
+          "fc00::/7"
+        ],
+        "outboundTag": "DIRECT"
+      },
+      {
+        "ip": [
+          "224.0.0.0/4"
+        ],
+        "outboundTag": "DIRECT"
+      },
+      {
+        "domain": [
+          "domain:cn.example.com",
+          "full:direct.example.org"
+        ],
+        "outboundTag": "DIRECT"
+      },
+      {
+        "domain": [
+          "domain:google.com",
+          "domain:googleapis.com",
+          "domain:youtube.com",
+          "full:www.example-path.com",
+          "domain:twitter.com"
+        ],
+        "outboundTag": "proxy"
+      },
+      {
+        "ip": [
+          "85.17.73.31/32"
+        ],
+        "outboundTag": "proxy"
+      }
+    ],
+    "balancers": [
+      {
+        "tag": "GLOBAL",
+        "selector": [
+          "proxy"
+        ],
+        "strategy": {
+          "type": "random"
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,39 @@
+# 模拟机场下发的 Clash 配置。controller、secret、dns 等设置必须被丢弃。
+mixed-port: 7890
+allow-lan: true
+external-controller: 0.0.0.0:9090
+secret: airport-secret
+dns: { enable: true, nameserver: [223.5.5.5] }
+proxies:
+  - { name: "🇭🇰 香港 01", type: ss, server: hk1.airport.example, port: 8001, cipher: aes-128-gcm, password: p1, udp: true }
+  - { name: "🇭🇰 香港 02", type: vmess, server: hk2.airport.example, port: 443, uuid: 00000000-0000-0000-0000-00000000aa01, alterId: 0, cipher: auto,
+      tls: true, network: ws, ws-opts: { path: /hk2, headers: { Host: hk2.airport.example } } }
+  - { name: "🇯🇵 日本 01", type: trojan, server: jp1.airport.example, port: 443, password: p3, sni: jp1.airport.example, udp: true }
+  - { name: "剩余流量：100 GB", type: ss, server: 127.0.0.1, port: 1, cipher: aes-128-gcm, password: x }
+  - { name: home, type: trojan, server: conflict.airport.example, port: 443, password: p }
+proxy-providers:
+  hk-extra:
+    type: http
+    url: https://example.com/provider-hk.yaml
+    interval: 3600
+    filter: 香港
+    override: { additional-prefix: "[扩展] " }
+proxy-groups:
+  - { name: 节点选择, type: select, proxies: [自动选择, 香港节点, 中转, DIRECT] }
+  - { name: 自动选择, type: url-test, proxies: ["🇭🇰 香港 01", "🇭🇰 香港 02", "🇯🇵 日本 01"], url: "http://www.gstatic.com/generate_204", interval: 300 }
+  - { name: 香港节点, type: select, use: [hk-extra], include-all: true, filter: 香港 }
+  - { name: 中转, type: relay, proxies: ["🇭🇰 香港 01", "🇯🇵 日本 01"] }
+  - { name: 广告拦截, type: select, proxies: [REJECT, DIRECT] }
+rule-providers:
+  streaming: { type: http, behavior: classical, url: "https://example.com/rules/streaming.yaml" }
+  corp: { type: inline, behavior: domain, payload: ["+.corp.example"] }
+rules:
+  - DOMAIN-SUFFIX,ads.example,广告拦截
+  - RULE-SET,streaming,节点选择
+  - RULE-SET,corp,DIRECT
+  - GEOSITE,cn,DIRECT
+  - GEOIP,LAN,DIRECT,no-resolve
+  - GEOIP,CN,DIRECT
+  - AND,((NETWORK,UDP),(DST-PORT,443)),REJECT
+  - DST-PORT,22,DIRECT
+  - MATCH,节点选择

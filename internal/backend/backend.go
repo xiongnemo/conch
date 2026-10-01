@@ -59,8 +59,26 @@ func Check(r *compile.Result, caps Capabilities, backendName string) diag.List {
 			d.Errorf(rule.Origin.Pos, "%s 后端不支持按应用分流（%s）", backendName, rule.Origin.Key)
 		case rule.Match == route.MatchDomainKeyword && !caps.KeywordMatch:
 			d.Errorf(rule.Origin.Pos, "%s 后端不支持关键词条目（%s）", backendName, rule.Origin.Key)
-		case rule.Match == route.MatchRaw && !caps.RawClash:
+		case rule.Match == route.MatchRaw && !caps.RawClash && !rule.Origin.Imported:
 			d.Errorf(rule.Origin.Pos, "%s 后端不支持 clash 原始规则", backendName)
+		}
+	}
+	// Subscription rules are imported in bulk; a few rules the backend
+	// cannot express should not block the rest.
+	if !caps.RawClash {
+		skipped := map[string][]string{}
+		var order []string
+		for _, rule := range r.Rules {
+			if rule.Match == route.MatchRaw && rule.Origin.Imported {
+				if skipped[rule.Origin.Key] == nil {
+					order = append(order, rule.Origin.Key)
+				}
+				skipped[rule.Origin.Key] = append(skipped[rule.Origin.Key], rule.Value)
+			}
+		}
+		for _, key := range order {
+			lines := skipped[key]
+			d.Warnf(diag.Pos{}, "订阅 %q 中有 %d 条规则 %s 无法表达，已跳过（例如 %q）", key, len(lines), backendName, lines[0])
 		}
 	}
 	if len(r.Chains) > 0 && !caps.Chains {

@@ -23,7 +23,7 @@ func main() {
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}
-	root.AddCommand(newCompileCmd(), newKernelCmd(), &cobra.Command{
+	root.AddCommand(newCompileCmd(), newKernelCmd(), newSubCmd(), newImportCmd(), newRouteCmd(), &cobra.Command{
 		Use:   "version",
 		Short: "显示版本",
 		Run:   func(cmd *cobra.Command, _ []string) { fmt.Fprintln(cmd.OutOrStdout(), version) },

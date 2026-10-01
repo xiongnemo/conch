@@ -1,0 +1,3 @@
+proxies:
+  - { name: 香港 IEPL, type: trojan, server: iepl.airport.example, port: 443, password: px }
+  - { name: 新加坡 01, type: trojan, server: sg.airport.example, port: 443, password: py }

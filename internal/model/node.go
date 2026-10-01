@@ -62,3 +62,16 @@ func viewOf(m *yaml.Node) NodeView {
 	}
 	return v
 }
+
+// NewNode builds a node from a Clash proxy mapping that did not come from
+// profile.yaml, such as one imported from a subscription.
+func NewNode(m *yaml.Node, pos diag.Pos) *Node {
+	flat := Flatten(m)
+	return &Node{
+		Name:   WeakString(Lookup(flat, "name")),
+		Format: FormatClash,
+		Raw:    flat,
+		View:   viewOf(flat),
+		Pos:    pos,
+	}
+}

@@ -1,0 +1,249 @@
+{
+  "backend": "mihomo",
+  "proxies": [
+    {
+      "name": "home",
+      "kind": "node",
+      "node": "home"
+    },
+    {
+      "name": "🇭🇰 香港 01",
+      "kind": "node",
+      "node": "🇭🇰 香港 01"
+    },
+    {
+      "name": "🇭🇰 香港 02",
+      "kind": "node",
+      "node": "🇭🇰 香港 02"
+    },
+    {
+      "name": "🇯🇵 日本 01",
+      "kind": "node",
+      "node": "🇯🇵 日本 01"
+    },
+    {
+      "name": "airport-a/home",
+      "kind": "node",
+      "node": "airport-a/home"
+    },
+    {
+      "name": "[扩展] 香港 IEPL",
+      "kind": "node",
+      "node": "[扩展] 香港 IEPL"
+    },
+    {
+      "name": "AI-Exit",
+      "kind": "chain-exit",
+      "node": "home",
+      "chain": "AI-Exit",
+      "hop": 1,
+      "upstream": "自动选择"
+    },
+    {
+      "name": "中转",
+      "kind": "chain-exit",
+      "node": "🇯🇵 日本 01",
+      "chain": "中转",
+      "hop": 1,
+      "upstream": "🇭🇰 香港 01"
+    }
+  ],
+  "rules": [
+    {
+      "index": 0,
+      "rule": "DOMAIN-SUFFIX,home.arpa,DIRECT",
+      "tier": "domain",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 1,
+      "rule": "DOMAIN-SUFFIX,openai.com,AI-Exit",
+      "tier": "domain",
+      "key": "openai.com",
+      "source": "../testdata/airport.profile.yaml:14"
+    },
+    {
+      "index": 2,
+      "rule": "DOMAIN-SUFFIX,lan,DIRECT",
+      "tier": "domain",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 3,
+      "rule": "DOMAIN-SUFFIX,local,DIRECT",
+      "tier": "domain",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 4,
+      "rule": "DOMAIN-SUFFIX,localhost,DIRECT",
+      "tier": "domain",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 5,
+      "rule": "IP-CIDR6,::1/128,DIRECT,no-resolve",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 6,
+      "rule": "IP-CIDR,255.255.255.255/32,DIRECT,no-resolve",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 7,
+      "rule": "IP-CIDR,169.254.0.0/16,DIRECT,no-resolve",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 8,
+      "rule": "IP-CIDR,192.168.0.0/16,DIRECT,no-resolve",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 9,
+      "rule": "IP-CIDR,172.16.0.0/12,DIRECT,no-resolve",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 10,
+      "rule": "IP-CIDR,100.64.0.0/10,DIRECT,no-resolve",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 11,
+      "rule": "IP-CIDR6,fe80::/10,DIRECT,no-resolve",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 12,
+      "rule": "IP-CIDR,0.0.0.0/8,DIRECT,no-resolve",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 13,
+      "rule": "IP-CIDR,10.0.0.0/8,DIRECT,no-resolve",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 14,
+      "rule": "IP-CIDR,127.0.0.0/8,DIRECT,no-resolve",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 15,
+      "rule": "IP-CIDR6,ff00::/8,DIRECT,no-resolve",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 16,
+      "rule": "IP-CIDR6,fc00::/7,DIRECT,no-resolve",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 17,
+      "rule": "IP-CIDR,224.0.0.0/4,DIRECT,no-resolve",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 18,
+      "rule": "RULE-SET,geosite-category-ads-all,REJECT",
+      "tier": "list",
+      "key": "ads",
+      "source": "../testdata/airport.profile.yaml:16"
+    },
+    {
+      "index": 19,
+      "rule": "DOMAIN-SUFFIX,ads.example,广告拦截",
+      "tier": "list",
+      "key": "airport-a",
+      "source": "../testdata/airport.profile.yaml:17"
+    },
+    {
+      "index": 20,
+      "rule": "RULE-SET,airport-a-streaming,节点选择",
+      "tier": "list",
+      "key": "airport-a",
+      "source": "../testdata/airport.profile.yaml:17"
+    },
+    {
+      "index": 21,
+      "rule": "RULE-SET,airport-a-corp,DIRECT",
+      "tier": "list",
+      "key": "airport-a",
+      "source": "../testdata/airport.profile.yaml:17"
+    },
+    {
+      "index": 22,
+      "rule": "RULE-SET,geosite-cn,DIRECT",
+      "tier": "list",
+      "key": "airport-a",
+      "source": "../testdata/airport.profile.yaml:17"
+    },
+    {
+      "index": 23,
+      "rule": "RULE-SET,geoip-private,DIRECT,no-resolve",
+      "tier": "list",
+      "key": "airport-a",
+      "source": "../testdata/airport.profile.yaml:17"
+    },
+    {
+      "index": 24,
+      "rule": "RULE-SET,geoip-cn,DIRECT",
+      "tier": "list",
+      "key": "airport-a",
+      "source": "../testdata/airport.profile.yaml:17"
+    },
+    {
+      "index": 25,
+      "rule": "AND,((NETWORK,UDP),(DST-PORT,443)),REJECT",
+      "tier": "list",
+      "key": "airport-a",
+      "source": "../testdata/airport.profile.yaml:17"
+    },
+    {
+      "index": 26,
+      "rule": "DST-PORT,22,DIRECT",
+      "tier": "list",
+      "key": "airport-a",
+      "source": "../testdata/airport.profile.yaml:17"
+    },
+    {
+      "index": 27,
+      "rule": "MATCH,节点选择",
+      "tier": "default",
+      "key": "default",
+      "source": "../testdata/airport.profile.yaml"
+    }
+  ]
+}

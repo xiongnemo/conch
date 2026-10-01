@@ -40,7 +40,9 @@ const (
 	MatchDomainKeyword
 	MatchIPCIDR
 	MatchRuleSet // Value is a Provider name
-	MatchRaw     // Value is a raw Clash rule line with its target field cut out
+	MatchDstPort // Value is a port or range, e.g. 443 or 1000-2000
+	MatchNetwork // Value is tcp or udp
+	MatchRaw     // Value is a raw Clash rule line; RawFields/TargetField locate its target
 	MatchFinal
 )
 
@@ -59,8 +61,9 @@ type Rule struct {
 
 // Origin links a compiled rule back to what the user wrote.
 type Origin struct {
-	Tier    Tier
-	Key     string // entry key, list name, or "default"
-	Pos     diag.Pos
-	Builtin bool // added by nautilus (e.g. the default "lan" entry)
+	Tier     Tier
+	Key      string // entry key, list name, or "default"
+	Pos      diag.Pos
+	Builtin  bool // added by nautilus (e.g. the default "lan" entry)
+	Imported bool // came with a subscription rather than written by the user
 }

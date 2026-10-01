@@ -35,14 +35,26 @@ func Build(r *model.Routes, resolve Resolver, d *diag.List) *Table {
 		d.Errorf(diag.Pos{}, "%v", err)
 		base = defaultListBase
 	}
+	importedDefault := ""
 	for _, l := range r.Lists {
+		if imp := r.Imported[l.List]; imp != nil && l.Clash == nil {
+			if final := t.addImported(l.List, imp, l, base, resolve, d); importedDefault == "" {
+				importedDefault = final
+			}
+			continue
+		}
 		t.addList(l, base, resolve, d)
 	}
 
-	if r.Default.IsZero() {
+	def, origin := r.Default, Origin{Tier: TierDefault, Key: "default", Pos: r.DefaultPos}
+	if def.IsZero() && importedDefault != "" {
+		// Without a default of their own, users get the subscription's MATCH.
+		def, origin.Imported = model.Via{Name: importedDefault}, true
+	}
+	if def.IsZero() {
 		d.Errorf(r.DefaultPos, "请设置默认出口 routes.default，例如 default: 节点选择")
-	} else if target, ok := resolve(r.Default, r.DefaultPos); ok {
-		t.Rules = append(t.Rules, Rule{Match: MatchFinal, Target: target, Origin: Origin{Tier: TierDefault, Key: "default", Pos: r.DefaultPos}})
+	} else if target, ok := resolve(def, r.DefaultPos); ok {
+		t.Rules = append(t.Rules, Rule{Match: MatchFinal, Target: target, Origin: origin})
 	}
 	return t
 }
@@ -75,6 +87,13 @@ func (t *Table) addList(l *model.ListRef, base string, resolve Resolver, d *diag
 	if !ok {
 		return
 	}
+	if p.Format == "autoproxy" {
+		// "@@" exceptions are excluded from the list: they go direct first.
+		ex := p
+		ex.Name, ex.Exceptions = p.Name+"-except", true
+		ex.Name = t.addProvider(ex)
+		t.Rules = append(t.Rules, Rule{Match: MatchRuleSet, Value: ex.Name, Target: "DIRECT", Origin: Origin{Tier: TierList, Key: l.List, Pos: l.Pos}})
+	}
 	p.Name = t.addProvider(p)
 	t.Rules = append(t.Rules, Rule{
 		Match:  MatchRuleSet,
@@ -94,7 +113,7 @@ func (t *Table) addProvider(p Provider) string {
 			if q.Name != name {
 				continue
 			}
-			if q.URL == p.URL && q.Behavior == p.Behavior && q.Format == p.Format {
+			if q.URL == p.URL && q.Behavior == p.Behavior && q.Format == p.Format && q.Exceptions == p.Exceptions {
 				return name
 			}
 			clash = true

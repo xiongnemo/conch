@@ -22,6 +22,12 @@ type Provider struct {
 	// kernels (xray) load from their own geodata files instead of a URL.
 	Geo      string // geosite | geoip
 	Category string
+
+	// Payload holds the rules of an inline provider (no URL).
+	Payload []string
+	// Exceptions selects the "@@" entries of an AutoProxy list; the other
+	// provider for the same list holds the remaining entries.
+	Exceptions bool
 }
 
 const defaultListBase = "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/"
@@ -96,6 +102,9 @@ func urlProvider(raw string, ref *model.ListRef) (Provider, error) {
 	base := path.Base(u.Path)
 	ext := strings.ToLower(path.Ext(base))
 	format := strings.ToLower(ref.Format)
+	if format == "autoproxy" {
+		return Provider{Name: "list-" + slug(base), Behavior: "domain", Format: format, URL: raw}, nil
+	}
 	if format == "" {
 		switch ext {
 		case ".mrs":
@@ -112,21 +121,37 @@ func urlProvider(raw string, ref *model.ListRef) (Provider, error) {
 	}
 	switch {
 	case format != "mrs" && format != "yaml" && format != "text":
-		return Provider{}, fmt.Errorf("format 只能是 mrs、yaml 或 text，而不是 %q", ref.Format)
+		return Provider{}, fmt.Errorf("format 只能是 mrs、yaml、text 或 autoproxy，而不是 %q", ref.Format)
 	case behavior != "domain" && behavior != "ipcidr" && behavior != "classical":
 		return Provider{}, fmt.Errorf("behavior 只能是 domain、ipcidr 或 classical，而不是 %q", ref.Behavior)
 	case format == "mrs" && behavior == "classical":
 		return Provider{}, fmt.Errorf("mrs 格式的列表需要写明 behavior: domain 或 behavior: ipcidr")
 	}
-	stem := strings.ToLower(strings.TrimSuffix(base, path.Ext(base)))
+	return Provider{Name: "list-" + slug(base), Behavior: behavior, Format: format, URL: raw}, nil
+}
+
+func slug(file string) string {
+	stem := strings.ToLower(strings.TrimSuffix(file, path.Ext(file)))
 	stem = strings.Trim(nonSlug.ReplaceAllString(stem, "-"), "-")
 	if stem == "" {
-		stem = "custom"
+		return "custom"
 	}
-	return Provider{Name: "list-" + stem, Behavior: behavior, Format: format, URL: raw}, nil
+	return stem
 }
 
 var nonSlug = regexp.MustCompile(`[^a-z0-9]+`)
+
+// TargetField finds which field of a Clash rule line names the outbound,
+// e.g. to rename targets of imported rules. MATCH has its target second.
+func TargetField(fields []string) (int, error) {
+	if strings.EqualFold(fields[0], "MATCH") {
+		if len(fields) < 2 {
+			return 0, fmt.Errorf("MATCH 缺少出口")
+		}
+		return 1, nil
+	}
+	return rawTargetField(fields)
+}
 
 // rawTargetField finds which field of a raw Clash rule line names the
 // outbound. Logical and regex rules may contain commas in their payload, so

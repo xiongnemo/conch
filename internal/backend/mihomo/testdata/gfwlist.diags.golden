@@ -1,0 +1,1 @@
+警告：规则列表 https://example.com/gfwlist.txt 中有 1 条规则无法按域名表达，已跳过（例如 "/^https?:\\/\\/[^\\/]+blogspot\\.(.*)/"）

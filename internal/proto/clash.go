@@ -168,6 +168,9 @@ func readTransport(r *reader, s *Spec) {
 			delete(t.Headers, k)
 		}
 	}
+	if len(t.Headers) == 0 {
+		t.Headers = nil
+	}
 	s.Transport = t
 }
 

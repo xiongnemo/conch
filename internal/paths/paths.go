@@ -54,6 +54,11 @@ func ListsDir() string {
 	return filepath.Join(DataDir(), "lists")
 }
 
+// SubscriptionsDir caches downloaded subscriptions.
+func SubscriptionsDir() string {
+	return filepath.Join(DataDir(), "subscriptions")
+}
+
 func home() string {
 	if h, err := os.UserHomeDir(); err == nil {
 		return h

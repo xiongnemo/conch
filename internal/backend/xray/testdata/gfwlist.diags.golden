@@ -1,0 +1,1 @@
+警告 ../testdata/gfwlist.profile.yaml:7：规则列表 https://example.com/gfwlist.txt 中有 1 条 xray 无法表达的规则，已跳过（例如 "/^https?:\\/\\/[^\\/]+blogspot\\.(.*)/"）

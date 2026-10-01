@@ -1,0 +1,252 @@
+{
+  "backend": "xray",
+  "proxies": [
+    {
+      "name": "home",
+      "kind": "node",
+      "node": "home"
+    },
+    {
+      "name": "🇭🇰 香港 01",
+      "kind": "node",
+      "node": "🇭🇰 香港 01"
+    },
+    {
+      "name": "🇭🇰 香港 02",
+      "kind": "node",
+      "node": "🇭🇰 香港 02"
+    },
+    {
+      "name": "🇯🇵 日本 01",
+      "kind": "node",
+      "node": "🇯🇵 日本 01"
+    },
+    {
+      "name": "airport-a/home",
+      "kind": "node",
+      "node": "airport-a/home"
+    },
+    {
+      "name": "[扩展] 香港 IEPL",
+      "kind": "node",
+      "node": "[扩展] 香港 IEPL"
+    },
+    {
+      "name": "AI-Exit",
+      "kind": "chain-exit",
+      "node": "home",
+      "chain": "AI-Exit",
+      "hop": 1,
+      "upstream": "自动选择"
+    },
+    {
+      "name": "中转",
+      "kind": "chain-exit",
+      "node": "🇯🇵 日本 01",
+      "chain": "中转",
+      "hop": 1,
+      "upstream": "🇭🇰 香港 01"
+    }
+  ],
+  "rules": [
+    {
+      "index": 5,
+      "rule": "{\"domain\":[\"domain:home.arpa\"],\"outboundTag\":\"DIRECT\"}",
+      "tier": "domain",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 6,
+      "rule": "{\"domain\":[\"domain:openai.com\"],\"outboundTag\":\"AI-Exit\"}",
+      "tier": "domain",
+      "key": "openai.com",
+      "source": "../testdata/airport.profile.yaml:14"
+    },
+    {
+      "index": 7,
+      "rule": "{\"domain\":[\"domain:lan\"],\"outboundTag\":\"DIRECT\"}",
+      "tier": "domain",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 8,
+      "rule": "{\"domain\":[\"domain:local\"],\"outboundTag\":\"DIRECT\"}",
+      "tier": "domain",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 9,
+      "rule": "{\"domain\":[\"domain:localhost\"],\"outboundTag\":\"DIRECT\"}",
+      "tier": "domain",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 10,
+      "rule": "{\"ip\":[\"::1/128\"],\"outboundTag\":\"DIRECT\"}",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 11,
+      "rule": "{\"ip\":[\"255.255.255.255/32\"],\"outboundTag\":\"DIRECT\"}",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 12,
+      "rule": "{\"ip\":[\"169.254.0.0/16\"],\"outboundTag\":\"DIRECT\"}",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 13,
+      "rule": "{\"ip\":[\"192.168.0.0/16\"],\"outboundTag\":\"DIRECT\"}",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 14,
+      "rule": "{\"ip\":[\"172.16.0.0/12\"],\"outboundTag\":\"DIRECT\"}",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 15,
+      "rule": "{\"ip\":[\"100.64.0.0/10\"],\"outboundTag\":\"DIRECT\"}",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 16,
+      "rule": "{\"ip\":[\"fe80::/10\"],\"outboundTag\":\"DIRECT\"}",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 17,
+      "rule": "{\"ip\":[\"0.0.0.0/8\"],\"outboundTag\":\"DIRECT\"}",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 18,
+      "rule": "{\"ip\":[\"10.0.0.0/8\"],\"outboundTag\":\"DIRECT\"}",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 19,
+      "rule": "{\"ip\":[\"127.0.0.0/8\"],\"outboundTag\":\"DIRECT\"}",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 20,
+      "rule": "{\"ip\":[\"ff00::/8\"],\"outboundTag\":\"DIRECT\"}",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 21,
+      "rule": "{\"ip\":[\"fc00::/7\"],\"outboundTag\":\"DIRECT\"}",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 22,
+      "rule": "{\"ip\":[\"224.0.0.0/4\"],\"outboundTag\":\"DIRECT\"}",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 23,
+      "rule": "{\"domain\":[\"geosite:category-ads-all\"],\"outboundTag\":\"REJECT»\"}",
+      "tier": "list",
+      "key": "ads",
+      "source": "../testdata/airport.profile.yaml:16"
+    },
+    {
+      "index": 24,
+      "rule": "{\"domain\":[\"domain:ads.example\"],\"balancerTag\":\"广告拦截\"}",
+      "tier": "list",
+      "key": "airport-a",
+      "source": "../testdata/airport.profile.yaml:17"
+    },
+    {
+      "index": 25,
+      "rule": "{\"domain\":[\"domain:netflix.com\",\"full:api.example-stream.com\",\"keyword:nflx\"],\"balancerTag\":\"节点选择\"}",
+      "tier": "list",
+      "key": "airport-a",
+      "source": "../testdata/airport.profile.yaml:17"
+    },
+    {
+      "index": 26,
+      "rule": "{\"ip\":[\"23.246.0.0/18\"],\"balancerTag\":\"节点选择\"}",
+      "tier": "list",
+      "key": "airport-a",
+      "source": "../testdata/airport.profile.yaml:17"
+    },
+    {
+      "index": 27,
+      "rule": "{\"process\":[\"Netflix\"],\"balancerTag\":\"节点选择\"}",
+      "tier": "list",
+      "key": "airport-a",
+      "source": "../testdata/airport.profile.yaml:17"
+    },
+    {
+      "index": 28,
+      "rule": "{\"domain\":[\"domain:corp.example\"],\"outboundTag\":\"DIRECT\"}",
+      "tier": "list",
+      "key": "airport-a",
+      "source": "../testdata/airport.profile.yaml:17"
+    },
+    {
+      "index": 29,
+      "rule": "{\"domain\":[\"geosite:cn\"],\"outboundTag\":\"DIRECT\"}",
+      "tier": "list",
+      "key": "airport-a",
+      "source": "../testdata/airport.profile.yaml:17"
+    },
+    {
+      "index": 30,
+      "rule": "{\"ip\":[\"geoip:private\"],\"outboundTag\":\"DIRECT\"}",
+      "tier": "list",
+      "key": "airport-a",
+      "source": "../testdata/airport.profile.yaml:17"
+    },
+    {
+      "index": 31,
+      "rule": "{\"ip\":[\"geoip:cn\"],\"outboundTag\":\"DIRECT\"}",
+      "tier": "list",
+      "key": "airport-a",
+      "source": "../testdata/airport.profile.yaml:17"
+    },
+    {
+      "index": 32,
+      "rule": "{\"port\":\"22\",\"outboundTag\":\"DIRECT\"}",
+      "tier": "list",
+      "key": "airport-a",
+      "source": "../testdata/airport.profile.yaml:17"
+    }
+  ],
+  "tags": {
+    "REJECT": "REJECT»"
+  }
+}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"reflect"
 	"strings"
 	"sync/atomic"
@@ -19,13 +20,13 @@ func TestParse(t *testing.T) {
 		skipped                []string
 	}{
 		{"text", "domain", "# comment\n+.hulu.com\n.disney.com\n*.max.com\nPrimeVideo.com\nbad domain\n",
-			[]Entry{{DomainSuffix, "hulu.com"}, {DomainRegex, `\.disney\.com$`}, {DomainRegex, `^[^.]+\.max\.com$`}, {Domain, "primevideo.com"}},
+			[]Entry{{Kind: DomainSuffix, Value: "hulu.com"}, {Kind: DomainRegex, Value: `\.disney\.com$`}, {Kind: DomainRegex, Value: `^[^.]+\.max\.com$`}, {Kind: Domain, Value: "primevideo.com"}},
 			[]string{"bad domain"}},
 		{"yaml", "ipcidr", "payload:\n  - 1.2.3.4\n  - 10.1.2.3/8\n  - 2001:db8::/32\n  - nope\n",
-			[]Entry{{IPCIDR, "1.2.3.4/32"}, {IPCIDR, "10.0.0.0/8"}, {IPCIDR, "2001:db8::/32"}},
+			[]Entry{{Kind: IPCIDR, Value: "1.2.3.4/32"}, {Kind: IPCIDR, Value: "10.0.0.0/8"}, {Kind: IPCIDR, Value: "2001:db8::/32"}},
 			[]string{"nope"}},
 		{"text", "classical", "DOMAIN-SUFFIX,Google.com\nIP-CIDR6,2001:db8::/32,no-resolve\nGEOIP,CN\nDST-PORT,22\nNETWORK,UDP\nUSER-AGENT,x*\n",
-			[]Entry{{DomainSuffix, "google.com"}, {IPCIDR, "2001:db8::/32"}, {GeoIP, "cn"}, {DstPort, "22"}, {Network, "udp"}},
+			[]Entry{{Kind: DomainSuffix, Value: "google.com"}, {Kind: IPCIDR, Value: "2001:db8::/32"}, {Kind: GeoIP, Value: "cn"}, {Kind: DstPort, Value: "22"}, {Kind: Network, Value: "udp"}},
 			[]string{"USER-AGENT,x*"}},
 	}
 	for _, tt := range tests {
@@ -79,5 +80,35 @@ func TestStore(t *testing.T) {
 	}
 	if entries, _, err := s.Load(ctx, p); err != nil || len(entries) != 1 {
 		t.Fatalf("cache was damaged: %v, %v", entries, err)
+	}
+}
+
+func TestParseAutoProxy(t *testing.T) {
+	data, err := os.ReadFile("../backend/testdata/lists/gfwlist.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	entries, skipped, err := Parse(data, "autoproxy", "domain")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []Entry{
+		{Kind: DomainSuffix, Value: "google.com"},
+		{Kind: DomainSuffix, Value: "googleapis.com"},
+		{Kind: DomainSuffix, Value: "youtube.com"},
+		{Kind: IPCIDR, Value: "85.17.73.31/32"},
+		{Kind: Domain, Value: "www.example-path.com"},
+		{Kind: DomainSuffix, Value: "cn.example.com", Exception: true},
+		{Kind: Domain, Value: "direct.example.org", Exception: true},
+		{Kind: DomainSuffix, Value: "twitter.com"},
+	}
+	if !reflect.DeepEqual(entries, want) {
+		t.Errorf("entries:\n got  %v\n want %v", entries, want)
+	}
+	if len(skipped) != 1 || !strings.HasPrefix(skipped[0], "/^https") {
+		t.Errorf("skipped = %q, want the regex rule", skipped)
+	}
+	if got := Select(entries, true); len(got) != 2 {
+		t.Errorf("Select(exceptions) = %v", got)
 	}
 }

@@ -1,0 +1,58 @@
+# 由 nautilus 生成，请不要手动修改；需要改动时请编辑 profile.yaml
+
+mixed-port: 7890
+allow-lan: false
+mode: rule
+log-level: info
+profile:
+  store-selected: true
+proxies:
+  - name: proxy
+    type: trojan
+    server: 192.0.2.1
+    port: 443
+    password: p
+proxy-groups:
+  - name: GLOBAL
+    type: select
+    proxies:
+      - proxy
+      - DIRECT
+rule-providers:
+  list-gfwlist-except:
+    type: inline
+    behavior: classical
+    payload:
+      - DOMAIN-SUFFIX,cn.example.com
+      - DOMAIN,direct.example.org
+  list-gfwlist:
+    type: inline
+    behavior: classical
+    payload:
+      - DOMAIN-SUFFIX,google.com
+      - DOMAIN-SUFFIX,googleapis.com
+      - DOMAIN-SUFFIX,youtube.com
+      - IP-CIDR,85.17.73.31/32,no-resolve
+      - DOMAIN,www.example-path.com
+      - DOMAIN-SUFFIX,twitter.com
+rules:
+  - DOMAIN-SUFFIX,home.arpa,DIRECT
+  - DOMAIN-SUFFIX,lan,DIRECT
+  - DOMAIN-SUFFIX,local,DIRECT
+  - DOMAIN-SUFFIX,localhost,DIRECT
+  - IP-CIDR6,::1/128,DIRECT,no-resolve
+  - IP-CIDR,255.255.255.255/32,DIRECT,no-resolve
+  - IP-CIDR,169.254.0.0/16,DIRECT,no-resolve
+  - IP-CIDR,192.168.0.0/16,DIRECT,no-resolve
+  - IP-CIDR,172.16.0.0/12,DIRECT,no-resolve
+  - IP-CIDR,100.64.0.0/10,DIRECT,no-resolve
+  - IP-CIDR6,fe80::/10,DIRECT,no-resolve
+  - IP-CIDR,0.0.0.0/8,DIRECT,no-resolve
+  - IP-CIDR,10.0.0.0/8,DIRECT,no-resolve
+  - IP-CIDR,127.0.0.0/8,DIRECT,no-resolve
+  - IP-CIDR6,ff00::/8,DIRECT,no-resolve
+  - IP-CIDR6,fc00::/7,DIRECT,no-resolve
+  - IP-CIDR,224.0.0.0/4,DIRECT,no-resolve
+  - RULE-SET,list-gfwlist-except,DIRECT
+  - RULE-SET,list-gfwlist,proxy
+  - MATCH,DIRECT

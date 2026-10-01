@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -17,6 +18,7 @@ import (
 	"nautilus/internal/model"
 	"nautilus/internal/paths"
 	"nautilus/internal/route"
+	"nautilus/internal/subscription"
 )
 
 var backends = map[string]backend.Router{
@@ -24,13 +26,59 @@ var backends = map[string]backend.Router{
 	"xray":   xray.Backend{},
 }
 
+func lookupBackend(name string) (backend.Router, error) {
+	if b, ok := backends[name]; ok {
+		return b, nil
+	}
+	return nil, fmt.Errorf("不认识的后端 %q（可以用 mihomo 或 xray）", name)
+}
+
+// pipeline loads a profile with its subscriptions and compiles it.
+type pipeline struct {
+	profilePath string
+	offline     bool
+	log         io.Writer
+
+	lists *lists.Store
+}
+
+func (pl *pipeline) listLoader(ctx context.Context) backend.ListLoader {
+	if pl.lists == nil {
+		pl.lists = &lists.Store{Dir: paths.ListsDir(), Offline: pl.offline, Log: pl.log}
+	}
+	return func(p route.Provider) ([]lists.Entry, []string, error) {
+		return pl.lists.Load(ctx, p)
+	}
+}
+
+// compile returns the compiled profile and every diagnostic so far.
+func (pl *pipeline) compile(ctx context.Context) (*compile.Result, diag.List, error) {
+	p, err := model.Load(pl.profilePath)
+	if err != nil {
+		return nil, nil, err
+	}
+	subs := &subscription.Store{Dir: paths.SubscriptionsDir(), Offline: pl.offline, Log: pl.log}
+	var diags diag.List
+	snaps := map[string]*subscription.Snapshot{}
+	for _, sub := range p.Subscriptions {
+		snap, _, err := subs.Load(ctx, sub)
+		if err != nil {
+			diags.Errorf(sub.Pos, "%v", err)
+			continue
+		}
+		snaps[sub.Name] = snap
+	}
+	subscription.Apply(p, snaps, &diags)
+	res := compile.Compile(p)
+	return res, append(diags, res.Diags...), nil
+}
+
 func newCompileCmd() *cobra.Command {
 	var (
-		profilePath  string
+		pl           pipeline
 		outPath      string
 		manifestPath string
 		backendName  string
-		offline      bool
 		opts         backend.Options
 	)
 	cmd := &cobra.Command{
@@ -38,20 +86,18 @@ func newCompileCmd() *cobra.Command {
 		Short: "把 profile 编译成内核配置（不启动内核）",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			b, ok := backends[backendName]
-			if !ok {
-				return fmt.Errorf("不认识的后端 %q（可以用 mihomo 或 xray）", backendName)
-			}
-			p, err := model.Load(profilePath)
+			b, err := lookupBackend(backendName)
 			if err != nil {
 				return err
 			}
-			store := &lists.Store{Dir: paths.ListsDir(), Offline: offline, Log: cmd.ErrOrStderr()}
-			opts.Lists = func(pv route.Provider) ([]lists.Entry, []string, error) {
-				return store.Load(cmd.Context(), pv)
+			pl.log = cmd.ErrOrStderr()
+			res, diags, err := pl.compile(cmd.Context())
+			if err != nil {
+				return err
 			}
-			art, diags := build(p, b, opts)
-			printDiags(cmd.ErrOrStderr(), diags)
+			opts.Lists = pl.listLoader(cmd.Context())
+			art, more := encode(res, b, opts, diags)
+			printDiags(cmd.ErrOrStderr(), more)
 			if art == nil {
 				return errReported
 			}
@@ -69,27 +115,30 @@ func newCompileCmd() *cobra.Command {
 		},
 	}
 	f := cmd.Flags()
-	f.StringVarP(&profilePath, "profile", "p", "profile.yaml", "profile 文件")
+	f.StringVarP(&pl.profilePath, "profile", "p", "profile.yaml", "profile 文件")
+	f.BoolVar(&pl.offline, "offline", false, "不下载订阅和规则列表，只用已缓存的")
 	f.StringVarP(&outPath, "output", "o", "-", "输出文件，- 表示标准输出")
 	f.StringVar(&manifestPath, "manifest", "", "同时输出 manifest（JSON）到这个文件")
 	f.StringVar(&backendName, "backend", "mihomo", "内核后端：mihomo 或 xray")
-	f.BoolVar(&offline, "offline", false, "不下载规则列表，只用已缓存的")
 	f.StringVar(&opts.ControllerUnix, "controller-unix", "", "内核 API 的 unix socket 路径")
 	f.StringVar(&opts.ControllerPipe, "controller-pipe", "", "内核 API 的 Windows 命名管道")
 	f.StringVar(&opts.Controller, "controller", "", "内核 API 的 TCP 地址（仅用于调试）")
 	return cmd
 }
 
-// build compiles p for a backend. It returns a nil artifact when the
-// diagnostics contain errors.
-func build(p *model.Profile, b backend.Router, opts backend.Options) (*backend.Artifact, diag.List) {
-	res := compile.Compile(p)
-	diags := append(res.Diags, backend.Check(res, b.Capabilities(), b.Name())...)
+// encode checks and encodes a compiled profile. It returns a nil artifact
+// when any diagnostic is an error.
+func encode(res *compile.Result, b backend.Router, opts backend.Options, diags diag.List) (*backend.Artifact, diag.List) {
+	diags = append(diags, backend.Check(res, b.Capabilities(), b.Name())...)
 	if diags.HasErrors() {
 		return nil, diags
 	}
-	art, encDiags := b.Encode(res, opts)
-	return art, append(diags, encDiags...)
+	art, more := b.Encode(res, opts)
+	diags = append(diags, more...)
+	if diags.HasErrors() {
+		return nil, diags
+	}
+	return art, diags
 }
 
 func printDiags(w io.Writer, diags diag.List) {

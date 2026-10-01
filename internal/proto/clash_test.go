@@ -31,7 +31,7 @@ func TestFromClash(t *testing.T) {
 			skip-cert-verify: true, network: ws, grpc-opts: { grpc-service-name: unused },
 			ws-opts: { path: /ray, headers: { Host: cdn.example }, max-early-data: 2048, early-data-header-name: Sec-WebSocket-Protocol } }`,
 			Spec{Type: "vmess", Server: "s", Port: 443, UUID: "u", Cipher: "auto", TLS: &TLS{Insecure: true},
-				Transport: Transport{Network: "ws", Path: "/ray", Host: "cdn.example", Headers: map[string]string{}, EarlyData: 2048, EarlyDataHeader: "Sec-WebSocket-Protocol"}}},
+				Transport: Transport{Network: "ws", Path: "/ray", Host: "cdn.example", EarlyData: 2048, EarlyDataHeader: "Sec-WebSocket-Protocol"}}},
 		{"trojan httpupgrade", `{ name: a, type: trojan, server: s, port: 443, password: p, sni: t.example, alpn: [h2, http/1.1],
 			network: ws, ws-opts: { path: /up, v2ray-http-upgrade: true } }`,
 			Spec{Type: "trojan", Server: "s", Port: 443, Password: "p", TLS: &TLS{SNI: "t.example", ALPN: []string{"h2", "http/1.1"}},
@@ -71,5 +71,35 @@ func TestNestedUnknownFields(t *testing.T) {
 	}
 	if s.Transport.ServiceName != "svc" || s.TLS == nil || s.TLS.Reality == nil {
 		t.Errorf("spec = %+v", s)
+	}
+}
+
+// ToClash must be the inverse of FromClash for everything a Spec holds.
+func TestClashRoundTrip(t *testing.T) {
+	specs := []*Spec{
+		{Type: "ss", Server: "s", Port: 1, UDP: true, Cipher: "2022-blake3-aes-128-gcm", Password: "p", UDPOverTCP: true},
+		{Type: "vmess", Server: "s", Port: 443, UUID: "u", Cipher: "auto", TLS: &TLS{SNI: "a", ALPN: []string{"h2"}, Insecure: true},
+			Transport: Transport{Network: "ws", Path: "/p", Host: "h", Headers: map[string]string{"X": "y"}, EarlyData: 2048, EarlyDataHeader: "Sec-WebSocket-Protocol"}},
+		{Type: "vless", Server: "s", Port: 443, UDP: true, UUID: "u", Flow: "xtls-rprx-vision", Encryption: "mlkem768x25519plus.native.0rtt.x",
+			TLS: &TLS{SNI: "a", Fingerprint: "chrome", Reality: &Reality{PublicKey: "k", ShortID: "01", SpiderX: "/"}}},
+		{Type: "vless", Server: "s", Port: 443, UUID: "u", TLS: &TLS{SNI: "a"}, Transport: Transport{Network: "xhttp", Path: "/x", Host: "h", Mode: "packet-up"}},
+		{Type: "trojan", Server: "s", Port: 443, Password: "p", TLS: &TLS{SNI: "a", PinSHA256: "abcd"}, Transport: Transport{Network: "grpc", ServiceName: "svc"}},
+		{Type: "trojan", Server: "s", Port: 443, Password: "p", TLS: &TLS{}, Transport: Transport{Network: "httpupgrade", Path: "/u", Host: "h"}},
+		{Type: "socks5", Server: "s", Port: 1080, Username: "u", Password: "p", TLS: &TLS{Insecure: true}},
+		{Type: "http", Server: "s", Port: 8080, Username: "u", Password: "p", Headers: map[string]string{"User-Agent": "x"}},
+		{Type: "hysteria2", Server: "s", Port: 443, UDP: true, Password: "p", TLS: &TLS{SNI: "a"},
+			Hysteria: &Hysteria{Obfs: "salamander", ObfsPassword: "o", Up: "50 mbps", Down: "1 gbps", Ports: "1000-2000", HopInterval: 30}},
+		{Type: "wireguard", Server: "1.2.3.4", Port: 51820, UDP: true, WireGuard: &WireGuard{PrivateKey: "k", MTU: 1280,
+			Address: []string{"10.0.0.2/32", "fd00::2/128"}, Peers: []WireGuardPeer{{Server: "1.2.3.4", Port: 51820, PublicKey: "pk", Reserved: []int{1, 2, 3}}}}},
+		{Type: "wireguard", Server: "1.2.3.4", Port: 51820, UDP: true, WireGuard: &WireGuard{PrivateKey: "k", Address: []string{"10.0.0.0/24"},
+			Peers: []WireGuardPeer{{Server: "a", Port: 1, PublicKey: "p1", AllowedIPs: []string{"0.0.0.0/0"}}, {Server: "b", Port: 2, PublicKey: "p2"}}}},
+		{Type: "vless", Server: "s", Port: 1, UUID: "u", Sockopt: Sockopt{TFO: true, MPTCP: true, Interface: "eth0", Mark: 7, IPVersion: "ipv6"}},
+	}
+	for _, want := range specs {
+		got := FromClash(ToClash("n", want))
+		if !reflect.DeepEqual(got, want) {
+			out, _ := yaml.Marshal(ToClash("n", want))
+			t.Errorf("round trip changed the spec:\n got  %+v\n want %+v\nclash:\n%s", *got, *want, out)
+		}
 	}
 }
