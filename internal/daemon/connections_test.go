@@ -85,6 +85,7 @@ func TestConnectionsInMergedRules(t *testing.T) {
 	d := &Daemon{ctl: fakeConns{conns: []control.Connection{
 		{ID: "1", Host: "www.b.example", RuleTag: "#0-1 机场", Chains: []string{"B1"}},
 		{ID: "2", Host: "203.0.113.9", RuleTag: "#0-1 机场", Chains: []string{"B1"}},
+		{ID: "3", Host: "gone.example", RuleTag: "#7 gone.example", Chains: []string{"B2"}}, // from the config before
 	}}, res: res, art: art}
 	conns, err := d.Connections(context.Background())
 	if err != nil {
@@ -94,8 +95,8 @@ func TestConnectionsInMergedRules(t *testing.T) {
 	for _, c := range conns {
 		got[c.ID] = c.Matched + " → " + strings.Join(c.Via, " → ")
 	}
-	want := map[string]string{"1": "订阅 机场 的规则 域名后缀 b.example → 代理 → B1", "2": "订阅 机场 的 2 条规则之一 → 代理 → B1"}
-	if got["1"] != want["1"] || got["2"] != want["2"] {
+	want := map[string]string{"1": "订阅 机场 的规则 域名后缀 b.example → 代理 → B1", "2": "订阅 机场 的 2 条规则之一 → 代理 → B1", "3": "gone.example → B2"}
+	if got["1"] != want["1"] || got["2"] != want["2"] || got["3"] != want["3"] {
 		t.Errorf("connections = %q, want %q", got, want)
 	}
 }

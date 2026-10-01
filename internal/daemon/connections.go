@@ -92,7 +92,9 @@ func (d *Daemon) Connections(ctx context.Context) ([]Connection, error) {
 				via = append(via, hopName(res, name))
 			}
 		}
-		matched := cmpOr(c.Rule+" "+c.RulePayload, c.RuleTag)
+		// Unknown to this config (a connection from before the kernel
+		// restarted with another): what the kernel says, or the tag's key.
+		matched := cmpOr(strings.TrimSpace(c.Rule+" "+c.RulePayload), tagText(c.RuleTag))
 		switch {
 		case res.Settings.Mode != "rule":
 			matched = fmt.Sprintf("当前是 %s 模式", res.Settings.Mode)
@@ -242,4 +244,14 @@ func Suggest(host string) []string {
 		out = append(out, base)
 	}
 	return append(out, host)
+}
+
+// tagText reads the entry out of a rule tag such as "#12 example.com".
+func tagText(tag string) string {
+	if rest, ok := strings.CutPrefix(tag, "#"); ok {
+		if _, key, ok := strings.Cut(rest, " "); ok {
+			return key
+		}
+	}
+	return tag
 }

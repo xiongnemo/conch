@@ -2,6 +2,13 @@
 
 在一台真实的 Windows 10（1803 以上）或 Windows 11 上，把 nautilus 从头到尾走一遍。每一步写了要做什么、应该看到什么；和预期不一样的地方，按最后一节的方法记下来。全部做完大约两小时，第 12、13 节需要管理员权限。
 
+CI 已经在 Windows 上用真实的 mihomo、xray、sing-box、trojan-go 跑过端到端测试（分流、链、出口组、API、边车），在 Linux 上测过 TUN 和系统服务。所以这份脚本主要测 CI 测不了的部分：
+
+- 系统代理和崩溃恢复；
+- Windows 上的 TUN、服务和 agent；
+- Web UI、TUI、浏览器扩展；
+- 你自己的真实节点和订阅。
+
 约定：
 
 - 命令都在 **PowerShell** 里运行。要用 `curl.exe`，不要用 `curl`（PowerShell 5 里 `curl` 是 `Invoke-WebRequest` 的别名）。
@@ -289,7 +296,12 @@ nautilus route del api.ipify.org                 # 预期报错：条目写在 p
 
 **6.3 内核崩溃**
 
-在任务管理器里结束 `mihomo.exe`（窗口 A 里的 nautilus 不要结束）。几秒后运行 `nautilus status`，预期：内核又是运行中，并显示「重启过 1 次」；`Test-Routes` 正常。
+在任务管理器里结束 `mihomo.exe`（窗口 A 里的 nautilus 不要结束）。几秒后运行 `nautilus status`，预期：
+
+- 内核又是运行中，并显示「重启过 1 次」；
+- `Test-Routes` 正常。
+
+内核重启后一两秒内的请求失败，属于正常。
 
 **6.4 nautilus edit**
 
@@ -445,7 +457,7 @@ nautilus sysproxy on
 
 **11.2 sing-box**
 
-Ctrl+C，然后运行 `nautilus daemon --backend sing-box`，把 11.1 的检查（TUN 那条除外）重做一遍。
+Ctrl+C，然后运行 `nautilus daemon --backend sing-box`，把 11.1 的检查（TUN 那条除外）重做一遍。sing-box 改配置时也要重启内核，大约 0.5 秒内的请求会失败。
 
 **11.3 记住内核**
 
