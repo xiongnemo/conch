@@ -1,13 +1,17 @@
 // Command gen records a kernel release's asset checksums in kernels.json,
-// using the sha256 digests GitHub publishes for release assets.
+// using the sha256 digests GitHub publishes for release assets. Releases
+// older than those digests are downloaded and hashed here.
 //
 //	go run ./internal/kernels/gen -kernel mihomo -repo MetaCubeX/mihomo -version v1.19.32 -file internal/kernels/kernels.json
 package main
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -46,6 +50,7 @@ func main() {
 		Assets []struct {
 			Name   string `json:"name"`
 			Digest string `json:"digest"`
+			URL    string `json:"browser_download_url"`
 		} `json:"assets"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&rel); err != nil {
@@ -54,10 +59,16 @@ func main() {
 
 	release := &kernels.Release{Version: *version, Assets: map[string]string{}}
 	for _, a := range rel.Assets {
-		sum, ok := strings.CutPrefix(a.Digest, "sha256:")
-		if ok && (strings.HasSuffix(a.Name, ".gz") || strings.HasSuffix(a.Name, ".zip")) {
-			release.Assets[a.Name] = sum
+		if !strings.HasSuffix(a.Name, ".gz") && !strings.HasSuffix(a.Name, ".zip") {
+			continue
 		}
+		sum, ok := strings.CutPrefix(a.Digest, "sha256:")
+		if !ok {
+			if sum, err = download(a.URL); err != nil {
+				log.Fatalf("%s: %v", a.Name, err)
+			}
+		}
+		release.Assets[a.Name] = sum
 	}
 	if len(release.Assets) == 0 {
 		log.Fatal("release has no .gz/.zip assets with digests")
@@ -79,4 +90,21 @@ func main() {
 		log.Fatal(err)
 	}
 	log.Printf("%s %s: %d assets", *kernel, *version, len(release.Assets))
+}
+
+// download hashes an asset GitHub has no digest for.
+func download(url string) (string, error) {
+	resp, err := http.Get(url)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("%s", resp.Status)
+	}
+	h := sha256.New()
+	if _, err := io.Copy(h, resp.Body); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(h.Sum(nil)), nil
 }

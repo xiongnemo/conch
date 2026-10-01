@@ -22,6 +22,7 @@ import (
 	"nautilus/internal/paths"
 	"nautilus/internal/platform/privilege"
 	"nautilus/internal/platform/service"
+	"nautilus/internal/sidecar"
 )
 
 func newDoctorCmd() *cobra.Command {
@@ -49,6 +50,14 @@ func newDoctorCmd() *cobra.Command {
 				default:
 					d.ok("profile 没有问题（%s）", pl.profilePath)
 					port, tunWanted = res.Settings.MixedPort, res.Settings.TUN.Enable
+					for _, p := range res.Proxies {
+						if sidecar.Needs(p) {
+							if _, err := kernels.Current(paths.DataDir(), sidecar.Kernel, kernels.Host().OS); err != nil {
+								d.bad("节点 %q 是 trojan-go，需要 trojan-go 程序：运行 nautilus kernel install trojan-go", p.Node.Name)
+							}
+							break
+						}
+					}
 				}
 			}
 

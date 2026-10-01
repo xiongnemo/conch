@@ -37,6 +37,7 @@ type Options struct {
 	DataDir     string
 	Backend     string // mihomo | xray; empty keeps the last one used
 	KernelBin   string // empty means the installed kernel
+	SidecarBin  string // trojan-go; empty means the installed one
 	Offline     bool   // never download subscriptions or rule lists
 	Log         io.Writer
 	DelayURL    string // what delay tests request; empty means DelayURL
@@ -78,6 +79,8 @@ type Daemon struct {
 	logLevel    atomic.Value // string: the profile's log-level
 
 	failures failures
+
+	sidecars sidecarSet
 }
 
 var backends = map[string]backend.Router{"mihomo": mihomo.Backend{}, "xray": xray.Backend{}}
@@ -173,7 +176,7 @@ func cmpOr(vs ...string) string {
 func (d *Daemon) statePath() string   { return filepath.Join(d.opts.DataDir, "state.json") }
 func (d *Daemon) managedPath() string { return ManagedPath(d.opts.ProfilePath) }
 
-// Stop ends the kernel.
+// Stop ends the kernel and its sidecars.
 func (d *Daemon) Stop() {
 	d.mu.Lock()
 	if d.stopTraffic != nil {
@@ -181,6 +184,7 @@ func (d *Daemon) Stop() {
 	}
 	d.mu.Unlock()
 	d.sup.Stop()
+	d.stopSidecars()
 }
 
 // ErrConfig wraps profile problems; the kernel keeps its last good config.
@@ -263,11 +267,20 @@ func (d *Daemon) build(ctx context.Context) (*compile.Result, *backend.Artifact,
 	res := compile.Compile(merged)
 	diags = append(diags, res.Diags...)
 	res.Select(selections)
-	diags = append(diags, backend.Check(res, d.backend.Capabilities(), d.backend.Name())...)
 	if diags.HasErrors() {
 		return res, nil, diags, nil
 	}
-	art, more := d.backend.Encode(res, backend.Options{ControllerUnix: d.socket, Lists: d.listLoader(ctx), Probes: d.probes, MinLogLevel: d.ctl.LogLevel()})
+	// Nodes the kernel cannot speak run in sidecars it reaches over SOCKS5.
+	enc, forwards, err := d.planSidecars(ctx, res)
+	if err != nil {
+		diags.Errorf(diag.Pos{}, "%v", err)
+		return res, nil, diags, nil
+	}
+	diags = append(diags, backend.Check(enc, d.backend.Capabilities(), d.backend.Name())...)
+	if diags.HasErrors() {
+		return res, nil, diags, nil
+	}
+	art, more := d.backend.Encode(enc, backend.Options{ControllerUnix: d.socket, Lists: d.listLoader(ctx), Probes: d.probes, MinLogLevel: d.ctl.LogLevel(), Forwards: forwards})
 	diags = append(diags, more...)
 	if diags.HasErrors() {
 		return res, nil, diags, nil
@@ -321,7 +334,7 @@ func (d *Daemon) apply(ctx context.Context, res *compile.Result, art *backend.Ar
 		d.res, d.art = res, art
 		d.mu.Unlock()
 		d.logLevel.Store(res.Settings.LogLevel)
-		return nil
+		return d.startSidecars()
 	}
 
 	final := filepath.Join(d.home, d.ctl.ConfigFile())
@@ -360,6 +373,9 @@ func (d *Daemon) apply(ctx context.Context, res *compile.Result, art *backend.Ar
 	d.res, d.art, d.applied, d.appliedPort = res, art, art.Config, res.Settings.MixedPort
 	d.mu.Unlock()
 	d.logLevel.Store(res.Settings.LogLevel)
+	if err := d.startSidecars(); err != nil {
+		return err
+	}
 	if restarted || d.backend.Name() == "mihomo" {
 		d.restoreSelections(ctx, res)
 	}

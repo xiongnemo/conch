@@ -40,6 +40,8 @@ func Parse(link string) (string, *proto.Spec, error) {
 		name, s, err = socks(link)
 	case "wireguard", "wg":
 		name, s, err = wireguard(link)
+	case "trojan-go":
+		name, s, err = trojanGo(link)
 	default:
 		return "", nil, fmt.Errorf("暂不支持 %s:// 链接", scheme)
 	}
@@ -53,6 +55,46 @@ func Parse(link string) (string, *proto.Spec, error) {
 		name = net.JoinHostPort(s.Server, strconv.Itoa(s.Port))
 	}
 	return name, s, nil
+}
+
+// trojan-go://password@host:port/?sni=…&type=ws&host=…&path=…&encryption=ss;aes-128-gcm;pass#name
+// is trojan-go's own scheme; such nodes run in a trojan-go sidecar.
+func trojanGo(link string) (string, *proto.Spec, error) {
+	u, err := url.Parse(link)
+	if err != nil {
+		return "", nil, err
+	}
+	s := &proto.Spec{Type: "trojan-go", UDP: true, Password: u.User.Username(), TLS: &proto.TLS{}}
+	if err := hostPort(s, u); err != nil {
+		return "", nil, err
+	}
+	q := u.Query()
+	s.TLS.SNI = q.Get("sni")
+	switch t := q.Get("type"); t {
+	case "", "original":
+	case "ws":
+		s.Transport = proto.Transport{Network: "ws", Path: cmpOr(q.Get("path"), "/"), Host: q.Get("host")}
+	default:
+		return "", nil, fmt.Errorf("不支持 trojan-go 的 %s 传输", t)
+	}
+	if enc := q.Get("encryption"); enc != "" {
+		parts := strings.SplitN(enc, ";", 3)
+		if len(parts) != 3 || parts[0] != "ss" {
+			return "", nil, fmt.Errorf("不认识的 encryption=%s（应该是 ss;加密方式;密码）", enc)
+		}
+		s.TrojanGo = &proto.TrojanGo{SSMethod: parts[1], SSPassword: parts[2]}
+	}
+	if q.Get("plugin") != "" {
+		s.Unknown = append(s.Unknown, "plugin")
+	}
+	return fragment(u), s, nil
+}
+
+func cmpOr(a, b string) string {
+	if a != "" {
+		return a
+	}
+	return b
 }
 
 // vmess:// carries base64-encoded JSON in the v2rayN format.

@@ -49,6 +49,22 @@ func ToClash(name string, s *Spec) *yaml.Node {
 		m.str("password", s.Password)
 		tlsClash(m, s.TLS, false, "sni")
 		transportClash(m, s.Transport)
+	case "trojan-go":
+		m.str("password", s.Password)
+		tlsClash(m, s.TLS, false, "sni")
+		transportClash(m, s.Transport)
+		if tg := s.TrojanGo; tg != nil {
+			if tg.SSMethod != "" {
+				ss := &mapping{n: &yaml.Node{Kind: yaml.MappingNode}}
+				ss.bool("enabled", true)
+				ss.str("method", tg.SSMethod)
+				ss.str("password", tg.SSPassword)
+				m.node("ss-opts", ss.n)
+			}
+			if tg.Mux {
+				m.bool("mux", true)
+			}
+		}
 	case "socks5", "http":
 		m.str("username", s.Username)
 		m.str("password", s.Password)

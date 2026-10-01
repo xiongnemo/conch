@@ -26,6 +26,7 @@ type Spec struct {
 
 	Hysteria  *Hysteria
 	WireGuard *WireGuard
+	TrojanGo  *TrojanGo
 	Sockopt   Sockopt
 
 	// Unknown lists source fields that have no neutral meaning (for
@@ -67,6 +68,14 @@ type Hysteria struct {
 	Up, Down     string // bandwidth, e.g. "100 mbps"
 	Ports        string // port hopping, e.g. "20000-30000"
 	HopInterval  int    // seconds
+}
+
+// TrojanGo holds what trojan-go adds to trojan; such nodes run in a
+// trojan-go sidecar.
+type TrojanGo struct {
+	SSMethod   string // an extra shadowsocks AEAD layer inside the TLS stream
+	SSPassword string
+	Mux        bool
 }
 
 type WireGuard struct {

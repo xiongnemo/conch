@@ -101,6 +101,39 @@
       }
     ]
   },
+  "trojan-go": {
+    "repo": "p4gefau1t/trojan-go",
+    "releases": [
+      {
+        "version": "v0.10.6",
+        "assets": {
+          "trojan-go-darwin-amd64.zip": "b51a368e662090bfb23ef5daaf38ad062a51b9761e1badf9760c743a108aa425",
+          "trojan-go-darwin-arm64.zip": "908f834db1b24c61a37a1d0937288b0fe24341b7e73e7de00ce4a756e5a50391",
+          "trojan-go-freebsd-386.zip": "1f9bbc0c3a3b8edf7333ed31cd22d9ab679d2edd4c02194d806bffb8a9d69abc",
+          "trojan-go-freebsd-amd64.zip": "49b88aa26d1bf6dd7b891e2dbf361a022e333591a11742563fd008bdeeedc796",
+          "trojan-go-linux-386.zip": "170eafa2f9ac62012c3fd4d56400e40cd4eb82316cc71f65d96271300ef6fb5a",
+          "trojan-go-linux-amd64.zip": "764480722783a6d76ed8401f6d2f1d87d8df7e60bf261f69c67eb94b77e732af",
+          "trojan-go-linux-arm.zip": "7f9be4f2cad913b5cd31685a0416cc42179869c3f3812dd15b5f027bd3d67a82",
+          "trojan-go-linux-armv5.zip": "7f9be4f2cad913b5cd31685a0416cc42179869c3f3812dd15b5f027bd3d67a82",
+          "trojan-go-linux-armv6.zip": "885db32064b66e94f2eb70c6a5aa46d0e44d18547d3c20e62d77273c70e7e00d",
+          "trojan-go-linux-armv7.zip": "76f20f41813df8dfc7bca46c838b99480ebfdcfac27e47cf39a54aff27518320",
+          "trojan-go-linux-armv8.zip": "42e98b97bd0715ee4c5771a953e96c829cfbf81792547ce1d67cc40eb9f35618",
+          "trojan-go-linux-mips-hardfloat.zip": "6c9f811d26ce6248f549ef261bdaaa6b3b10e8ab0a43fe56863aabb97488825c",
+          "trojan-go-linux-mips-softfloat.zip": "ee69c65305c1222942f073d71265100f997bc3f6abf597ce2da735a590f71e61",
+          "trojan-go-linux-mips64.zip": "a4f51096fff91876bfbaa361052f60d1643b80ee052bff97239d088111cee568",
+          "trojan-go-linux-mips64le.zip": "61497c5f808468ac48152f88ca0e8ea6f4e643dd1dcb97c2de48bc7026935201",
+          "trojan-go-linux-mipsle-hardfloat.zip": "a3ed8db85f054d663c650a3bd90ad37ba6a2dbdd2243412fe87b5c24105ac3f1",
+          "trojan-go-linux-mipsle-softfloat.zip": "a832d84d1acad82399b19f1ce280ee9878fe88ecc392f2ee1f76b69527da2b88",
+          "trojan-go-windows-386.zip": "530cc9380cfa4f57366d02daf09c721903557c4b3772bd23d6e6dad956e8a6a0",
+          "trojan-go-windows-amd64.zip": "c4eb4b6a44395271089bb0848daea9bc6d47552c7f2c2555dfecc14c6ea6c733",
+          "trojan-go-windows-arm.zip": "4a099d5bce0ea362574386cd939e3925a42c08a71694161057e1e8643cd9bcdd",
+          "trojan-go-windows-arm64.zip": "a2a1ae44221e57acca35d9cc9b122e905af36dc90a68c545318922f756faf2d3",
+          "trojan-go-windows-armv6.zip": "80dac48251a25f6d07246a020cde96b30ee9cceb227fd8d10c6c9960cccc4dd4",
+          "trojan-go-windows-armv7.zip": "0c458426c01e7ade743eebc4c44687cddd925a04cf40c26facd06ba05fc64229"
+        }
+      }
+    ]
+  },
   "xray": {
     "repo": "XTLS/Xray-core",
     "releases": [

@@ -132,6 +132,23 @@ func (Backend) Encode(r *compile.Result, opts backend.Options) (*backend.Artifac
 			cfg.Routing.Rules = append(internal, cfg.Routing.Rules...)
 		}
 	}
+	// Loopback inbounds for sidecars in the middle of a chain: everything
+	// they receive goes to the hop before, ahead of the user's rules.
+	var forwards []rule
+	for _, f := range opts.Forwards {
+		tag := f.Name
+		cfg.Inbounds = append(cfg.Inbounds, inbound{Tag: tag, Protocol: "socks", Listen: "127.0.0.1", Port: f.Port, Settings: mixedSettings{UDP: true}})
+		r := rule{InboundTag: []string{tag}, RuleTag: tag}
+		e.target(&r, f.Via)
+		forwards = append(forwards, r)
+	}
+	if len(forwards) > 0 {
+		n := 0
+		for n < len(cfg.Routing.Rules) && strings.HasPrefix(cfg.Routing.Rules[n].RuleTag, compile.HopSep) {
+			n++ // after the API and probe rules
+		}
+		cfg.Routing.Rules = append(cfg.Routing.Rules[:n], append(forwards, cfg.Routing.Rules[n:]...)...)
+	}
 
 	data, err := json.MarshalIndent(cfg, "", "  ")
 	if err != nil {

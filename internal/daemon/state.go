@@ -6,6 +6,8 @@ import (
 	"os"
 	"path/filepath"
 	"time"
+
+	"nautilus/internal/sidecar"
 )
 
 // State is what the daemon remembers between runs, besides the profile:
@@ -18,6 +20,9 @@ type State struct {
 	Temp       []TempRoute       `json:"temp,omitempty"`
 	SysProxy   *SysProxyState    `json:"sysproxy,omitempty"`
 	DNS        *DNSState         `json:"dns,omitempty"`
+	// Sidecars keeps each sidecar's local ports, so the kernel config does
+	// not change on every reload.
+	Sidecars map[string]sidecar.Ports `json:"sidecars,omitempty"`
 }
 
 // DNSState remembers the system resolver settings nautilus replaced for

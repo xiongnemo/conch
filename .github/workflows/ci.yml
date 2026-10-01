@@ -18,14 +18,16 @@ jobs:
         run: |
           go test ./internal/backend/... -run TestGolden -update
           test -z "$(git status --porcelain)" || { git status --porcelain; git diff; exit 1; }
-      - name: Install mihomo and xray, verified against the embedded checksums
+      - name: Install mihomo, xray and trojan-go, verified against the embedded checksums
         run: |
           go build -o /tmp/nautilus ./cmd/nautilus
           /tmp/nautilus kernel install mihomo
           /tmp/nautilus kernel install xray --geodata
+          /tmp/nautilus kernel install trojan-go
           {
             echo "NAUTILUS_MIHOMO=$(/tmp/nautilus kernel path mihomo)"
             echo "NAUTILUS_XRAY=$(/tmp/nautilus kernel path xray)"
+            echo "NAUTILUS_TROJAN_GO=$(/tmp/nautilus kernel path trojan-go)"
             echo "NAUTILUS_XRAY_ASSETS=$HOME/.local/share/nautilus/home/xray"
           } >> "$GITHUB_ENV"
       - uses: actions/setup-node@v5

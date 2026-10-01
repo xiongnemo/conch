@@ -14,6 +14,7 @@ import (
 
 //go:generate go run ./gen -kernel mihomo -repo MetaCubeX/mihomo -version v1.19.32 -file kernels.json
 //go:generate go run ./gen -kernel xray -repo XTLS/Xray-core -version v26.3.27 -file kernels.json
+//go:generate go run ./gen -kernel trojan-go -repo p4gefau1t/trojan-go -version v0.10.6 -file kernels.json
 
 //go:embed kernels.json
 var manifestJSON []byte
@@ -95,8 +96,34 @@ func AssetFor(kernel, version string, t Target) (Asset, error) {
 		return mihomoAsset(version, t)
 	case "xray":
 		return xrayAsset(t)
+	case "trojan-go":
+		return trojanGoAsset(t)
 	}
 	return Asset{}, fmt.Errorf("不认识的内核 %q", kernel)
+}
+
+// trojan-go only runs as a sidecar for trojan-go nodes; its last release
+// is v0.10.6.
+func trojanGoAsset(t Target) (Asset, error) {
+	var arch string
+	switch t.Arch {
+	case "amd64", "386", "mips64", "mips64le":
+		arch = t.Arch
+	case "arm64":
+		arch = "armv8"
+		if t.OS == "darwin" || t.OS == "windows" {
+			arch = "arm64"
+		}
+	case "arm":
+		arch = fmt.Sprintf("armv%d", t.ARM)
+	case "mips", "mipsle":
+		arch = t.Arch + "-" + t.Float
+	}
+	if arch == "" || t.OS != "linux" && t.OS != "darwin" && t.OS != "windows" && t.OS != "freebsd" {
+		return Asset{}, fmt.Errorf("trojan-go 没有 %s/%s 的安装包", t.OS, t.Arch)
+	}
+	bin := BinaryName("trojan-go", t.OS)
+	return Asset{Name: fmt.Sprintf("trojan-go-%s-%s.zip", t.OS, arch), Files: map[string]string{bin: bin}}, nil
 }
 
 func mihomoAsset(version string, t Target) (Asset, error) {

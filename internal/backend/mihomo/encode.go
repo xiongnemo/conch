@@ -66,6 +66,21 @@ func (Backend) Encode(r *compile.Result, opts backend.Options) (*backend.Artifac
 	profile.set("store-selected", boolNode(true))
 	doc.set("profile", profile.node)
 
+	if len(opts.Forwards) > 0 {
+		listeners := &yaml.Node{Kind: yaml.SequenceNode}
+		for _, f := range opts.Forwards {
+			l := newMap()
+			l.set("name", str(f.Name))
+			l.set("type", str("socks"))
+			l.set("listen", str("127.0.0.1"))
+			l.set("port", intNode(f.Port))
+			l.set("udp", boolNode(true))
+			l.set("proxy", str(f.Via)) // everything goes to the previous hop
+			listeners.Content = append(listeners.Content, l.node)
+		}
+		doc.set("listeners", listeners)
+	}
+
 	if s.DNS.Enable {
 		doc.set("dns", dnsNode(s.DNS))
 	}

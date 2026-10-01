@@ -4,6 +4,7 @@ package backend
 
 import (
 	"slices"
+	"strings"
 
 	"nautilus/internal/compile"
 	"nautilus/internal/diag"
@@ -40,6 +41,17 @@ type Options struct {
 	// MinLogLevel raises the profile's log level to at least this, for
 	// callers that read connections and failures from the kernel's output.
 	MinLogLevel string
+	// Forwards are loopback inbounds that send everything to an outbound,
+	// for sidecars in the middle of a chain.
+	Forwards []Forward
+}
+
+// Forward is a SOCKS5 inbound on 127.0.0.1:Port whose traffic all goes
+// to the outbound Via, without routing rules.
+type Forward struct {
+	Name string
+	Port int
+	Via  string
 }
 
 var logLevels = []string{"silent", "error", "warning", "info", "debug"}
@@ -97,6 +109,13 @@ func Check(r *compile.Result, caps Capabilities, backendName string) diag.List {
 		for _, key := range order {
 			lines := skipped[key]
 			d.Warnf(diag.Pos{}, "订阅 %q 中有 %d 条规则 %s 无法表达，已跳过（例如 %q）", key, len(lines), backendName, lines[0])
+		}
+	}
+	for _, p := range r.Proxies {
+		if strings.EqualFold(p.Node.View.Type, "trojan-go") {
+			// The daemon runs these in sidecars and gives backends SOCKS5 nodes.
+			d.Errorf(p.Node.Pos, "节点 %q 是 trojan-go，要由 nautilus daemon 运行 trojan-go 边车，不能单独编译成 %s 的配置", p.Node.Name, backendName)
+			break
 		}
 	}
 	if len(r.Chains) > 0 && !caps.Chains {
