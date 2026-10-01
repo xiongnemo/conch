@@ -98,8 +98,61 @@ jobs:
         shell: bash
         run: |
           go test -race -count=1 -v ./internal/backend/... ./internal/e2e ./internal/sidecar | tee e2e.log
-          # Tests skip when a kernel or the browser is missing; here that is a failure.
-          if grep -- '--- SKIP' e2e.log; then exit 1; fi
+          # Tests skip when a kernel or the browser is missing; here that is a
+          # failure. TUN has a job of its own.
+          if grep -- '--- SKIP' e2e.log | grep -v TestTUN; then exit 1; fi
+
+  # TUN and the system service need root, which the runners have. TUN runs
+  # in a network namespace with nothing but a local address, so it cannot
+  # take the runner's own network away.
+  e2e-root:
+    name: e2e (linux, root - TUN, service)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+      - name: Install mihomo and sing-box
+        run: |
+          go build -o /tmp/nautilus ./cmd/nautilus
+          /tmp/nautilus kernel install mihomo
+          /tmp/nautilus kernel install sing-box
+          {
+            echo "NAUTILUS_MIHOMO=$(/tmp/nautilus kernel path mihomo)"
+            echo "NAUTILUS_SING_BOX=$(/tmp/nautilus kernel path sing-box)"
+          } >> "$GITHUB_ENV"
+      - name: TUN, in a network namespace of its own
+        shell: bash
+        run: |
+          go test -c -o /tmp/e2e.test ./internal/e2e
+          sudo ip netns add nt
+          sudo ip -n nt link set lo up
+          sudo ip -n nt link add dummy0 type dummy
+          sudo ip -n nt addr add 10.200.0.2/24 dev dummy0
+          sudo ip -n nt link set dummy0 up
+          sudo ip -n nt route add default via 10.200.0.1 dev dummy0
+          # Programs in the namespace ask a resolver only TUN answers.
+          sudo mkdir -p /etc/netns/nt
+          echo "nameserver 10.200.0.53" | sudo tee /etc/netns/nt/resolv.conf
+          sudo ip netns exec nt env NAUTILUS_TUN_TEST=10.200.0.2 NAUTILUS_MIHOMO="$NAUTILUS_MIHOMO" NAUTILUS_SING_BOX="$NAUTILUS_SING_BOX" \
+            /tmp/e2e.test -test.run TestTUN -test.v -test.count=1 | tee tun.log
+          if grep -- '--- SKIP' tun.log; then exit 1; fi
+      - name: System service (systemd)
+        shell: bash
+        run: |
+          mkdir -p ~/.config/nautilus
+          printf 'routes: { default: DIRECT }\ninbound: { mixed-port: 7890 }\n' > ~/.config/nautilus/profile.yaml
+          printf 'NAUTILUS_PASSWORD=ci-service\n' > ~/.config/nautilus/.env
+          sudo /tmp/nautilus service install --no-agent
+          for i in $(seq 1 60); do /tmp/nautilus status 2>/dev/null | grep -q 运行中 && break; sleep 1; done
+          /tmp/nautilus status
+          /tmp/nautilus service status
+          systemctl show nautilus -p User -p AmbientCapabilities -p WorkingDirectory
+          test "$(curl -s -m 20 -x http://127.0.0.1:7890 -o /dev/null -w '%{http_code}' https://www.google.com/generate_204)" = 204
+          sudo /tmp/nautilus service uninstall
+          if systemctl is-active --quiet nautilus; then exit 1; fi
 
   # The daemon on Windows: controllers over unix sockets, Job Objects,
   # kernels' Windows builds.
