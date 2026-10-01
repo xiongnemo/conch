@@ -23,7 +23,7 @@ func TestExplainCondensesSubscriptionRules(t *testing.T) {
 	ex := &explain.Explanation{
 		Target:   "代理",
 		Matched:  ptr(imported(route.MatchDomainKeyword, "youtube", "代理")),
-		Shadowed: []explain.Hit{imported(route.MatchDomainSuffix, "youtube.com", "代理"), imported(route.MatchDomainSuffix, "youtube.com", "代理")},
+		Shadowed: []explain.Hit{imported(route.MatchDomainKeyword, "youtube", "代理"), imported(route.MatchDomainSuffix, "youtube.com", "代理"), imported(route.MatchDomainSuffix, "youtube.com", "代理")},
 		Uncertain: []explain.Hit{app("com.a", "流媒体"), app("com.b", "流媒体"), imported(route.MatchRuleSet, "geoip-cn", "DIRECT"),
 			app("com.c", "流媒体"), app("com.d", "DIRECT")},
 	}

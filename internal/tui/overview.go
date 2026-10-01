@@ -74,6 +74,9 @@ func (m *Model) overviewRows(w int) []row {
 	for _, name := range names {
 		info := s.Subscriptions[name]
 		parts := []string{}
+		if info.Summary != "" {
+			parts = append(parts, info.Summary)
+		}
 		if info.Total > 0 {
 			parts = append(parts, fmt.Sprintf("已用 %s / %s", bytesText(info.Upload+info.Download), bytesText(info.Total)))
 		}

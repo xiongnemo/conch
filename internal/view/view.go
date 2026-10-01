@@ -6,6 +6,7 @@ package view
 import (
 	"fmt"
 	"net"
+	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
@@ -147,8 +148,13 @@ func Explain(res *compile.Result, ex *explain.Explanation) Explanation {
 		v.Resolved = ex.Resolved[0].String()
 	}
 	for _, h := range ex.Shadowed {
-		// Subscriptions often repeat a rule; once is enough.
-		if line := Rule(h.Rule) + " → " + h.Rule.Target; !slices.Contains(v.Shadowed, line) {
+		// Subscriptions often repeat a rule; once is enough, and not again
+		// after the rule that won.
+		line := Rule(h.Rule) + " → " + h.Rule.Target
+		if ex.Matched != nil && line == v.Matched+" → "+ex.Matched.Rule.Target {
+			continue
+		}
+		if !slices.Contains(v.Shadowed, line) {
 			v.Shadowed = append(v.Shadowed, line)
 		}
 	}
@@ -196,7 +202,12 @@ func appRules(sub, target string, names []string) string {
 func Rule(r route.Rule) string {
 	o := r.Origin
 	where := ""
-	if s := o.Pos.String(); s != "" {
+	pos := o.Pos
+	pos.File = filepath.Base(pos.File) // profile.yaml:3 is enough to find it
+	if pos.File == "." {
+		pos.File = ""
+	}
+	if s := pos.String(); s != "" {
 		where = "（" + s + "）"
 	}
 	switch {

@@ -40,8 +40,9 @@ async function api(method, path, body) {
     body: body ? JSON.stringify(body) : undefined,
   });
   if (res.status === 401) {
-    showLogin();
-    throw new APIError(401, { error: "需要登录" });
+    const data = await res.json().catch(() => ({}));
+    if (path !== "/login") showLogin();
+    throw new APIError(401, { error: data.error || "需要登录" });
   }
   const data = res.status === 204 ? null : await res.json().catch(() => ({}));
   if (!res.ok) throw new APIError(res.status, data || {});
@@ -109,7 +110,12 @@ for (const b of document.querySelectorAll("#modes button")) {
 
 // ---- formatting ----
 
-function bytes(n) {
+// Dates and times as the CLI prints them, whatever language the browser uses.
+const pad = (n) => String(n).padStart(2, "0");
+const dateText = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const timeText = (d) => `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+
+function bytes(n = 0) {
   const units = ["B", "KB", "MB", "GB", "TB"];
   let i = 0;
   while (n >= 1024 && i < units.length - 1) { n /= 1024; i++; }
@@ -145,11 +151,21 @@ function renderStatus(s) {
 
   const subs = Object.entries(s.subscriptions || {});
   fill($("#subs"), ...(subs.length ? subs.map(([name, info]) => {
-    const parts = [name];
-    if (info.total) parts.push(`已用 ${bytes(info.upload + info.download)} / ${bytes(info.total)}`);
-    if (info.expire) parts.push(`到期 ${new Date(info.expire * 1000).toLocaleDateString()}`);
-    if (info.fetchedAt) parts.push(`更新于 ${new Date(info.fetchedAt).toLocaleString()}`);
-    return h("p", {}, parts.join(" · "), " ", h("button", { onclick: () => api("POST", `/subscriptions/${encodeURIComponent(name)}/update`).then(renderStatus).catch(showError) }, "更新"));
+    const parts = [info.summary ? `${name}：${info.summary}` : name];
+    if (info.total) parts.push(`已用 ${bytes((info.upload || 0) + (info.download || 0))} / ${bytes(info.total)}`);
+    if (info.expire) parts.push(`到期 ${dateText(new Date(info.expire * 1000))}`);
+    if (info.fetchedAt) {
+      const at = new Date(info.fetchedAt);
+      parts.push(`更新于 ${dateText(at)} ${timeText(at)}`);
+    }
+    const update = (e) => {
+      const b = e.currentTarget;
+      b.disabled = true;
+      b.textContent = "更新中…";
+      api("POST", `/subscriptions/${encodeURIComponent(name)}/update`).then(renderStatus).catch(showError)
+        .finally(() => { b.disabled = false; b.textContent = "更新"; });
+    };
+    return h("p", {}, parts.join(" · "), " ", h("button", { onclick: update }, "更新"));
   }) : ["没有订阅"]));
 }
 
@@ -317,7 +333,7 @@ function routeRow(e, extra = "") {
     h("td", {}, e.via, extra),
     h("td", {},
       e.expires
-        ? h("div", { class: "temp" }, "临时，到 " + new Date(e.expires).toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit", hour12: false }))
+        ? h("div", { class: "temp" }, "临时，到 " + timeText(new Date(e.expires)))
         : h("div", { class: "src" }, e.source || ""),
       del),
   );
@@ -435,7 +451,7 @@ async function loadPairings() {
   const list = await api("GET", "/pairings").catch(() => []);
   fill($("#pairings"), list.length ? h("table", {}, h("tbody", {}, list.map((p) => h("tr", {},
     h("td", {}, p.name, h("div", { class: "src" }, p.origin || "")),
-    h("td", {}, h("div", { class: "src" }, "配对于 " + new Date(p.created).toLocaleString("zh-CN", { hour12: false }))),
+    h("td", {}, h("div", { class: "src" }, "配对于 " + dateText(new Date(p.created)) + " " + timeText(new Date(p.created)))),
     h("td", {}, h("button", { onclick: () => api("DELETE", `/pairings/${encodeURIComponent(p.id)}`).then(loadPairings).catch(showError) }, "取消配对")))))) : null);
 }
 
