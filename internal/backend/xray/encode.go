@@ -284,17 +284,41 @@ func (e *encoder) rules() []rule {
 		return nil // global and direct only use the default route
 	}
 	var out []rule
-	for i, r := range e.r.Rules {
+	for i := 0; i < len(e.r.Rules); i++ {
+		r := e.r.Rules[i]
+		// A subscription's consecutive domain (or IP) rules to one exit
+		// share an xray rule: xray takes seconds to start on thousands of
+		// one-domain rules, and it restarts on every change. So do the
+		// rules of the built-in lan entry.
+		if kind := mergeKind(r); kind != "" {
+			last := i
+			for last+1 < len(e.r.Rules) && mergeKind(e.r.Rules[last+1]) == kind &&
+				e.r.Rules[last+1].Target == r.Target && e.r.Rules[last+1].Origin.Key == r.Origin.Key {
+				last++
+			}
+			if last > i {
+				var x rule
+				for _, m := range e.r.Rules[i : last+1] {
+					if kind == "ip" {
+						x.IP = append(x.IP, m.Value)
+					} else {
+						x.Domain = append(x.Domain, domainMatch(m))
+					}
+				}
+				x.RuleTag = fmt.Sprintf("#%d-%d %s", i, last, tagKey(r.Origin.Key))
+				e.target(&x, r.Target)
+				out = append(out, x)
+				e.manifestRule(i, last, r, x)
+				i = last
+				continue
+			}
+		}
 		var xs []rule
 		switch r.Match {
 		case route.MatchProcessName, route.MatchProcessPath:
 			xs = []rule{{Process: []string{r.Value}}}
-		case route.MatchDomain:
-			xs = []rule{{Domain: []string{"full:" + r.Value}}}
-		case route.MatchDomainSuffix:
-			xs = []rule{{Domain: []string{"domain:" + r.Value}}}
-		case route.MatchDomainKeyword:
-			xs = []rule{{Domain: []string{"keyword:" + r.Value}}}
+		case route.MatchDomain, route.MatchDomainSuffix, route.MatchDomainKeyword:
+			xs = []rule{{Domain: []string{domainMatch(r)}}}
 		case route.MatchIPCIDR:
 			xs = []rule{{IP: []string{r.Value}}}
 		case route.MatchRuleSet:
@@ -319,39 +343,79 @@ func (e *encoder) rules() []rule {
 			x.RuleTag = ruleTag(i, k, r.Origin.Key)
 			e.target(&x, r.Target)
 			out = append(out, x)
-			data, _ := json.Marshal(x)
-			e.manifest.Rules = append(e.manifest.Rules, backend.ManifestRule{
-				Index:   i,
-				Rule:    string(data),
-				Tag:     x.RuleTag,
-				Tier:    r.Origin.Tier.String(),
-				Key:     r.Origin.Key,
-				Source:  r.Origin.Pos.String(),
-				Builtin: r.Origin.Builtin,
-			})
+			e.manifestRule(i, i, r, x)
 		}
 	}
 	return out
+}
+
+// mergeKind says what a subscription's (or the built-in lan entry's) rule
+// matches when it can share an xray rule with its neighbours: "domain" or
+// "ip"; "" when it cannot.
+func mergeKind(r route.Rule) string {
+	if !r.Origin.Imported && !r.Origin.Builtin {
+		return "" // the user's entries keep their own rules, for explanations
+	}
+	switch r.Match {
+	case route.MatchDomain, route.MatchDomainSuffix, route.MatchDomainKeyword:
+		return "domain"
+	case route.MatchIPCIDR:
+		return "ip"
+	}
+	return ""
+}
+
+func domainMatch(r route.Rule) string {
+	switch r.Match {
+	case route.MatchDomain:
+		return "full:" + r.Value
+	case route.MatchDomainKeyword:
+		return "keyword:" + r.Value
+	}
+	return "domain:" + r.Value
+}
+
+// manifestRule records the compiled rules first to last that x stands for.
+func (e *encoder) manifestRule(first, last int, r route.Rule, x rule) {
+	data, _ := json.Marshal(x)
+	mr := backend.ManifestRule{
+		Index:   first,
+		Rule:    string(data),
+		Tag:     x.RuleTag,
+		Tier:    r.Origin.Tier.String(),
+		Key:     r.Origin.Key,
+		Source:  r.Origin.Pos.String(),
+		Builtin: r.Origin.Builtin,
+	}
+	if last > first {
+		mr.Last = last
+	}
+	e.manifest.Rules = append(e.manifest.Rules, mr)
 }
 
 // ruleTag names a rule after the compiled rule it came from. xray logs the
 // tag of the rule each connection matched, which is how nautilus explains
 // connections, and the key keeps xray's own log readable.
 func ruleTag(index, part int, key string) string {
-	key = strings.NewReplacer("[", "", "]", "").Replace(key)
+	key = tagKey(key)
 	if part == 0 {
 		return fmt.Sprintf("#%d %s", index, key)
 	}
 	return fmt.Sprintf("#%d.%d %s", index, part+1, key)
 }
 
-// RuleIndex reads the compiled rule index back from a rule tag.
+// tagKey keeps brackets out of tags: xray logs them in brackets.
+func tagKey(key string) string {
+	return strings.NewReplacer("[", "", "]", "").Replace(key)
+}
+
+// RuleIndex reads the (first) compiled rule index back from a rule tag.
 func RuleIndex(tag string) (int, bool) {
 	rest, ok := strings.CutPrefix(tag, "#")
 	if !ok {
 		return 0, false
 	}
-	end := strings.IndexAny(rest, ". ")
+	end := strings.IndexAny(rest, ".- ")
 	if end < 0 {
 		end = len(rest)
 	}

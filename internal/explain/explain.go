@@ -102,12 +102,7 @@ func (e *Explainer) Explain(q Query) *Explanation {
 		}
 		return ex
 	}
-	c := &conn{q: q, host: strings.ToLower(strings.TrimSuffix(q.Host, "."))}
-	if a, err := netip.ParseAddr(c.host); err == nil {
-		c.ip = a.Unmap()
-	} else {
-		c.domain = true
-	}
+	c := newConn(q)
 	resolve := func() bool {
 		if c.ip.IsValid() {
 			return true
@@ -212,6 +207,27 @@ type conn struct {
 	host   string
 	domain bool       // the host is a name, not an IP literal
 	ip     netip.Addr // the literal, or the resolved address once known
+}
+
+func newConn(q Query) *conn {
+	c := &conn{q: q, host: strings.ToLower(strings.TrimSuffix(q.Host, "."))}
+	if a, err := netip.ParseAddr(c.host); err == nil {
+		c.ip = a.Unmap()
+	} else {
+		c.domain = true
+	}
+	return c
+}
+
+// Matches reports whether a domain, keyword or IP rule matches host as
+// written, without resolving it or reading lists.
+func Matches(r route.Rule, host string) bool {
+	switch r.Match {
+	case route.MatchDomain, route.MatchDomainSuffix, route.MatchDomainKeyword, route.MatchIPCIDR:
+		v, _ := (&Explainer{}).match(r, newConn(Query{Host: host}))
+		return v == yes
+	}
+	return false
 }
 
 // match decides one rule. Domain rules need a host name; IP rules need an

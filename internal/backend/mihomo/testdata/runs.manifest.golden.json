@@ -1,0 +1,213 @@
+{
+  "backend": "mihomo",
+  "proxies": [
+    {
+      "name": "B1",
+      "kind": "node",
+      "node": "B1"
+    },
+    {
+      "name": "B2",
+      "kind": "node",
+      "node": "B2"
+    }
+  ],
+  "rules": [
+    {
+      "index": 0,
+      "rule": "DOMAIN-SUFFIX,a.example,DIRECT",
+      "tier": "domain",
+      "key": "a.example",
+      "source": "../testdata/runs.profile.yaml:9"
+    },
+    {
+      "index": 1,
+      "rule": "DOMAIN-SUFFIX,g.example,代理",
+      "tier": "domain",
+      "key": "g.example",
+      "source": "../testdata/runs.profile.yaml:10"
+    },
+    {
+      "index": 2,
+      "rule": "DOMAIN-SUFFIX,home.arpa,DIRECT",
+      "tier": "domain",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 3,
+      "rule": "DOMAIN-SUFFIX,lan,DIRECT",
+      "tier": "domain",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 4,
+      "rule": "DOMAIN-SUFFIX,local,DIRECT",
+      "tier": "domain",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 5,
+      "rule": "DOMAIN-SUFFIX,localhost,DIRECT",
+      "tier": "domain",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 6,
+      "rule": "IP-CIDR6,::1/128,DIRECT,no-resolve",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 7,
+      "rule": "IP-CIDR,255.255.255.255/32,DIRECT,no-resolve",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 8,
+      "rule": "IP-CIDR,169.254.0.0/16,DIRECT,no-resolve",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 9,
+      "rule": "IP-CIDR,192.168.0.0/16,DIRECT,no-resolve",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 10,
+      "rule": "IP-CIDR,172.16.0.0/12,DIRECT,no-resolve",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 11,
+      "rule": "IP-CIDR,100.64.0.0/10,DIRECT,no-resolve",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 12,
+      "rule": "IP-CIDR6,fe80::/10,DIRECT,no-resolve",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 13,
+      "rule": "IP-CIDR,0.0.0.0/8,DIRECT,no-resolve",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 14,
+      "rule": "IP-CIDR,10.0.0.0/8,DIRECT,no-resolve",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 15,
+      "rule": "IP-CIDR,127.0.0.0/8,DIRECT,no-resolve",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 16,
+      "rule": "IP-CIDR6,ff00::/8,DIRECT,no-resolve",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 17,
+      "rule": "IP-CIDR6,fc00::/7,DIRECT,no-resolve",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 18,
+      "rule": "IP-CIDR,224.0.0.0/4,DIRECT,no-resolve",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 19,
+      "rule": "DOMAIN-SUFFIX,a.example,代理",
+      "tier": "list",
+      "key": "rules-b",
+      "source": "../testdata/runs.profile.yaml:12"
+    },
+    {
+      "index": 20,
+      "rule": "DOMAIN,b.example,代理",
+      "tier": "list",
+      "key": "rules-b",
+      "source": "../testdata/runs.profile.yaml:12"
+    },
+    {
+      "index": 21,
+      "rule": "DOMAIN-KEYWORD,cexample,代理",
+      "tier": "list",
+      "key": "rules-b",
+      "source": "../testdata/runs.profile.yaml:12"
+    },
+    {
+      "index": 22,
+      "rule": "DOMAIN-SUFFIX,d.example,DIRECT",
+      "tier": "list",
+      "key": "rules-b",
+      "source": "../testdata/runs.profile.yaml:12"
+    },
+    {
+      "index": 23,
+      "rule": "IP-CIDR,192.0.2.0/24,DIRECT,no-resolve",
+      "tier": "list",
+      "key": "rules-b",
+      "source": "../testdata/runs.profile.yaml:12"
+    },
+    {
+      "index": 24,
+      "rule": "IP-CIDR,198.51.100.0/24,DIRECT,no-resolve",
+      "tier": "list",
+      "key": "rules-b",
+      "source": "../testdata/runs.profile.yaml:12"
+    },
+    {
+      "index": 25,
+      "rule": "DOMAIN-SUFFIX,e.example,DIRECT",
+      "tier": "list",
+      "key": "rules-b",
+      "source": "../testdata/runs.profile.yaml:12"
+    },
+    {
+      "index": 26,
+      "rule": "DOMAIN-SUFFIX,f.example,代理",
+      "tier": "list",
+      "key": "rules-b",
+      "source": "../testdata/runs.profile.yaml:12"
+    },
+    {
+      "index": 27,
+      "rule": "MATCH,代理",
+      "tier": "default",
+      "key": "default",
+      "source": "../testdata/runs.profile.yaml:7"
+    }
+  ]
+}

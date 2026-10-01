@@ -1,0 +1,12 @@
+# A subscription's rules in runs to one exit; the user's own entries stay
+# rules of their own.
+subscriptions:
+  - { name: rules-b, url: "https://example.com/rules-b", import: [nodes, groups, rules] }
+
+routes:
+  default: 代理
+  entries:
+    a.example: DIRECT
+    g.example: 代理
+  lists:
+    - { list: rules-b }

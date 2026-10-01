@@ -49,136 +49,18 @@
     },
     {
       "index": 2,
-      "rule": "{\"domain\":[\"domain:home.arpa\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#2 lan\"}",
-      "tag": "#2 lan",
-      "tier": "domain",
-      "key": "lan",
-      "builtin": true
-    },
-    {
-      "index": 3,
-      "rule": "{\"domain\":[\"domain:lan\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#3 lan\"}",
-      "tag": "#3 lan",
-      "tier": "domain",
-      "key": "lan",
-      "builtin": true
-    },
-    {
-      "index": 4,
-      "rule": "{\"domain\":[\"domain:local\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#4 lan\"}",
-      "tag": "#4 lan",
-      "tier": "domain",
-      "key": "lan",
-      "builtin": true
-    },
-    {
-      "index": 5,
-      "rule": "{\"domain\":[\"domain:localhost\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#5 lan\"}",
-      "tag": "#5 lan",
+      "last": 5,
+      "rule": "{\"domain\":[\"domain:home.arpa\",\"domain:lan\",\"domain:local\",\"domain:localhost\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#2-5 lan\"}",
+      "tag": "#2-5 lan",
       "tier": "domain",
       "key": "lan",
       "builtin": true
     },
     {
       "index": 6,
-      "rule": "{\"ip\":[\"::1/128\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#6 lan\"}",
-      "tag": "#6 lan",
-      "tier": "ip",
-      "key": "lan",
-      "builtin": true
-    },
-    {
-      "index": 7,
-      "rule": "{\"ip\":[\"255.255.255.255/32\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#7 lan\"}",
-      "tag": "#7 lan",
-      "tier": "ip",
-      "key": "lan",
-      "builtin": true
-    },
-    {
-      "index": 8,
-      "rule": "{\"ip\":[\"169.254.0.0/16\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#8 lan\"}",
-      "tag": "#8 lan",
-      "tier": "ip",
-      "key": "lan",
-      "builtin": true
-    },
-    {
-      "index": 9,
-      "rule": "{\"ip\":[\"192.168.0.0/16\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#9 lan\"}",
-      "tag": "#9 lan",
-      "tier": "ip",
-      "key": "lan",
-      "builtin": true
-    },
-    {
-      "index": 10,
-      "rule": "{\"ip\":[\"172.16.0.0/12\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#10 lan\"}",
-      "tag": "#10 lan",
-      "tier": "ip",
-      "key": "lan",
-      "builtin": true
-    },
-    {
-      "index": 11,
-      "rule": "{\"ip\":[\"100.64.0.0/10\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#11 lan\"}",
-      "tag": "#11 lan",
-      "tier": "ip",
-      "key": "lan",
-      "builtin": true
-    },
-    {
-      "index": 12,
-      "rule": "{\"ip\":[\"fe80::/10\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#12 lan\"}",
-      "tag": "#12 lan",
-      "tier": "ip",
-      "key": "lan",
-      "builtin": true
-    },
-    {
-      "index": 13,
-      "rule": "{\"ip\":[\"0.0.0.0/8\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#13 lan\"}",
-      "tag": "#13 lan",
-      "tier": "ip",
-      "key": "lan",
-      "builtin": true
-    },
-    {
-      "index": 14,
-      "rule": "{\"ip\":[\"10.0.0.0/8\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#14 lan\"}",
-      "tag": "#14 lan",
-      "tier": "ip",
-      "key": "lan",
-      "builtin": true
-    },
-    {
-      "index": 15,
-      "rule": "{\"ip\":[\"127.0.0.0/8\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#15 lan\"}",
-      "tag": "#15 lan",
-      "tier": "ip",
-      "key": "lan",
-      "builtin": true
-    },
-    {
-      "index": 16,
-      "rule": "{\"ip\":[\"ff00::/8\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#16 lan\"}",
-      "tag": "#16 lan",
-      "tier": "ip",
-      "key": "lan",
-      "builtin": true
-    },
-    {
-      "index": 17,
-      "rule": "{\"ip\":[\"fc00::/7\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#17 lan\"}",
-      "tag": "#17 lan",
-      "tier": "ip",
-      "key": "lan",
-      "builtin": true
-    },
-    {
-      "index": 18,
-      "rule": "{\"ip\":[\"224.0.0.0/4\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#18 lan\"}",
-      "tag": "#18 lan",
+      "last": 18,
+      "rule": "{\"ip\":[\"::1/128\",\"255.255.255.255/32\",\"169.254.0.0/16\",\"192.168.0.0/16\",\"172.16.0.0/12\",\"100.64.0.0/10\",\"fe80::/10\",\"0.0.0.0/8\",\"10.0.0.0/8\",\"127.0.0.0/8\",\"ff00::/8\",\"fc00::/7\",\"224.0.0.0/4\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#6-18 lan\"}",
+      "tag": "#6-18 lan",
       "tier": "ip",
       "key": "lan",
       "builtin": true

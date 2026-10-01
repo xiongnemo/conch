@@ -1,11 +1,16 @@
 package daemon
 
 import (
+	"context"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
+	"nautilus/internal/backend"
+	"nautilus/internal/compile"
 	"nautilus/internal/control"
+	"nautilus/internal/route"
 )
 
 func TestFailures(t *testing.T) {
@@ -57,5 +62,40 @@ func TestSuggest(t *testing.T) {
 		if got := Suggest(host); !slices.Equal(got, want) {
 			t.Errorf("Suggest(%q) = %q, want %q", host, got, want)
 		}
+	}
+}
+
+type fakeConns struct {
+	control.Kernel
+	conns []control.Connection
+}
+
+func (f fakeConns) Connections(context.Context) ([]control.Connection, error) { return f.conns, nil }
+
+// xray gets one rule for a subscription's run of rules; a connection still
+// names the rule that matched, or the run when its host does not tell.
+func TestConnectionsInMergedRules(t *testing.T) {
+	sub := route.Origin{Key: "机场", Imported: true}
+	res := &compile.Result{Settings: compile.Settings{Mode: "rule"}, Rules: []route.Rule{
+		{Match: route.MatchDomainSuffix, Value: "a.example", Target: "代理", Origin: sub},
+		{Match: route.MatchDomainSuffix, Value: "b.example", Target: "代理", Origin: sub},
+		{Match: route.MatchFinal, Target: "代理", Origin: route.Origin{Tier: route.TierDefault, Key: "default"}},
+	}}
+	art := &backend.Artifact{Manifest: &backend.Manifest{Rules: []backend.ManifestRule{{Index: 0, Last: 1, Tag: "#0-1 机场"}}}}
+	d := &Daemon{ctl: fakeConns{conns: []control.Connection{
+		{ID: "1", Host: "www.b.example", RuleTag: "#0-1 机场", Chains: []string{"B1"}},
+		{ID: "2", Host: "203.0.113.9", RuleTag: "#0-1 机场", Chains: []string{"B1"}},
+	}}, res: res, art: art}
+	conns, err := d.Connections(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := map[string]string{}
+	for _, c := range conns {
+		got[c.ID] = c.Matched + " → " + strings.Join(c.Via, " → ")
+	}
+	want := map[string]string{"1": "订阅 机场 的规则 域名后缀 b.example → 代理 → B1", "2": "订阅 机场 的 2 条规则之一 → 代理 → B1"}
+	if got["1"] != want["1"] || got["2"] != want["2"] {
+		t.Errorf("connections = %q, want %q", got, want)
 	}
 }

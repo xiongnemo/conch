@@ -13,6 +13,7 @@ import (
 	"nautilus/internal/backend"
 	"nautilus/internal/compile"
 	"nautilus/internal/control"
+	"nautilus/internal/explain"
 	"nautilus/internal/route"
 	"nautilus/internal/view"
 )
@@ -42,13 +43,13 @@ func (d *Daemon) Connections(ctx context.Context) ([]Connection, error) {
 		}
 		return out, nil
 	}
-	byLine, byTag := map[string]int{}, map[string]int{}
+	byLine, byTag := map[string]int{}, map[string][2]int{}
 	for _, mr := range art.Manifest.Rules {
-		if mr.Index >= len(res.Rules) {
+		if max(mr.Index, mr.Last) >= len(res.Rules) {
 			continue
 		}
 		if mr.Tag != "" {
-			byTag[mr.Tag] = mr.Index
+			byTag[mr.Tag] = [2]int{mr.Index, max(mr.Last, mr.Index)}
 			continue
 		}
 		fields := strings.Split(mr.Rule, ",")
@@ -61,8 +62,20 @@ func (d *Daemon) Connections(ctx context.Context) ([]Connection, error) {
 	final := slices.IndexFunc(res.Rules, func(r route.Rule) bool { return r.Match == route.MatchFinal })
 	names := kernelNames(art)
 	for _, c := range conns {
-		idx, ok := byTag[c.RuleTag]
-		if !ok {
+		idx, ok, merged := 0, false, 0
+		if span, found := byTag[c.RuleTag]; found {
+			// A kernel rule merged from several (xray): the one that matches.
+			idx, ok = span[0], true
+			if span[1] > span[0] {
+				merged = span[1] - span[0] + 1
+				for i := span[0]; i <= span[1]; i++ {
+					if explain.Matches(res.Rules[i], c.Host) {
+						idx, merged = i, 0
+						break
+					}
+				}
+			}
+		} else {
 			idx, ok = byLine[ruleKey(c.Rule, c.RulePayload)]
 		}
 		if !ok && strings.EqualFold(c.Rule, "match") && final >= 0 {
@@ -78,6 +91,11 @@ func (d *Daemon) Connections(ctx context.Context) ([]Connection, error) {
 		switch {
 		case res.Settings.Mode != "rule":
 			matched = fmt.Sprintf("当前是 %s 模式", res.Settings.Mode)
+		case ok && merged > 0:
+			matched = fmt.Sprintf("订阅 %s 的 %d 条规则之一", res.Rules[idx].Origin.Key, merged)
+			if target := res.Rules[idx].Target; len(via) == 0 || via[0] != target {
+				via = append([]string{target}, via...)
+			}
 		case ok:
 			matched = view.Rule(res.Rules[idx])
 			// Rules that send traffic to a group straight to its balancer

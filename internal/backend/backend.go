@@ -173,9 +173,10 @@ type ManifestProxy struct {
 }
 
 type ManifestRule struct {
-	Index   int    `json:"index"`         // in compile.Result.Rules
-	Rule    string `json:"rule"`          // as emitted
-	Tag     string `json:"tag,omitempty"` // the kernel's name for the rule, where it has one
+	Index   int    `json:"index"`          // in compile.Result.Rules
+	Last    int    `json:"last,omitempty"` // a kernel rule merged from Index to Last
+	Rule    string `json:"rule"`           // as emitted
+	Tag     string `json:"tag,omitempty"`  // the kernel's name for the rule, where it has one
 	Tier    string `json:"tier"`
 	Key     string `json:"key"`
 	Source  string `json:"source,omitempty"` // file:line

@@ -214,38 +214,20 @@
       },
       {
         "domain": [
-          "domain:lan"
-        ],
-        "outboundTag": "DIRECT",
-        "ruleTag": "#7 lan"
-      },
-      {
-        "domain": [
-          "domain:local"
-        ],
-        "outboundTag": "DIRECT",
-        "ruleTag": "#8 lan"
-      },
-      {
-        "domain": [
+          "domain:lan",
+          "domain:local",
           "domain:localhost"
         ],
         "outboundTag": "DIRECT",
-        "ruleTag": "#9 lan"
+        "ruleTag": "#7-9 lan"
       },
       {
         "ip": [
-          "::1/128"
-        ],
-        "outboundTag": "DIRECT",
-        "ruleTag": "#10 lan"
-      },
-      {
-        "ip": [
+          "::1/128",
           "255.255.255.255/32"
         ],
         "outboundTag": "DIRECT",
-        "ruleTag": "#11 lan"
+        "ruleTag": "#10-11 lan"
       },
       {
         "ip": [
@@ -256,45 +238,15 @@
       },
       {
         "ip": [
-          "169.254.0.0/16"
-        ],
-        "outboundTag": "DIRECT",
-        "ruleTag": "#13 lan"
-      },
-      {
-        "ip": [
-          "192.168.0.0/16"
-        ],
-        "outboundTag": "DIRECT",
-        "ruleTag": "#14 lan"
-      },
-      {
-        "ip": [
-          "172.16.0.0/12"
-        ],
-        "outboundTag": "DIRECT",
-        "ruleTag": "#15 lan"
-      },
-      {
-        "ip": [
-          "100.64.0.0/10"
-        ],
-        "outboundTag": "DIRECT",
-        "ruleTag": "#16 lan"
-      },
-      {
-        "ip": [
-          "fe80::/10"
-        ],
-        "outboundTag": "DIRECT",
-        "ruleTag": "#17 lan"
-      },
-      {
-        "ip": [
+          "169.254.0.0/16",
+          "192.168.0.0/16",
+          "172.16.0.0/12",
+          "100.64.0.0/10",
+          "fe80::/10",
           "0.0.0.0/8"
         ],
         "outboundTag": "DIRECT",
-        "ruleTag": "#18 lan"
+        "ruleTag": "#13-18 lan"
       },
       {
         "ip": [
@@ -305,31 +257,13 @@
       },
       {
         "ip": [
-          "127.0.0.0/8"
-        ],
-        "outboundTag": "DIRECT",
-        "ruleTag": "#20 lan"
-      },
-      {
-        "ip": [
-          "ff00::/8"
-        ],
-        "outboundTag": "DIRECT",
-        "ruleTag": "#21 lan"
-      },
-      {
-        "ip": [
-          "fc00::/7"
-        ],
-        "outboundTag": "DIRECT",
-        "ruleTag": "#22 lan"
-      },
-      {
-        "ip": [
+          "127.0.0.0/8",
+          "ff00::/8",
+          "fc00::/7",
           "224.0.0.0/4"
         ],
         "outboundTag": "DIRECT",
-        "ruleTag": "#23 lan"
+        "ruleTag": "#20-23 lan"
       },
       {
         "domain": [

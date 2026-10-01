@@ -1,0 +1,96 @@
+{
+  "backend": "xray",
+  "proxies": [
+    {
+      "name": "B1",
+      "kind": "node",
+      "node": "B1"
+    },
+    {
+      "name": "B2",
+      "kind": "node",
+      "node": "B2"
+    }
+  ],
+  "rules": [
+    {
+      "index": 0,
+      "rule": "{\"domain\":[\"domain:a.example\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#0 a.example\"}",
+      "tag": "#0 a.example",
+      "tier": "domain",
+      "key": "a.example",
+      "source": "../testdata/runs.profile.yaml:9"
+    },
+    {
+      "index": 1,
+      "rule": "{\"domain\":[\"domain:g.example\"],\"balancerTag\":\"代理\",\"ruleTag\":\"#1 g.example\"}",
+      "tag": "#1 g.example",
+      "tier": "domain",
+      "key": "g.example",
+      "source": "../testdata/runs.profile.yaml:10"
+    },
+    {
+      "index": 2,
+      "last": 5,
+      "rule": "{\"domain\":[\"domain:home.arpa\",\"domain:lan\",\"domain:local\",\"domain:localhost\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#2-5 lan\"}",
+      "tag": "#2-5 lan",
+      "tier": "domain",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 6,
+      "last": 18,
+      "rule": "{\"ip\":[\"::1/128\",\"255.255.255.255/32\",\"169.254.0.0/16\",\"192.168.0.0/16\",\"172.16.0.0/12\",\"100.64.0.0/10\",\"fe80::/10\",\"0.0.0.0/8\",\"10.0.0.0/8\",\"127.0.0.0/8\",\"ff00::/8\",\"fc00::/7\",\"224.0.0.0/4\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#6-18 lan\"}",
+      "tag": "#6-18 lan",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 19,
+      "last": 21,
+      "rule": "{\"domain\":[\"domain:a.example\",\"full:b.example\",\"keyword:cexample\"],\"balancerTag\":\"代理\",\"ruleTag\":\"#19-21 rules-b\"}",
+      "tag": "#19-21 rules-b",
+      "tier": "list",
+      "key": "rules-b",
+      "source": "../testdata/runs.profile.yaml:12"
+    },
+    {
+      "index": 22,
+      "rule": "{\"domain\":[\"domain:d.example\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#22 rules-b\"}",
+      "tag": "#22 rules-b",
+      "tier": "list",
+      "key": "rules-b",
+      "source": "../testdata/runs.profile.yaml:12"
+    },
+    {
+      "index": 23,
+      "last": 24,
+      "rule": "{\"ip\":[\"192.0.2.0/24\",\"198.51.100.0/24\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#23-24 rules-b\"}",
+      "tag": "#23-24 rules-b",
+      "tier": "list",
+      "key": "rules-b",
+      "source": "../testdata/runs.profile.yaml:12"
+    },
+    {
+      "index": 25,
+      "rule": "{\"domain\":[\"domain:e.example\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#25 rules-b\"}",
+      "tag": "#25 rules-b",
+      "tier": "list",
+      "key": "rules-b",
+      "source": "../testdata/runs.profile.yaml:12"
+    },
+    {
+      "index": 26,
+      "rule": "{\"domain\":[\"domain:f.example\"],\"balancerTag\":\"代理\",\"ruleTag\":\"#26 rules-b\"}",
+      "tag": "#26 rules-b",
+      "tier": "list",
+      "key": "rules-b",
+      "source": "../testdata/runs.profile.yaml:12"
+    }
+  ],
+  "tags": {
+    "REJECT": "REJECT»"
+  }
+}

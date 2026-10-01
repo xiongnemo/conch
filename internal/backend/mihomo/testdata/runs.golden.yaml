@@ -1,0 +1,59 @@
+# 由 nautilus 生成，请不要手动修改；需要改动时请编辑 profile.yaml
+
+mixed-port: 7890
+allow-lan: false
+mode: rule
+log-level: info
+profile:
+  store-selected: true
+proxies:
+  - name: B1
+    type: socks5
+    server: 192.0.2.21
+    port: 1080
+  - name: B2
+    type: socks5
+    server: 192.0.2.22
+    port: 1080
+proxy-groups:
+  - name: 代理
+    type: select
+    proxies:
+      - B1
+      - B2
+  - name: GLOBAL
+    type: select
+    proxies:
+      - 代理
+      - B1
+      - B2
+      - DIRECT
+rules:
+  - DOMAIN-SUFFIX,a.example,DIRECT
+  - DOMAIN-SUFFIX,g.example,代理
+  - DOMAIN-SUFFIX,home.arpa,DIRECT
+  - DOMAIN-SUFFIX,lan,DIRECT
+  - DOMAIN-SUFFIX,local,DIRECT
+  - DOMAIN-SUFFIX,localhost,DIRECT
+  - IP-CIDR6,::1/128,DIRECT,no-resolve
+  - IP-CIDR,255.255.255.255/32,DIRECT,no-resolve
+  - IP-CIDR,169.254.0.0/16,DIRECT,no-resolve
+  - IP-CIDR,192.168.0.0/16,DIRECT,no-resolve
+  - IP-CIDR,172.16.0.0/12,DIRECT,no-resolve
+  - IP-CIDR,100.64.0.0/10,DIRECT,no-resolve
+  - IP-CIDR6,fe80::/10,DIRECT,no-resolve
+  - IP-CIDR,0.0.0.0/8,DIRECT,no-resolve
+  - IP-CIDR,10.0.0.0/8,DIRECT,no-resolve
+  - IP-CIDR,127.0.0.0/8,DIRECT,no-resolve
+  - IP-CIDR6,ff00::/8,DIRECT,no-resolve
+  - IP-CIDR6,fc00::/7,DIRECT,no-resolve
+  - IP-CIDR,224.0.0.0/4,DIRECT,no-resolve
+  - DOMAIN-SUFFIX,a.example,代理
+  - DOMAIN,b.example,代理
+  - DOMAIN-KEYWORD,cexample,代理
+  - DOMAIN-SUFFIX,d.example,DIRECT
+  - IP-CIDR,192.0.2.0/24,DIRECT,no-resolve
+  - IP-CIDR,198.51.100.0/24,DIRECT,no-resolve
+  - DOMAIN-SUFFIX,e.example,DIRECT
+  - DOMAIN-SUFFIX,f.example,代理
+  - MATCH,代理

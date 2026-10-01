@@ -24,6 +24,13 @@
   ],
   "outbounds": [
     {
+      "tag": "代理",
+      "protocol": "loopback",
+      "settings": {
+        "inboundTag": "›group›代理"
+      }
+    },
+    {
       "tag": "DIRECT",
       "protocol": "freedom"
     },
@@ -36,16 +43,19 @@
       "protocol": "blackhole"
     },
     {
-      "tag": "proxy",
-      "protocol": "trojan",
+      "tag": "B1",
+      "protocol": "socks",
       "settings": {
-        "address": "192.0.2.1",
-        "port": 443,
-        "password": "p"
-      },
-      "streamSettings": {
-        "security": "tls",
-        "tlsSettings": {}
+        "address": "192.0.2.21",
+        "port": 1080
+      }
+    },
+    {
+      "tag": "B2",
+      "protocol": "socks",
+      "settings": {
+        "address": "192.0.2.22",
+        "port": 1080
       }
     },
     {
@@ -61,9 +71,29 @@
     "rules": [
       {
         "inboundTag": [
+          "›group›代理"
+        ],
+        "balancerTag": "代理"
+      },
+      {
+        "inboundTag": [
           "›group›GLOBAL"
         ],
         "balancerTag": "GLOBAL"
+      },
+      {
+        "domain": [
+          "domain:a.example"
+        ],
+        "outboundTag": "DIRECT",
+        "ruleTag": "#0 a.example"
+      },
+      {
+        "domain": [
+          "domain:g.example"
+        ],
+        "balancerTag": "代理",
+        "ruleTag": "#1 g.example"
       },
       {
         "domain": [
@@ -73,7 +103,7 @@
           "domain:localhost"
         ],
         "outboundTag": "DIRECT",
-        "ruleTag": "#0-3 lan"
+        "ruleTag": "#2-5 lan"
       },
       {
         "ip": [
@@ -92,40 +122,61 @@
           "224.0.0.0/4"
         ],
         "outboundTag": "DIRECT",
-        "ruleTag": "#4-16 lan"
+        "ruleTag": "#6-18 lan"
       },
       {
         "domain": [
-          "domain:cn.example.com",
-          "full:direct.example.org"
+          "domain:a.example",
+          "full:b.example",
+          "keyword:cexample"
+        ],
+        "balancerTag": "代理",
+        "ruleTag": "#19-21 rules-b"
+      },
+      {
+        "domain": [
+          "domain:d.example"
         ],
         "outboundTag": "DIRECT",
-        "ruleTag": "#17 https://example.com/gfwlist.txt"
-      },
-      {
-        "domain": [
-          "domain:google.com",
-          "domain:googleapis.com",
-          "domain:youtube.com",
-          "full:www.example-path.com",
-          "domain:twitter.com"
-        ],
-        "outboundTag": "proxy",
-        "ruleTag": "#18 https://example.com/gfwlist.txt"
+        "ruleTag": "#22 rules-b"
       },
       {
         "ip": [
-          "85.17.73.31/32"
+          "192.0.2.0/24",
+          "198.51.100.0/24"
         ],
-        "outboundTag": "proxy",
-        "ruleTag": "#18.2 https://example.com/gfwlist.txt"
+        "outboundTag": "DIRECT",
+        "ruleTag": "#23-24 rules-b"
+      },
+      {
+        "domain": [
+          "domain:e.example"
+        ],
+        "outboundTag": "DIRECT",
+        "ruleTag": "#25 rules-b"
+      },
+      {
+        "domain": [
+          "domain:f.example"
+        ],
+        "balancerTag": "代理",
+        "ruleTag": "#26 rules-b"
       }
     ],
     "balancers": [
       {
+        "tag": "代理",
+        "selector": [
+          "B1"
+        ],
+        "strategy": {
+          "type": "random"
+        }
+      },
+      {
         "tag": "GLOBAL",
         "selector": [
-          "DIRECT"
+          "代理"
         ],
         "strategy": {
           "type": "random"
