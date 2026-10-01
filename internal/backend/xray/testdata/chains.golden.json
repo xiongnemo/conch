@@ -319,7 +319,8 @@
         ],
         "strategy": {
           "type": "roundRobin"
-        }
+        },
+        "fallbackTag": "入口， A"
       },
       {
         "tag": "GLOBAL",

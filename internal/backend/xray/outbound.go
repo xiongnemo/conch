@@ -54,6 +54,9 @@ func (e *encoder) nodeOutbound(p *compile.Proxy) (outbound, []string, error) {
 		o.Protocol = "http"
 		o.Settings = userPassSettings{serverSettings: srv, User: s.Username, Pass: s.Password, Headers: s.Headers}
 	case "hysteria2":
+		if p.Upstream != "" && s.Hysteria.Ports != "" {
+			return o, nil, fmt.Errorf("xray v26.3.27 不支持把带端口跳跃（ports）的 hysteria2 节点放在链里（udphop 只能在最外层）")
+		}
 		o.Protocol = "hysteria"
 		o.Settings = hysteriaOutSettings{Version: 2, serverSettings: srv}
 		st.Network = "hysteria"

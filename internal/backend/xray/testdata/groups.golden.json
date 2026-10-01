@@ -368,7 +368,8 @@
         ],
         "strategy": {
           "type": "roundRobin"
-        }
+        },
+        "fallbackTag": "a»"
       },
       {
         "tag": "一致",
@@ -378,7 +379,8 @@
         ],
         "strategy": {
           "type": "random"
-        }
+        },
+        "fallbackTag": "a»"
       },
       {
         "tag": "选择",

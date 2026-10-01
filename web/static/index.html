@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Nautilus</title>
+  <link rel="stylesheet" href="style.css">
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+  <section id="login" class="login" hidden>
+    <form id="login-form" class="card">
+      <h1>Nautilus</h1>
+      <p class="muted">请输入密码。密码在 <code>.env</code> 的 <code>NAUTILUS_PASSWORD</code> 里。</p>
+      <input id="password" type="password" autocomplete="current-password" placeholder="密码" required autofocus>
+      <button type="submit">登录</button>
+      <p id="login-error" class="error" hidden></p>
+    </form>
+  </section>
+
+  <div id="app" hidden>
+    <header>
+      <strong class="brand">Nautilus</strong>
+      <span id="kernel" class="pill"></span>
+      <nav id="tabs">
+        <button data-tab="overview" class="active">概览</button>
+        <button data-tab="outbounds">出口</button>
+        <button data-tab="routes">路由</button>
+        <button data-tab="logs">日志</button>
+      </nav>
+      <div id="modes" class="segmented" title="分流模式">
+        <button data-mode="rule">分流</button>
+        <button data-mode="global">全局</button>
+        <button data-mode="direct">直连</button>
+      </div>
+      <button id="logout" class="link" hidden>退出登录</button>
+    </header>
+
+    <div id="banner" class="banner" hidden></div>
+
+    <main>
+      <section data-page="overview">
+        <div class="grid">
+          <div class="card">
+            <h2>实时流量</h2>
+            <div class="traffic"><span>↑ <b id="up">0 B/s</b></span><span>↓ <b id="down">0 B/s</b></span></div>
+            <canvas id="chart" width="600" height="120"></canvas>
+          </div>
+          <div class="card">
+            <h2>状态</h2>
+            <dl id="status"></dl>
+          </div>
+        </div>
+        <div class="card">
+          <h2>订阅</h2>
+          <div id="subs" class="muted">没有订阅</div>
+        </div>
+      </section>
+
+      <section data-page="outbounds" hidden>
+        <div id="groups"></div>
+        <div class="card"><h2>链</h2><div id="chains" class="muted">没有链</div></div>
+        <div class="card"><h2>节点</h2><div id="nodes"></div></div>
+      </section>
+
+      <section data-page="routes" hidden>
+        <form id="explain-form" class="card row">
+          <input id="explain-target" placeholder="这个地址会怎么走？例如 chatgpt.com 或 https://example.com/" required>
+          <button type="submit">查询</button>
+        </form>
+        <div id="explain" class="card" hidden></div>
+        <form id="add-form" class="card row">
+          <input id="add-target" placeholder="目标：域名、=精确域名、IP/网段 或 app:应用名" required>
+          <select id="add-via" required></select>
+          <select id="add-ttl">
+            <option value="">永久</option>
+            <option value="30m">30 分钟</option>
+            <option value="1h">1 小时</option>
+            <option value="8h">8 小时</option>
+          </select>
+          <button type="submit">添加条目</button>
+        </form>
+        <div id="table"></div>
+      </section>
+
+      <section data-page="logs" hidden>
+        <div class="card"><pre id="logs"></pre></div>
+      </section>
+    </main>
+  </div>
+</body>
+</html>

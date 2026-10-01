@@ -14,6 +14,7 @@ import (
 	"cmp"
 	"encoding/json"
 	"fmt"
+	"runtime"
 	"slices"
 	"strconv"
 	"strings"
@@ -30,7 +31,8 @@ type Backend struct{}
 func (Backend) Name() string { return "xray" }
 
 func (Backend) Capabilities() backend.Capabilities {
-	return backend.Capabilities{ProcessMatch: true, KeywordMatch: true, Chains: true}
+	// xray v26.3.27 finds processes on Windows and Linux only.
+	return backend.Capabilities{ProcessMatch: runtime.GOOS != "darwin", KeywordMatch: true, Chains: true}
 }
 
 const (
@@ -93,19 +95,32 @@ func (Backend) Encode(r *compile.Result, opts backend.Options) (*backend.Artifac
 		Observatory: e.observatory(),
 	}
 	if s := r.Settings.DNS; s.Enable {
-		cfg.DNS = &dnsConfig{Servers: s.Nameservers, QueryStrategy: "UseIPv4"}
+		cfg.DNS = &dnsConfig{Servers: localDNS(s.Nameservers), QueryStrategy: "UseIPv4"}
 		if s.IPv6 {
 			cfg.DNS.QueryStrategy = "UseIP"
 		}
 	}
-	if listen := cmp.Or(opts.ControllerUnix, opts.Controller); listen != "" {
+	if opts.ControllerUnix != "" || opts.Controller != "" {
 		services := []string{"HandlerService", "RoutingService", "StatsService"}
 		if cfg.Observatory != nil {
 			services = append(services, "ObservatoryService")
 		}
-		cfg.API = &apiConfig{Tag: apiTag, Listen: listen, Services: services}
+		cfg.API = &apiConfig{Tag: apiTag, Listen: opts.Controller, Services: services}
 		cfg.Stats = &struct{}{}
 		cfg.Policy = &policyConfig{System: policySystem{true, true, true, true}}
+		if opts.ControllerUnix != "" {
+			// api.listen only accepts TCP at runtime. A dokodemo-door inbound
+			// on a unix socket, routed to the API, serves it instead. It needs
+			// a destination port even though nothing is dialed (xray panics
+			// without one), and must list "unix" to create the socket.
+			cfg.Inbounds = append(cfg.Inbounds, inbound{
+				Tag:      apiTag,
+				Protocol: "dokodemo-door",
+				Listen:   opts.ControllerUnix,
+				Settings: apiInboundSettings{Address: "127.0.0.1", Port: 1, Network: "unix"},
+			})
+			cfg.Routing.Rules = append([]rule{{InboundTag: []string{apiTag}, OutboundTag: apiTag}}, cfg.Routing.Rules...)
+		}
 	}
 
 	data, err := json.MarshalIndent(cfg, "", "  ")
@@ -177,7 +192,11 @@ func (e *encoder) group(g *compile.Group) {
 	case "select":
 		// The selection lives in the selector; at runtime nautilus switches
 		// it instantly through RoutingService.OverrideBalancerTarget.
-		e.balancers = append(e.balancers, balancer{Tag: g.Name, Selector: members[:1], Strategy: strategy{"random"}})
+		selected := members[0]
+		if g.Selected != "" {
+			selected = e.tags[g.Selected]
+		}
+		e.balancers = append(e.balancers, balancer{Tag: g.Name, Selector: []string{selected}, Strategy: strategy{"random"}})
 	case "url-test":
 		// leastPing returns nothing until the first probe finishes; fall
 		// back to the first member instead of the default route meanwhile.
@@ -192,7 +211,10 @@ func (e *encoder) group(g *compile.Group) {
 		default:
 			e.d.Warnf(g.Pos, "出口组 %q：xray 不支持 %s 负载均衡，改为随机选择", g.Name, g.Strategy)
 		}
-		e.balancers = append(e.balancers, balancer{Tag: g.Name, Selector: members, Strategy: strategy{typ}})
+		// random and roundRobin only skip dead members when a fallback is
+		// set; without one they keep picking members the observatory
+		// knows are down.
+		e.balancers = append(e.balancers, balancer{Tag: g.Name, Selector: members, Strategy: strategy{typ}, FallbackTag: members[0]})
 		e.observed = append(e.observed, g)
 	case "fallback":
 		// One single-member balancer per member, each falling back to the
@@ -272,7 +294,7 @@ func (e *encoder) rules() []rule {
 			out = append(out, x)
 			data, _ := json.Marshal(x)
 			e.manifest.Rules = append(e.manifest.Rules, backend.ManifestRule{
-				Index:   len(e.dispatch) + len(out) - 1,
+				Index:   e.leadingRules() + len(out) - 1,
 				Rule:    string(data),
 				Tier:    r.Origin.Tier.String(),
 				Key:     r.Origin.Key,
@@ -282,6 +304,16 @@ func (e *encoder) rules() []rule {
 		}
 	}
 	return out
+}
+
+// leadingRules counts the internal rules placed before the user's: the API
+// rule and the group dispatch rules.
+func (e *encoder) leadingRules() int {
+	n := len(e.dispatch)
+	if e.opts.ControllerUnix != "" {
+		n++
+	}
+	return n
 }
 
 // listRules turns a rule list into xray rules. geosite/geoip categories
@@ -451,6 +483,22 @@ func (e *encoder) observatory() *observatory {
 	}
 	o.ProbeInterval = fmt.Sprintf("%ds", interval)
 	return o
+}
+
+// localDNS sends encrypted DNS queries directly. xray routes DoH queries
+// through the routing rules unless asked not to, while mihomo sends its
+// nameserver queries directly; this keeps the backends alike.
+func localDNS(servers []string) []string {
+	out := make([]string, len(servers))
+	for i, s := range servers {
+		out[i] = s
+		for _, scheme := range []string{"https://", "tcp://", "quic://"} {
+			if rest, ok := strings.CutPrefix(s, scheme); ok {
+				out[i] = strings.TrimSuffix(scheme, "://") + "+local://" + rest
+			}
+		}
+	}
+	return out
 }
 
 func logLevel(l string) string {

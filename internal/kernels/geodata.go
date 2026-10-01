@@ -27,6 +27,16 @@ var geodataFiles = map[string][]geoFile{
 	"xray":   {{"geoip.dat", "geoip.dat"}, {"geosite.dat", "geosite.dat"}},
 }
 
+// HasGeodata reports whether dir holds every geodata file a kernel uses.
+func HasGeodata(kernel, dir string) bool {
+	for _, f := range geodataFiles[kernel] {
+		if _, err := os.Stat(filepath.Join(dir, f.local)); err != nil {
+			return false
+		}
+	}
+	return true
+}
+
 // FetchGeodata downloads a kernel's geodata into dir, verifying each file
 // against the .sha256sum published next to it.
 func FetchGeodata(ctx context.Context, client *http.Client, kernel, mirror, dir string, log io.Writer) error {

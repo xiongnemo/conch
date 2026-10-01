@@ -19,11 +19,15 @@ import (
 func newSubCmd() *cobra.Command {
 	var profilePath string
 	cmd := &cobra.Command{Use: "sub", Short: "管理订阅"}
-	cmd.PersistentFlags().StringVarP(&profilePath, "profile", "p", "profile.yaml", "profile 文件")
+	cmd.PersistentFlags().StringVarP(&profilePath, "profile", "p", "", "profile 文件（默认是当前目录或配置目录里的 profile.yaml）")
 
 	run := func(update bool) func(*cobra.Command, []string) error {
 		return func(cmd *cobra.Command, args []string) error {
-			p, err := model.Load(profilePath)
+			path, err := resolveProfile(profilePath)
+			if err != nil {
+				return err
+			}
+			p, err := model.Load(path)
 			if err != nil {
 				return err
 			}

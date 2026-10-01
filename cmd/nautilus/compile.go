@@ -42,6 +42,13 @@ type pipeline struct {
 	lists *lists.Store
 }
 
+// resolve fills in the default profile path.
+func (pl *pipeline) resolve() error {
+	p, err := resolveProfile(pl.profilePath)
+	pl.profilePath = p
+	return err
+}
+
 func (pl *pipeline) listLoader(ctx context.Context) backend.ListLoader {
 	if pl.lists == nil {
 		pl.lists = &lists.Store{Dir: paths.ListsDir(), Offline: pl.offline, Log: pl.log}
@@ -90,6 +97,9 @@ func newCompileCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			if err := pl.resolve(); err != nil {
+				return err
+			}
 			pl.log = cmd.ErrOrStderr()
 			res, diags, err := pl.compile(cmd.Context())
 			if err != nil {
@@ -115,7 +125,7 @@ func newCompileCmd() *cobra.Command {
 		},
 	}
 	f := cmd.Flags()
-	f.StringVarP(&pl.profilePath, "profile", "p", "profile.yaml", "profile 文件")
+	f.StringVarP(&pl.profilePath, "profile", "p", "", "profile 文件（默认是当前目录或配置目录里的 profile.yaml）")
 	f.BoolVar(&pl.offline, "offline", false, "不下载订阅和规则列表，只用已缓存的")
 	f.StringVarP(&outPath, "output", "o", "-", "输出文件，- 表示标准输出")
 	f.StringVar(&manifestPath, "manifest", "", "同时输出 manifest（JSON）到这个文件")

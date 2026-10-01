@@ -88,11 +88,35 @@ func TestAPIOptions(t *testing.T) {
 	if err := json.Unmarshal(art.Config, &cfg); err != nil {
 		t.Fatal(err)
 	}
-	if cfg.API == nil || cfg.API.Listen != "/run/nautilus/xray.sock" || cfg.Stats == nil || cfg.Policy == nil ||
+	if cfg.API == nil || cfg.API.Listen != "" || cfg.Stats == nil || cfg.Policy == nil ||
 		!slices.Contains(cfg.API.Services, "ObservatoryService") {
 		t.Errorf("api = %+v, stats = %v, policy = %v", cfg.API, cfg.Stats, cfg.Policy)
 	}
+	in := cfg.Inbounds[len(cfg.Inbounds)-1]
+	if in.Protocol != "dokodemo-door" || in.Listen != "/run/nautilus/xray.sock" ||
+		cfg.Routing.Rules[0].InboundTag[0] != apiTag || cfg.Routing.Rules[0].OutboundTag != apiTag {
+		t.Errorf("unix API inbound = %+v, first rule = %+v", in, cfg.Routing.Rules[0])
+	}
 	if _, d := backendtest.Build(t, Backend{}, "../testdata/groups.profile.yaml", backend.Options{ControllerPipe: `\\.\pipe\x`}); !d.HasErrors() {
 		t.Error("named pipes are not supported by xray and must be rejected")
+	}
+}
+
+// Manifest indexes must point at the emitted rule even when internal
+// rules (API, group dispatch) come first.
+func TestManifestIndexes(t *testing.T) {
+	for _, opts := range []backend.Options{{}, {ControllerUnix: "/run/x.sock"}} {
+		art, d := backendtest.Build(t, Backend{}, "../testdata/groups.profile.yaml", opts)
+		if art == nil {
+			t.Fatal(d.Err())
+		}
+		var cfg config
+		json.Unmarshal(art.Config, &cfg)
+		for _, mr := range art.Manifest.Rules {
+			got, _ := json.Marshal(cfg.Routing.Rules[mr.Index])
+			if string(got) != mr.Rule {
+				t.Errorf("opts %+v: manifest rule %d is %s, config has %s", opts, mr.Index, mr.Rule, got)
+			}
+		}
 	}
 }

@@ -21,8 +21,14 @@ type logConfig struct {
 
 type apiConfig struct {
 	Tag      string   `json:"tag"`
-	Listen   string   `json:"listen"`
+	Listen   string   `json:"listen,omitempty"`
 	Services []string `json:"services"`
+}
+
+type apiInboundSettings struct {
+	Address string `json:"address"`
+	Port    int    `json:"port"`
+	Network string `json:"network"`
 }
 
 type policyConfig struct {

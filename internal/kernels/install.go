@@ -113,11 +113,18 @@ func Install(ctx context.Context, o InstallOptions) (*Installed, error) {
 	return &Installed{Kernel: o.Kernel, Version: version, Path: filepath.Join(dest, bin)}, nil
 }
 
+// NotInstalledError means a kernel has never been installed.
+type NotInstalledError struct{ Kernel string }
+
+func (e *NotInstalledError) Error() string {
+	return fmt.Sprintf("还没有安装 %s，请先运行 nautilus kernel install %s", e.Kernel, e.Kernel)
+}
+
 // Current returns the path of the kernel marked as current.
 func Current(dir, kernel, goos string) (*Installed, error) {
 	data, err := os.ReadFile(filepath.Join(dir, "kernels", kernel, "current"))
 	if errors.Is(err, os.ErrNotExist) {
-		return nil, fmt.Errorf("还没有安装 %s，请先运行 nautilus kernel install", kernel)
+		return nil, &NotInstalledError{Kernel: kernel}
 	}
 	if err != nil {
 		return nil, err

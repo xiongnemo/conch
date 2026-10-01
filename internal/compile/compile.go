@@ -55,6 +55,7 @@ type Group struct {
 	Tolerance int
 	Lazy      *bool
 	Strategy  string
+	Selected  string // select groups: the chosen member; empty means the first
 	Pos       diag.Pos
 }
 
@@ -126,6 +127,20 @@ func Compile(p *model.Profile) *Result {
 	tab := route.Build(&p.Routes, c.resolveVia, c.d)
 	res.Rules, res.Providers = tab.Rules, tab.Providers
 	return res
+}
+
+// Select records the member chosen in each select group. Unknown groups
+// and members that no longer exist are ignored, so stale selections are
+// harmless after the profile changes. It returns the applied selections.
+func (r *Result) Select(choices map[string]string) map[string]string {
+	applied := map[string]string{}
+	for _, g := range r.Groups {
+		if m, ok := choices[g.Name]; ok && g.Type == "select" && slices.Contains(g.Members, m) {
+			g.Selected = m
+			applied[g.Name] = m
+		}
+	}
+	return applied
 }
 
 // sanitize makes a name safe for every backend: Clash rule lines split on
