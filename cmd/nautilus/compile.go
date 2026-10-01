@@ -64,6 +64,12 @@ func (pl *pipeline) compile(ctx context.Context) (*compile.Result, diag.List, er
 	if err != nil {
 		return nil, nil, err
 	}
+	res, diags := pl.compileProfile(ctx, p)
+	return res, diags, nil
+}
+
+// compileProfile compiles a loaded profile with its subscriptions.
+func (pl *pipeline) compileProfile(ctx context.Context, p *model.Profile) (*compile.Result, diag.List) {
 	subs := &subscription.Store{Dir: paths.SubscriptionsDir(), Offline: pl.offline, Log: pl.log}
 	var diags diag.List
 	snaps := map[string]*subscription.Snapshot{}
@@ -77,7 +83,7 @@ func (pl *pipeline) compile(ctx context.Context) (*compile.Result, diag.List, er
 	}
 	subscription.Apply(p, snaps, &diags)
 	res := compile.Compile(p)
-	return res, append(diags, res.Diags...), nil
+	return res, append(diags, res.Diags...)
 }
 
 func newCompileCmd() *cobra.Command {

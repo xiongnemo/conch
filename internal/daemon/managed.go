@@ -148,3 +148,15 @@ func RemoveManagedRoute(profilePath, key string) error {
 	}
 	return m.save(path)
 }
+
+// WithManaged adds the routes kept in managed.yaml next to profilePath to
+// p, the way the daemon does before compiling.
+func WithManaged(p *model.Profile, profilePath string) error {
+	path := ManagedPath(profilePath)
+	m, err := loadManaged(path)
+	if err != nil {
+		return err
+	}
+	mergeEntries(p, m, nil, path)
+	return nil
+}
