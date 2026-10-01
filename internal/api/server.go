@@ -47,6 +47,14 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("DELETE /api/v1/routes", s.deleteRoute)
 	mux.HandleFunc("GET /api/v1/route/explain", s.explain)
 	mux.HandleFunc("PUT /api/v1/mode", s.setMode)
+	mux.HandleFunc("PUT /api/v1/sysproxy", func(w http.ResponseWriter, r *http.Request) {
+		var body struct {
+			Enabled bool `json:"enabled"`
+		}
+		if decode(w, r, &body) {
+			s.done(w, s.D.SetSysProxy(body.Enabled))
+		}
+	})
 	mux.HandleFunc("POST /api/v1/subscriptions/{name}/update", func(w http.ResponseWriter, r *http.Request) {
 		s.done(w, s.D.UpdateSubscription(r.Context(), r.PathValue("name")))
 	})

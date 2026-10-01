@@ -42,6 +42,7 @@ type Status struct {
 	Error         string                        `json:"error,omitempty"`
 	Diagnostics   []string                      `json:"diagnostics,omitempty"`
 	Subscriptions map[string]*subscription.Info `json:"subscriptions,omitempty"`
+	SysProxy      bool                          `json:"sysproxy"` // the user wants the system proxy on
 }
 
 func (d *Daemon) Status() Status {
@@ -52,6 +53,7 @@ func (d *Daemon) Status() Status {
 		s.Mode, s.MixedPort = d.res.Settings.Mode, d.res.Settings.MixedPort
 	}
 	s.Ready = d.applied != nil && s.Kernel.State == kernel.Running
+	s.SysProxy = d.state.SysProxy != nil && d.state.SysProxy.Wanted
 	for _, x := range d.diags {
 		s.Diagnostics = append(s.Diagnostics, x.String())
 	}

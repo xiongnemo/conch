@@ -147,6 +147,10 @@ func (c *Client) SetMode(ctx context.Context, mode string) error {
 	return c.do(ctx, http.MethodPut, "/api/v1/mode", map[string]string{"mode": mode}, nil)
 }
 
+func (c *Client) SetSysProxy(ctx context.Context, on bool) error {
+	return c.do(ctx, http.MethodPut, "/api/v1/sysproxy", map[string]bool{"enabled": on}, nil)
+}
+
 func (c *Client) UpdateSubscription(ctx context.Context, name string) error {
 	return c.do(ctx, http.MethodPost, "/api/v1/subscriptions/"+url.PathEscape(name)+"/update", nil, nil)
 }

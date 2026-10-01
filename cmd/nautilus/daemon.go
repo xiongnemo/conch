@@ -246,3 +246,25 @@ func newStatusCmd() *cobra.Command {
 		},
 	}
 }
+
+func newSysProxyCmd() *cobra.Command {
+	set := func(on bool) func(*cobra.Command, []string) error {
+		return func(cmd *cobra.Command, _ []string) error {
+			if err := daemonClient().SetSysProxy(cmd.Context(), on); err != nil {
+				return err
+			}
+			if on {
+				fmt.Fprintln(cmd.OutOrStdout(), "系统代理已开启；daemon 退出时会恢复原来的设置")
+			} else {
+				fmt.Fprintln(cmd.OutOrStdout(), "系统代理已关闭，已恢复原来的设置")
+			}
+			return nil
+		}
+	}
+	cmd := &cobra.Command{Use: "sysproxy", Short: "开关系统代理（需要 daemon 在运行）"}
+	cmd.AddCommand(
+		&cobra.Command{Use: "on", Short: "让系统和浏览器使用 nautilus", Args: cobra.NoArgs, RunE: set(true)},
+		&cobra.Command{Use: "off", Short: "恢复原来的系统代理设置", Args: cobra.NoArgs, RunE: set(false)},
+	)
+	return cmd
+}

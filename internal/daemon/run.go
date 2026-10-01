@@ -14,10 +14,12 @@ import (
 // routes and refreshes subscriptions. The kernel stops when Run returns.
 func (d *Daemon) Run(ctx context.Context) error {
 	defer d.Stop()
+	defer d.releaseSysProxy()
 	if err := d.Reconcile(ctx); err != nil {
 		// Keep running: the API shows the problem and edits can fix it.
 		fmt.Fprintln(d.opts.Log, "警告：", err)
 	}
+	d.syncSysProxy()
 	changes := make(chan struct{}, 1)
 	if err := d.watch(ctx, changes); err != nil {
 		fmt.Fprintln(d.opts.Log, "警告：无法监听配置文件的变化：", err)
@@ -32,6 +34,7 @@ func (d *Daemon) Run(ctx context.Context) error {
 			if err := d.Reconcile(ctx); err != nil {
 				fmt.Fprintln(d.opts.Log, "配置有误，继续使用上一份可用的配置：", err)
 			}
+			d.syncSysProxy()
 		case <-tick.C:
 			d.periodic(ctx)
 		}

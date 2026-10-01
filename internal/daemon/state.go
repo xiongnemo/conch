@@ -25,11 +25,13 @@ type TempRoute struct {
 	Expires time.Time `json:"expires"`
 }
 
-// SysProxyState remembers that nautilus set the system proxy, so a crash
-// can be repaired on the next start.
+// SysProxyState remembers whether the user wants the system proxy and
+// whether nautilus has set it, so a crash can be repaired on the next start.
 type SysProxyState struct {
-	Enabled  bool   `json:"enabled"`
-	Previous string `json:"previous,omitempty"` // platform-specific snapshot
+	Wanted   bool   `json:"wanted"`             // the user turned it on
+	Applied  bool   `json:"applied"`            // the OS currently points at us
+	Port     int    `json:"port,omitempty"`     // the port it points at
+	Previous string `json:"previous,omitempty"` // settings before nautilus, to restore
 }
 
 func loadState(path string) (*State, error) {
@@ -80,4 +82,22 @@ func (s *State) prune(now time.Time) (next time.Time, changed bool) {
 	}
 	s.Temp = kept
 	return next, changed
+}
+
+// LastBackend returns the backend the daemon used last, or "mihomo".
+func LastBackend(dataDir string) string {
+	if st, err := loadState(filepath.Join(dataDir, "state.json")); err == nil && st.Backend != "" {
+		return st.Backend
+	}
+	return "mihomo"
+}
+
+// SysProxyLeftover reports whether state.json says the system proxy still
+// points at nautilus.
+func SysProxyLeftover(dataDir string) (bool, int) {
+	st, err := loadState(filepath.Join(dataDir, "state.json"))
+	if err != nil || st.SysProxy == nil || !st.SysProxy.Applied {
+		return false, 0
+	}
+	return true, st.SysProxy.Port
 }
