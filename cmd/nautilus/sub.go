@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -11,6 +12,7 @@ import (
 	"github.com/spf13/cobra"
 	"go.yaml.in/yaml/v3"
 
+	"nautilus/internal/api"
 	"nautilus/internal/model"
 	"nautilus/internal/paths"
 	"nautilus/internal/subscription"
@@ -31,6 +33,11 @@ func newSubCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			if !cmd.Flags().Changed("profile") {
+				if done, err := subViaDaemon(cmd, p, args, update); done {
+					return err
+				}
+			}
 			store := &subscription.Store{Dir: paths.SubscriptionsDir(), Offline: !update, Log: cmd.ErrOrStderr()}
 			failed := false
 			for _, sub := range p.Subscriptions {
@@ -49,7 +56,8 @@ func newSubCmd() *cobra.Command {
 					failed = true
 					continue
 				}
-				printSub(cmd.OutOrStdout(), sub, snap, info)
+				info.Summary = snap.Summary()
+				printSub(cmd.OutOrStdout(), sub, info)
 			}
 			if failed {
 				return errReported
@@ -64,8 +72,48 @@ func newSubCmd() *cobra.Command {
 	return cmd
 }
 
-func printSub(w io.Writer, sub *model.Subscription, snap *subscription.Snapshot, info *subscription.Info) {
-	fmt.Fprintf(w, "%s：%s\n", sub.Name, snap.Summary())
+// subViaDaemon updates or lists subscriptions through a running daemon,
+// which fetches them through its kernel and applies them at once. It
+// reports false when no daemon runs.
+func subViaDaemon(cmd *cobra.Command, p *model.Profile, names []string, update bool) (bool, error) {
+	c := daemonClient()
+	failed := false
+	for _, sub := range p.Subscriptions {
+		if !update || len(names) > 0 && !slices.Contains(names, sub.Name) {
+			continue
+		}
+		fmt.Fprintf(cmd.ErrOrStderr(), "更新订阅 %s（通过 daemon）\n", sub.Name)
+		if err := c.UpdateSubscription(cmd.Context(), sub.Name); errors.Is(err, api.ErrNotRunning) {
+			return false, nil
+		} else if err != nil {
+			fmt.Fprintln(cmd.ErrOrStderr(), "错误：", err)
+			failed = true
+		}
+	}
+	st, err := c.Status(cmd.Context())
+	if errors.Is(err, api.ErrNotRunning) {
+		return false, nil
+	} else if err != nil {
+		return true, err
+	}
+	for _, sub := range p.Subscriptions {
+		if len(names) > 0 && !slices.Contains(names, sub.Name) {
+			continue
+		}
+		if info := st.Subscriptions[sub.Name]; info != nil {
+			printSub(cmd.OutOrStdout(), sub, info)
+		} else {
+			fmt.Fprintf(cmd.OutOrStdout(), "%s：还没有下载\n", sub.Name)
+		}
+	}
+	if failed {
+		return true, errReported
+	}
+	return true, nil
+}
+
+func printSub(w io.Writer, sub *model.Subscription, info *subscription.Info) {
+	fmt.Fprintf(w, "%s：%s\n", sub.Name, info.Summary)
 	if info.Total > 0 {
 		used := info.Upload + info.Download
 		fmt.Fprintf(w, "  流量：已用 %s / 共 %s（剩余 %s）\n", bytesText(used), bytesText(info.Total), bytesText(info.Total-used))

@@ -564,7 +564,7 @@ func (m *Model) header() string {
 		right = bad.Render("未连接")
 	case m.status != nil:
 		s := m.status
-		state := stateNames[string(s.Kernel.State)]
+		state := s.Kernel.State.Text()
 		style := good
 		if s.Kernel.State != "running" {
 			style = warn

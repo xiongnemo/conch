@@ -33,6 +33,7 @@ type Info struct {
 	Total          int64     `json:"total,omitempty"`
 	Expire         int64     `json:"expire,omitempty"`         // unix seconds
 	UpdateInterval int       `json:"updateInterval,omitempty"` // hours, from profile-update-interval
+	Summary        string    `json:"summary,omitempty"`        // what it brings, e.g. "38 个节点，…"
 }
 
 // Store keeps downloaded subscriptions, and the proxy-providers they use,
@@ -64,6 +65,7 @@ func (s *Store) Load(ctx context.Context, sub *model.Subscription) (*Snapshot, *
 	if data, err := os.ReadFile(s.path(sub, "json")); err == nil {
 		json.Unmarshal(data, &info)
 	}
+	info.Summary = snap.Summary()
 	return snap, &info, nil
 }
 
@@ -94,6 +96,7 @@ func (s *Store) Update(ctx context.Context, sub *model.Subscription) (*Snapshot,
 	}
 	info := parseInfo(header)
 	info.FetchedAt = time.Now().UTC().Truncate(time.Second)
+	info.Summary = snap.Summary()
 
 	if err := os.MkdirAll(s.Dir, 0o700); err != nil {
 		return nil, nil, err

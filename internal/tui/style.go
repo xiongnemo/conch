@@ -99,8 +99,6 @@ func delayText(ms int64, err string) string {
 
 var kindNames = map[string]string{"select": "手动选择", "url-test": "自动最快", "fallback": "故障转移", "load-balance": "负载均衡"}
 
-var stateNames = map[string]string{"running": "运行中", "starting": "启动中", "crashed": "已崩溃，正在重启", "stopped": "已停止"}
-
 func outboundLabel(name string) string {
 	switch name {
 	case "DIRECT":

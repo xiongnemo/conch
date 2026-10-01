@@ -89,7 +89,7 @@ func newDoctorCmd() *cobra.Command {
 			running := err == nil
 			switch {
 			case running:
-				d.ok("daemon 正在运行（%s，内核%s）", status.Backend, status.Kernel.State)
+				d.ok("daemon 正在运行（%s，内核%s）", status.Backend, status.Kernel.State.Text())
 				if status.Error != "" {
 					d.bad("daemon 报告配置有问题：%s", status.Error)
 				}

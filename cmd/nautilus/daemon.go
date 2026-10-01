@@ -259,7 +259,7 @@ func newStatusCmd() *cobra.Command {
 				return err
 			}
 			w := cmd.OutOrStdout()
-			fmt.Fprintf(w, "内核：%s（%s", s.Backend, s.Kernel.State)
+			fmt.Fprintf(w, "内核：%s（%s", s.Backend, s.Kernel.State.Text())
 			if s.Kernel.Restarts > 0 {
 				fmt.Fprintf(w, "，重启过 %d 次", s.Kernel.Restarts)
 			}

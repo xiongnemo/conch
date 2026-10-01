@@ -326,7 +326,7 @@ func mergeEntries(p *model.Profile, m *managed, temp []TempRoute, managedPath st
 	}
 	for _, t := range temp {
 		drop(t.Key)
-		add(t.Key, t.Via, diag.Pos{File: "临时，到 " + t.Expires.Local().Format("15:04")})
+		add(t.Key, t.Via, diag.Pos{File: "临时条目，到 " + t.Expires.Local().Format("15:04")})
 	}
 }
 

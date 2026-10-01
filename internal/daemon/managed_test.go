@@ -20,7 +20,7 @@ func TestMergeEntries(t *testing.T) {
 	for _, e := range p.Routes.Entries {
 		got[e.Key] = e.Via.Name + " @ " + e.Pos.String()
 	}
-	want := map[string]string{"example.com": "C @ 临时，到 15:04", "example.org": "B @ /cfg/managed.yaml"}
+	want := map[string]string{"example.com": "C @ 临时条目，到 15:04", "example.org": "B @ /cfg/managed.yaml"}
 	if len(got) != len(want) || got["example.com"] != want["example.com"] || got["example.org"] != want["example.org"] {
 		t.Errorf("entries = %v, want %v", got, want)
 	}

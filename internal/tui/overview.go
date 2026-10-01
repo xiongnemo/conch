@@ -22,7 +22,7 @@ func (m *Model) overviewRows(w int) []row {
 		return []row{{text: muted.Render("正在连接 daemon……")}}
 	}
 	field := func(name, value string) row { return row{text: fit(muted.Render(name), 10) + value} }
-	kernel := s.Backend + " · " + stateNames[string(s.Kernel.State)]
+	kernel := s.Backend + " · " + s.Kernel.State.Text()
 	if s.Kernel.Restarts > 0 {
 		kernel += fmt.Sprintf("（重启过 %d 次）", s.Kernel.Restarts)
 	}

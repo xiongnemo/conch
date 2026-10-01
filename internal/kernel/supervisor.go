@@ -32,6 +32,21 @@ const (
 	Crashed  State = "crashed" // exited unexpectedly; a restart is pending
 )
 
+// Text names the state for people.
+func (s State) Text() string {
+	switch s {
+	case Stopped:
+		return "已停止"
+	case Starting:
+		return "启动中"
+	case Running:
+		return "运行中"
+	case Crashed:
+		return "已崩溃，正在重启"
+	}
+	return string(s)
+}
+
 // Status is a snapshot of the supervised process.
 type Status struct {
 	State    State     `json:"state"`
