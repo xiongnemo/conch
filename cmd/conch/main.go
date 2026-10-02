@@ -39,9 +39,11 @@ func main() {
 		Short: "显示版本",
 		Run:   func(cmd *cobra.Command, _ []string) { fmt.Fprintln(cmd.OutOrStdout(), version) },
 	})
-	if err := root.Execute(); err != nil {
+	localize(root)
+	if cmd, err := root.ExecuteC(); err != nil {
 		if !errors.Is(err, errReported) {
-			fmt.Fprintln(os.Stderr, "错误：", err)
+			msg, _ := cliError(err, cmd)
+			fmt.Fprintln(os.Stderr, "错误：", msg)
 			if hint := loginHint(err); hint != "" {
 				fmt.Fprintln(os.Stderr, hint)
 			}

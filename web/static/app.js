@@ -369,12 +369,13 @@ $("#explain-form").addEventListener("submit", async (e) => {
     $("#explain").hidden = false;
     $("#explain").className = "card explain";
     fill($("#explain"), 
-      h("p", {}, h("b", {}, $("#explain-target").value.trim()), " → ", h("b", {}, v.target)),
+      h("p", {}, h("b", {}, $("#explain-target").value.trim()), " → ", h("b", {}, v.target), v.uncertain?.length ? "（不一定，见下）" : ""),
       h("p", {}, "命中：", v.matched),
       v.resolved ? h("p", { class: "muted" }, `本机解析为 ${v.resolved} 后按 IP 匹配`) : null,
       h("p", {}, "出口：", v.outbound),
       v.shadowed?.length ? [h("p", { class: "muted" }, "也匹配，但被压过了："), h("ul", {}, v.shadowed.map((s) => h("li", {}, s)))] : null,
-      v.uncertain?.length ? [h("p", { class: "muted" }, "要等到运行时才能确定的规则："), h("ul", {}, v.uncertain.map((s) => h("li", {}, s)))] : null,
+      v.uncertain?.length ? [h("p", { class: "muted" }, "排在前面、这里判断不了的规则（命中的话会走别的出口）："), h("ul", {}, v.uncertain.map((s) => h("li", {}, s)))] : null,
+      v.apps?.length ? [h("p", { class: "muted" }, "如果连接来自这些应用，会走别的出口："), h("ul", {}, v.apps.map((s) => h("li", {}, s)))] : null,
     );
   } catch (err) {
     showError(err);

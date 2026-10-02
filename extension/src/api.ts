@@ -16,6 +16,7 @@ export interface Explanation {
   resolved?: string;
   shadowed?: string[];
   uncertain?: string[];
+  apps?: string[];
 }
 
 export interface Outbound {

@@ -332,16 +332,30 @@ func (d *Daemon) Explain(ctx context.Context, q explain.Query) (*explain.Explana
 	}
 	e := &explain.Explainer{
 		Result: res,
-		Xray:   d.backend.Name() == "xray",
+		Kernel: d.backend.Name(),
 		Lists: func(p route.Provider) ([]lists.Entry, error) {
 			entries, _, err := d.lists.Load(ctx, p)
 			return entries, err
 		},
-		Resolve: func(host string) ([]netip.Addr, error) {
-			return net.DefaultResolver.LookupNetIP(ctx, "ip", host)
-		},
+		Resolve: func(host string) ([]netip.Addr, error) { return d.resolve(ctx, host) },
 	}
 	return e.Explain(q), nil
+}
+
+// resolve looks a name up the way the kernel's rules do: with its DNS when
+// it can tell, which also sees past the fake addresses the system's DNS
+// returns under TUN; else with the system's resolver.
+func (d *Daemon) resolve(ctx context.Context, host string) ([]netip.Addr, error) {
+	if r, ok := d.ctl.(control.Resolver); ok && d.sup.Status().State == kernel.Running {
+		kctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+		addrs, err := r.Resolve(kctx, host)
+		cancel()
+		var dnsErr *net.DNSError
+		if err == nil || errors.As(err, &dnsErr) {
+			return addrs, err
+		}
+	}
+	return net.DefaultResolver.LookupNetIP(ctx, "ip", host)
 }
 
 // ForRun is the ttl of a temporary route that lasts until conch stops.

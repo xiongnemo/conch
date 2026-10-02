@@ -31,12 +31,15 @@ func TestExplainCondensesSubscriptionRules(t *testing.T) {
 	if want := []string{"订阅 机场 的规则 域名后缀 youtube.com → 代理"}; !slices.Equal(v.Shadowed, want) {
 		t.Errorf("shadowed = %q, want %q", v.Shadowed, want)
 	}
-	want := []string{
-		"订阅 机场 的 3 条按应用的规则（com.a、com.b 等）→ 流媒体（取决于发起连接的应用）",
-		"订阅 机场 的规则 规则集 geoip-cn → DIRECT（需要运行时判断）",
-		"订阅 机场 的规则 进程 com.d → DIRECT（取决于发起连接的应用）",
+	apps := []string{
+		"订阅 机场 的 3 条按应用的规则（com.a、com.b 等）→ 流媒体",
+		"订阅 机场 的规则 进程 com.d → DIRECT",
 	}
-	if !slices.Equal(v.Uncertain, want) {
+	if !slices.Equal(v.Apps, apps) {
+		t.Errorf("apps =\n%q\nwant\n%q", v.Apps, apps)
+	}
+	// App rules leave the outcome certain for the connections asked about.
+	if want := []string{"订阅 机场 的规则 规则集 geoip-cn → DIRECT（需要运行时判断）"}; !slices.Equal(v.Uncertain, want) {
 		t.Errorf("uncertain =\n%q\nwant\n%q", v.Uncertain, want)
 	}
 }

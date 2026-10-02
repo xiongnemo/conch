@@ -106,7 +106,7 @@ func newCompileCmd() *cobra.Command {
 		Short: "把 profile 编译成内核配置（不启动内核）",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			b, err := lookupBackend(backendName)
+			b, err := lookupBackend(cmpOr(backendName, daemon.LastBackend(paths.DataDir())))
 			if err != nil {
 				return err
 			}
@@ -142,7 +142,7 @@ func newCompileCmd() *cobra.Command {
 	f.BoolVar(&pl.offline, "offline", false, "不下载订阅和规则列表，只用已缓存的")
 	f.StringVarP(&outPath, "output", "o", "-", "输出文件，- 表示标准输出")
 	f.StringVar(&manifestPath, "manifest", "", "同时输出 manifest（JSON）到这个文件")
-	f.StringVar(&backendName, "backend", "mihomo", "内核后端：mihomo、xray 或 sing-box")
+	f.StringVar(&backendName, "backend", "", "内核后端：mihomo、xray 或 sing-box（默认是 daemon 上次用的）")
 	f.StringVar(&opts.ControllerUnix, "controller-unix", "", "内核 API 的 unix socket 路径")
 	f.StringVar(&opts.ControllerPipe, "controller-pipe", "", "内核 API 的 Windows 命名管道")
 	f.StringVar(&opts.Controller, "controller", "", "内核 API 的 TCP 地址（仅用于调试）")

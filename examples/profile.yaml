@@ -34,4 +34,5 @@ routes:
     - { list: geosite:cn, via: DIRECT }
     - { list: geoip:cn, via: DIRECT }
 
-inbound: { mixed-port: 7890 }              # HTTP 和 SOCKS5 共用一个端口；system-proxy: true 让每次启动都设置系统代理
+inbound: { mixed-port: 7890 }              # HTTP 和 SOCKS5 共用一个端口；system-proxy: true 让每次启动都设置系统代理；
+                                           # allow-lan: true 让局域网里的设备也能用（不需要密码，只在信得过的网络里开）

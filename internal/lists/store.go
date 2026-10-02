@@ -16,6 +16,9 @@ import (
 	"github.com/xiongnemo/conch/internal/route"
 )
 
+// ErrNotCached means an offline store has not downloaded a list.
+var ErrNotCached = errors.New("还没有下载")
+
 // Store keeps downloaded rule lists in a cache directory.
 type Store struct {
 	Dir     string
@@ -34,7 +37,7 @@ func (s *Store) Load(ctx context.Context, p route.Provider) ([]Entry, []string, 
 		return nil, nil, err
 	}
 	if s.Offline {
-		return nil, nil, fmt.Errorf("规则列表 %s 还没有下载（离线模式）", p.URL)
+		return nil, nil, fmt.Errorf("规则列表 %s %w（离线模式）", p.URL, ErrNotCached)
 	}
 	if err := s.Update(ctx, p); err != nil {
 		return nil, nil, err

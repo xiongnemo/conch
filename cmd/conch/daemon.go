@@ -171,6 +171,7 @@ func runDaemon(ctx context.Context, out io.Writer, f daemonFlags) error {
 	}
 
 	guard := auth.NewGuard(settings)
+	guard.Log = out
 	if guard.Pairings, err = auth.LoadPairings(filepath.Join(paths.DataDir(), "pairings.json")); err != nil {
 		return err
 	}

@@ -8,7 +8,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
+	"net/netip"
 	"net/url"
 	"strconv"
 	"strings"
@@ -54,6 +56,31 @@ func (m *clashAPI) do(ctx context.Context, method, path string, body any, out an
 		return json.NewDecoder(resp.Body).Decode(out)
 	}
 	return nil
+}
+
+// Resolve looks host up with the kernel's DNS, the way its rules do. It
+// asks for IPv4 addresses, which the kernels prefer.
+func (m *clashAPI) Resolve(ctx context.Context, host string) ([]netip.Addr, error) {
+	var out struct {
+		Status int
+		Answer []struct {
+			Type int    `json:"type"`
+			Data string `json:"data"`
+		}
+	}
+	if err := m.do(ctx, http.MethodGet, "/dns/query?type=A&name="+url.QueryEscape(host), nil, &out); err != nil {
+		return nil, err
+	}
+	var addrs []netip.Addr
+	for _, a := range out.Answer {
+		if ip, err := netip.ParseAddr(a.Data); err == nil && a.Type == 1 {
+			addrs = append(addrs, ip)
+		}
+	}
+	if len(addrs) == 0 {
+		return nil, &net.DNSError{Err: "no such host", Name: host, IsNotFound: out.Status == 3}
+	}
+	return addrs, nil
 }
 
 func (m *clashAPI) Ready(ctx context.Context) bool {

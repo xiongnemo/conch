@@ -5,6 +5,7 @@ package control
 import (
 	"context"
 	"errors"
+	"net/netip"
 	"time"
 
 	"github.com/xiongnemo/conch/internal/kernel"
@@ -55,6 +56,12 @@ type Kernel interface {
 	LogLevel() string
 	// ObserveLog reads the kernel's output, one line at a time and in order.
 	ObserveLog(line string) LogLine
+}
+
+// Resolver is a kernel that looks names up for others the way its rules
+// do (mihomo and sing-box, through the Clash API).
+type Resolver interface {
+	Resolve(ctx context.Context, host string) ([]netip.Addr, error)
 }
 
 // LogLine is what a line of kernel output says.

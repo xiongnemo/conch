@@ -4,11 +4,13 @@
 package explain
 
 import (
+	"errors"
 	"net"
 	"net/netip"
 	"net/url"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -69,17 +71,31 @@ type Explanation struct {
 // Explainer evaluates queries against a compiled profile.
 type Explainer struct {
 	Result *compile.Result
-	// Xray selects xray semantics: every domain-based rule is tried before
-	// the domain is resolved for IP rules, and the default route is used
-	// when nothing matches.
-	Xray bool
+	// Kernel selects whose matching semantics to use:
+	//   - mihomo (also the default): first match; an IP rule without
+	//     no-resolve resolves the domain when it gets to it.
+	//   - xray: every domain-based rule is tried before the domain is
+	//     resolved for IP rules (IPIfNonMatch).
+	//   - sing-box: the domain is resolved at the first IP rule without
+	//     no-resolve, where conch puts a resolve action; IP rules before it
+	//     only see IP addresses.
+	Kernel string
 	// Lists loads a rule set's entries; nil marks rule sets as uncertain.
 	Lists func(p route.Provider) ([]lists.Entry, error)
 	// Resolve looks up a domain for IP rules; nil means never resolve.
 	Resolve func(host string) ([]netip.Addr, error)
 
 	cache map[string][]lists.Entry
+	errs  map[string]error // why a list could not be read
 }
+
+// FakeIPs is where the kernels' fake-ip DNS hands out addresses. A name
+// resolving into it was answered by a fake-ip DNS (under TUN, the
+// system's DNS is), which tells nothing about where it really is.
+var FakeIPs = netip.MustParsePrefix("198.18.0.0/15")
+
+// ErrFakeIP means a lookup only returned fake-ip addresses.
+var ErrFakeIP = errorString("系统 DNS 返回的是 fake-ip 地址，查不到真实 IP；TUN 开着时就会这样")
 
 type verdict int
 
@@ -103,15 +119,25 @@ func (e *Explainer) Explain(q Query) *Explanation {
 		return ex
 	}
 	c := newConn(q)
+	tried := false
+	unresolved := "取决于域名解析出的 IP"
 	resolve := func() bool {
 		if c.ip.IsValid() {
 			return true
 		}
-		if e.Resolve == nil || !c.domain {
+		if e.Resolve == nil || !c.domain || tried {
 			return false
 		}
+		tried = true
 		addrs, err := e.Resolve(c.host)
-		if err != nil || len(addrs) == 0 {
+		if err == nil {
+			addrs = slices.DeleteFunc(addrs, func(a netip.Addr) bool { return FakeIPs.Contains(a.Unmap()) })
+			if len(addrs) == 0 {
+				err = ErrFakeIP
+			}
+		}
+		if err != nil {
+			unresolved += "（" + resolveError(err) + "）"
 			return false
 		}
 		c.ip = addrs[0].Unmap()
@@ -134,18 +160,24 @@ func (e *Explainer) Explain(q Query) *Explanation {
 		}
 	}
 
-	if !e.Xray {
-		// mihomo: first match. A rule without no-resolve resolves the
-		// domain when it needs an IP; with no-resolve it only sees an IP
-		// that is already known.
+	if e.Kernel != "xray" {
+		// First match. When an IP rule meets a domain, mihomo resolves it
+		// unless the rule says no-resolve; sing-box resolves it from the
+		// first IP rule without no-resolve on, for every IP rule after.
+		singBox, resolving := e.Kernel == "sing-box", false
 		for i, r := range rules {
+			if singBox && r.Match == route.MatchIPCIDR && !r.NoResolve {
+				resolving = true
+			}
 			v, note := e.match(r, c)
 			if v == needIP {
 				switch {
-				case r.NoResolve:
+				case singBox && !resolving, !singBox && r.NoResolve:
 					v = no
 				case resolve():
 					v, note = e.match(r, c)
+				default:
+					note = unresolved
 				}
 			}
 			record(i, v, note)
@@ -176,7 +208,7 @@ func (e *Explainer) Explain(q Query) *Explanation {
 			}
 		} else {
 			for _, i := range pending {
-				record(i, needIP, "取决于域名解析出的 IP")
+				record(i, needIP, unresolved)
 			}
 		}
 	}
@@ -188,6 +220,18 @@ func (e *Explainer) Explain(q Query) *Explanation {
 		}
 	}
 	return ex
+}
+
+// resolveError says briefly why a lookup failed.
+func resolveError(err error) string {
+	var dnsErr *net.DNSError
+	switch {
+	case errors.As(err, &dnsErr) && dnsErr.IsNotFound:
+		return "这个域名不存在"
+	case errors.As(err, &dnsErr):
+		return "解析失败：" + dnsErr.Err
+	}
+	return err.Error()
 }
 
 // Relevant drops uncertain rules that would not change the outcome.
@@ -276,7 +320,7 @@ func (e *Explainer) ruleSet(name string, c *conn) (verdict, string) {
 	}
 	entries, ok := e.entries(p)
 	if !ok {
-		return unknown, "无法在本地读取这个规则列表"
+		return unknown, listError(e.errs[p.Name])
 	}
 	best := no
 	for _, en := range entries {
@@ -337,6 +381,10 @@ func (e *Explainer) entries(p route.Provider) ([]lists.Entry, bool) {
 	}
 	if err != nil {
 		entries = nil
+		if e.errs == nil {
+			e.errs = map[string]error{}
+		}
+		e.errs[p.Name] = err
 	}
 	if p.Format == "autoproxy" && entries != nil {
 		entries = lists.Select(entries, p.Exceptions)
@@ -352,7 +400,18 @@ type errorString string
 
 func (e errorString) Error() string { return string(e) }
 
-const errUnreadable = errorString("unreadable")
+const errUnreadable = errorString("mrs 格式的列表只有内核能读")
+
+// listError says why a list could not be read here.
+func listError(err error) string {
+	switch {
+	case errors.Is(err, lists.ErrNotCached):
+		return "这个规则列表还没有下载"
+	case err == nil, err == errUnreadable:
+		return "无法在本地读取这个规则列表"
+	}
+	return "无法读取这个规则列表：" + err.Error()
+}
 
 func ipMatch(cidr string, ip netip.Addr) (verdict, string) {
 	p, err := netip.ParsePrefix(cidr)

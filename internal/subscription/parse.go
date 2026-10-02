@@ -76,7 +76,7 @@ func parseLinks(body []byte) (*Snapshot, error) {
 		s.Nodes = append(s.Nodes, proto.ToClash(name, spec))
 	}
 	if len(s.Nodes) == 0 {
-		return nil, fmt.Errorf("订阅里没有可用的节点")
+		return nil, noNodes(s.Warnings)
 	}
 	return s, nil
 }
@@ -148,7 +148,7 @@ func parseClash(root *yaml.Node, fetch FetchFunc) (*Snapshot, error) {
 		return nil, fmt.Errorf("订阅内容有问题，已拒绝：%w", f.err)
 	}
 	if len(s.Nodes) == 0 {
-		return nil, fmt.Errorf("订阅里没有可用的节点")
+		return nil, noNodes(s.Warnings)
 	}
 	return s, nil
 }
@@ -239,4 +239,16 @@ func compileOrWarn(s *Snapshot, expr string) *regexp.Regexp {
 		return nil
 	}
 	return re
+}
+
+// noNodes is the error for content without a usable node, with the first
+// reason something was skipped.
+func noNodes(warnings []string) error {
+	switch len(warnings) {
+	case 0:
+		return fmt.Errorf("订阅里没有可用的节点")
+	case 1:
+		return fmt.Errorf("订阅里没有可用的节点：%s", warnings[0])
+	}
+	return fmt.Errorf("订阅里没有可用的节点：%s（另有 %d 个问题）", warnings[0], len(warnings)-1)
 }

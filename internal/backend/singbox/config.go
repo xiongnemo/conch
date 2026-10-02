@@ -38,6 +38,7 @@ type dnsServer struct {
 }
 
 type dnsRule struct {
+	Inbound   []string `json:"inbound,omitempty"`
 	QueryType []string `json:"query_type,omitempty"`
 	Server    string   `json:"server"`
 }

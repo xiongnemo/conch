@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/xiongnemo/conch/internal/daemon"
+	"github.com/xiongnemo/conch/internal/explain"
 )
 
 // TestTUN turns TUN on and checks that a program that knows nothing of
@@ -75,6 +76,7 @@ routes:
   entries:
     echo.test: A
     echo2.test: AB
+    192.0.2.0/24: { via: A, resolve: true }
 inbound: { mixed-port: %[4]d }
 `, addr, portA, portB, freePort(t))), 0o644)
 
@@ -118,6 +120,18 @@ inbound: { mixed-port: %[4]d }
 	waitFor(t, "A to forward to B and B to reach echo2.test", func() bool {
 		return strings.Contains(hopA.out.String(), fmt.Sprintf(":%d", portB)) && strings.Contains(hopB.out.String(), fmt.Sprintf("echo2.test:%d", echoPort))
 	})
+
+	// The system's DNS answers with fake addresses now; explanations must
+	// not match those against the IP entry.
+	ex, err := d.Explain(ctx, explain.Query{Host: "unknown.test"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, a := range ex.Resolved {
+		if explain.FakeIPs.Contains(a) {
+			t.Errorf("explained unknown.test with the fake address %s", a)
+		}
+	}
 
 	if err := d.SetTUN(ctx, false); err != nil {
 		t.Fatal(err)

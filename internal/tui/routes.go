@@ -66,8 +66,12 @@ func (m *Model) explainRows() []row {
 		return []row{{text: bad.Render(e.query + "：" + e.err)}, blank()}
 	}
 	v := e.v
+	unsure := ""
+	if len(v.Uncertain) > 0 {
+		unsure = "（不一定，见下）"
+	}
 	rows := []row{
-		{text: bold.Render(e.query) + muted.Render(" → ") + bold.Render(v.Target) + muted.Render("  "+v.Outbound)},
+		{text: bold.Render(e.query) + muted.Render(" → ") + bold.Render(v.Target) + unsure + muted.Render("  "+v.Outbound)},
 		{text: "  命中：" + v.Matched},
 	}
 	if v.Resolved != "" {
@@ -80,8 +84,14 @@ func (m *Model) explainRows() []row {
 		}
 	}
 	if len(v.Uncertain) > 0 {
-		rows = append(rows, row{text: muted.Render("  要等到运行时才能确定的规则：")})
+		rows = append(rows, row{text: muted.Render("  排在前面、这里判断不了的规则（命中的话会走别的出口）：")})
 		for _, s := range v.Uncertain {
+			rows = append(rows, row{text: muted.Render("    " + s)})
+		}
+	}
+	if len(v.Apps) > 0 {
+		rows = append(rows, row{text: muted.Render("  如果连接来自这些应用，会走别的出口：")})
+		for _, s := range v.Apps {
 			rows = append(rows, row{text: muted.Render("    " + s)})
 		}
 	}

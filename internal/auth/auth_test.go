@@ -155,6 +155,39 @@ func TestLoginRateLimit(t *testing.T) {
 	}
 }
 
+// A password in the Authorization header is limited like the login page,
+// and wrong ones are logged; extension tokens are not passwords.
+func TestBearerGuessesAreLimited(t *testing.T) {
+	g, h := newServer(Settings{Password: "right", Auth: true, Listen: DefaultListen})
+	var log strings.Builder
+	g.Log = &log
+	bearer := func(token string) func(*http.Request) {
+		return func(r *http.Request) { r.Header.Set("Authorization", "Bearer "+token) }
+	}
+	for range 10 {
+		if code := do(h, "GET", "/api/status", bearer("np_revoked")).Code; code != 401 {
+			t.Fatalf("stale extension token: %d, want 401", code)
+		}
+	}
+	if code := do(h, "GET", "/api/status", bearer("right")).Code; code != 299 {
+		t.Fatalf("stale extension tokens must not lock the password out: %d", code)
+	}
+	for i := range 5 {
+		if code := do(h, "GET", "/api/status", bearer(fmt.Sprint("guess", i))).Code; code != 401 {
+			t.Fatalf("guess %d: %d", i, code)
+		}
+	}
+	if code := do(h, "GET", "/api/status", bearer("guess")).Code; code != 429 {
+		t.Errorf("sixth wrong password in a row: %d, want 429", code)
+	}
+	if code := do(h, "POST", "/api/login", nil).Code; code != 429 {
+		t.Errorf("the login page must share the limit: %d, want 429", code)
+	}
+	if n := strings.Count(log.String(), "密码不对"); n != 5 {
+		t.Errorf("logged %d wrong passwords, want 5:\n%s", n, log.String())
+	}
+}
+
 // Without a password no session is valid: not even one signed with the
 // key an empty password would give.
 func TestNoPasswordNoSessions(t *testing.T) {

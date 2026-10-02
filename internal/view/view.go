@@ -135,12 +135,17 @@ func domainTree(rules []route.Rule, expires map[string]time.Time, managedFile st
 
 // Explanation is an explain result in words.
 type Explanation struct {
-	Target    string   `json:"target"`
-	Outbound  string   `json:"outbound"`           // where it goes, described
-	Matched   string   `json:"matched"`            // why
-	Resolved  string   `json:"resolved,omitempty"` // the IP used for matching
-	Shadowed  []string `json:"shadowed,omitempty"`
+	Target   string   `json:"target"`
+	Outbound string   `json:"outbound"`           // where it goes, described
+	Matched  string   `json:"matched"`            // why
+	Resolved string   `json:"resolved,omitempty"` // the IP used for matching
+	Shadowed []string `json:"shadowed,omitempty"`
+	// Uncertain are earlier rules that cannot be decided here and would
+	// send the connection elsewhere: with any, Target is only likely.
 	Uncertain []string `json:"uncertain,omitempty"`
+	// Apps are earlier rules for connections from particular apps, which
+	// would send those elsewhere.
+	Apps []string `json:"apps,omitempty"`
 }
 
 func Explain(res *compile.Result, ex *explain.Explanation) Explanation {
@@ -176,14 +181,18 @@ func Explain(res *compile.Result, ex *explain.Explanation) Explanation {
 	grouped := map[[2]string]*apps{}
 	for _, h := range ex.Relevant() {
 		r := h.Rule
-		if r.Origin.Imported && (r.Match == route.MatchProcessName || r.Match == route.MatchProcessPath) {
+		if r.Match == route.MatchProcessName || r.Match == route.MatchProcessPath {
+			if !r.Origin.Imported {
+				v.Apps = append(v.Apps, Rule(r)+" → "+r.Target)
+				continue
+			}
 			k := [2]string{r.Origin.Key, r.Target}
 			if grouped[k] == nil {
-				grouped[k] = &apps{at: len(v.Uncertain)}
-				v.Uncertain = append(v.Uncertain, "")
+				grouped[k] = &apps{at: len(v.Apps)}
+				v.Apps = append(v.Apps, "")
 			}
 			grouped[k].names = append(grouped[k].names, r.Value)
-			v.Uncertain[grouped[k].at] = appRules(k[0], k[1], grouped[k].names)
+			v.Apps[grouped[k].at] = appRules(k[0], k[1], grouped[k].names)
 			continue
 		}
 		note := h.Note
@@ -198,13 +207,13 @@ func Explain(res *compile.Result, ex *explain.Explanation) Explanation {
 // appRules describes a subscription's app rules that go to one exit.
 func appRules(sub, target string, names []string) string {
 	if len(names) == 1 {
-		return fmt.Sprintf("订阅 %s 的规则 进程 %s → %s（取决于发起连接的应用）", sub, names[0], target)
+		return fmt.Sprintf("订阅 %s 的规则 进程 %s → %s", sub, names[0], target)
 	}
 	shown := strings.Join(names[:min(len(names), 2)], "、")
 	if len(names) > 2 {
 		shown += " 等"
 	}
-	return fmt.Sprintf("订阅 %s 的 %d 条按应用的规则（%s）→ %s（取决于发起连接的应用）", sub, len(names), shown, target)
+	return fmt.Sprintf("订阅 %s 的 %d 条按应用的规则（%s）→ %s", sub, len(names), shown, target)
 }
 
 // Rule names the entry, list or subscription rule a compiled rule came from.

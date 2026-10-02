@@ -209,6 +209,7 @@ func (e *encoder) rules() []rule {
 		return out // global and direct only use the final outbound
 	}
 	resolved := false
+	ipOnly := map[string]bool{} // lists already warned about
 	// description → compiled rule, -1 when ambiguous. Of rules that read
 	// the same, the first is the one connections match; only a cut
 	// description ("[a b c...]") may stand for different rules.
@@ -242,6 +243,17 @@ func (e *encoder) rules() []rule {
 			}
 		case route.MatchRuleSet:
 			xs = e.listRules(r)
+			// mihomo resolves the domain for such a rule, but sing-box would
+			// then dial the outbound by the address it resolved. (AutoProxy
+			// lists match IPs only as written anyway, as in a PAC file.)
+			if !resolved && !r.NoResolve && slices.ContainsFunc(xs, matchesIPs) && e.provider(r.Value).Format != "autoproxy" && !ipOnly[r.Origin.Key] {
+				ipOnly[r.Origin.Key] = true
+				what := "规则列表 " + r.Origin.Key + " "
+				if r.Origin.Imported {
+					what = "订阅 " + r.Origin.Key + " 里按 IP 匹配的规则"
+				}
+				e.d.Warnf(r.Origin.Pos, "sing-box：%s只匹配直接用 IP 访问的连接，不会为了它先解析域名（sing-box 解析域名后会用 IP 连接出口）", what)
+			}
 		case route.MatchDstPort:
 			pr, ok := portRule(r.Value)
 			if !ok {
@@ -289,6 +301,11 @@ func (e *encoder) rules() []rule {
 	return out
 }
 
+// matchesIPs reports whether a rule matches destination addresses.
+func matchesIPs(r rule) bool {
+	return len(r.IPCIDR) > 0 || slices.ContainsFunc(r.RuleSet, func(tag string) bool { return strings.HasPrefix(tag, "geoip-") })
+}
+
 func setTarget(r *rule, target string) {
 	switch target {
 	case "REJECT":
@@ -322,12 +339,7 @@ func portRule(value string) (rule, bool) {
 // listRules turns a rule list into sing-box rules: geosite/geoip
 // categories as remote rule sets, other lists inlined.
 func (e *encoder) listRules(r route.Rule) []rule {
-	var p route.Provider
-	for _, q := range e.r.Providers {
-		if q.Name == r.Value {
-			p = q
-		}
-	}
+	p := e.provider(r.Value)
 	if p.Geo != "" {
 		tag := p.Geo + "-" + p.Category
 		e.addRuleSet(ruleSet{Type: "remote", Tag: tag, Format: "binary", URL: ruleSetBase + p.Geo + "/" + p.Category + ".srs", UpdateInterval: "1d"})
@@ -363,6 +375,15 @@ func (e *encoder) listRules(r route.Rule) []rule {
 		e.d.Warnf(r.Origin.Pos, "规则列表 %s 中有 %d 条 sing-box 无法表达的规则，已跳过（例如 %q）", p.URL, len(skipped), skipped[0])
 	}
 	return entryRules(e, entries)
+}
+
+func (e *encoder) provider(name string) route.Provider {
+	for _, p := range e.r.Providers {
+		if p.Name == name {
+			return p
+		}
+	}
+	return route.Provider{}
 }
 
 func (e *encoder) addRuleSet(rs ruleSet) {
@@ -514,9 +535,12 @@ func (e *encoder) dns() (*dnsConfig, string) {
 		resolver = "local"
 	}
 	cfg.Final = cfg.Servers[0].Tag
-	if s.Enable && s.Mode == "fake-ip" {
+	if s.Mode == "fake-ip" && e.r.Settings.TUN.Enable {
+		// Fake addresses only for the DNS that TUN hijacks: lookups through
+		// the Clash API, such as conch's, get real ones, as the resolve
+		// action does.
 		cfg.Servers = append(cfg.Servers, dnsServer{Type: "fakeip", Tag: "fakeip", Inet4Range: "198.18.0.0/15", Inet6Range: "fc00::/18"})
-		cfg.Rules = []dnsRule{{QueryType: []string{"A", "AAAA"}, Server: "fakeip"}}
+		cfg.Rules = []dnsRule{{Inbound: []string{inTUN}, QueryType: []string{"A", "AAAA"}, Server: "fakeip"}}
 	}
 	return cfg, resolver
 }

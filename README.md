@@ -62,7 +62,7 @@ routes:
 
 ```sh
 conch route get chatgpt.com
-conch route add openai.com AI-Exit --for 2h       # 临时条目，到期自动删除；--for run 表示到 conch 停止为止
+conch route add openai.com via AI-Exit --for 2h   # 临时条目，到期自动删除；--for run 表示到 conch 停止为止（via 可以省略）
 conch route del openai.com
 conch route list
 ```

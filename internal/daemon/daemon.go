@@ -67,6 +67,7 @@ type Daemon struct {
 	tunRouted bool
 	// inbound.system-proxy as last applied, to notice the profile changing it
 	profileSysProxy *bool
+	lanOpen         bool // the proxy listens beyond loopback (noteLAN)
 	undos           []routeUndo         // the latest route changes, for UndoRoute
 	refreshing      atomic.Bool         // subscriptions are being refreshed
 	subRetry        map[string]subRetry // failed subscriptions, by name
@@ -280,6 +281,7 @@ func (d *Daemon) Reconcile(ctx context.Context) error {
 		// Also when the kernel's config stays the same: the setting
 		// is conch's own.
 		d.followProfileSysProxy(res)
+		d.noteLAN(res.Settings)
 	}
 	d.mu.Lock()
 	d.diags = diags
@@ -291,6 +293,16 @@ func (d *Daemon) Reconcile(ctx context.Context) error {
 	d.syncDNS()
 	d.Events.Publish(Event{Type: "state", Data: d.Status()})
 	return err
+}
+
+// noteLAN says, when the proxy starts listening beyond this machine, that
+// it does so without a password.
+func (d *Daemon) noteLAN(s compile.Settings) {
+	open := s.AllowLAN && !auth.IsLoopback(cmpOr(s.BindAddress, "*"))
+	if open && !d.lanOpen {
+		fmt.Fprintf(d.opts.Log, "注意：inbound.allow-lan 打开了，局域网里的设备不用密码就能使用 %d 端口的代理；只在信得过的网络里这样用\n", s.MixedPort)
+	}
+	d.lanOpen = open
 }
 
 // build loads everything a config depends on and compiles it.

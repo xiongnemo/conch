@@ -132,12 +132,12 @@ function explanation(host: string, ex: Explanation): HTMLElement {
   const delay = h("span", { class: "delay muted" });
   return h("section", { class: "site" },
     h("div", { class: "host" }, host),
-    h("div", { class: "via" }, "→ ", h("b", {}, ex.target), " ", delay),
+    h("div", { class: "via" }, "→ ", h("b", {}, ex.target), ex.uncertain?.length ? "（不一定）" : "", " ", delay),
     h("div", { class: "muted small" }, ex.outbound),
     h("div", { class: "small" }, "命中：", ex.matched),
     ex.resolved ? h("div", { class: "muted small" }, `本机解析为 ${ex.resolved} 后按 IP 匹配`) : null,
     ex.shadowed?.length ? h("details", { class: "small" }, h("summary", {}, `也匹配但被压过的 ${ex.shadowed.length} 条`), h("ul", {}, ex.shadowed.map((s) => h("li", {}, s)))) : null,
-    ex.uncertain?.length ? h("details", { class: "small" }, h("summary", {}, "运行时才能确定的规则"), h("ul", {}, ex.uncertain.map((s) => h("li", {}, s)))) : null,
+    ex.uncertain?.length ? h("details", { class: "small" }, h("summary", {}, "这里判断不了、可能命中的规则"), h("ul", {}, ex.uncertain.map((s) => h("li", {}, s)))) : null,
   );
 }
 

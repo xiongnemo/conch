@@ -13,8 +13,10 @@ import (
 	"go.yaml.in/yaml/v3"
 
 	"github.com/xiongnemo/conch/internal/api"
+	"github.com/xiongnemo/conch/internal/linkparse"
 	"github.com/xiongnemo/conch/internal/model"
 	"github.com/xiongnemo/conch/internal/paths"
+	"github.com/xiongnemo/conch/internal/proto"
 	"github.com/xiongnemo/conch/internal/subscription"
 )
 
@@ -144,28 +146,33 @@ func newImportCmd() *cobra.Command {
 		Short: "把分享链接或 Clash 配置里的节点转换成 profile 的写法",
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			var bodies []string
-			for _, a := range args {
-				switch {
-				case a == "-":
-					b, err := io.ReadAll(cmd.InOrStdin())
-					if err != nil {
-						return err
-					}
-					bodies = append(bodies, string(b))
-				case strings.Contains(a, "://"):
-					bodies = append(bodies, a)
-				default:
-					b, err := os.ReadFile(a)
-					if err != nil {
-						return err
-					}
-					bodies = append(bodies, string(b))
-				}
-			}
 			var nodes []*yaml.Node
-			for _, b := range bodies {
-				snap, err := subscription.Parse([]byte(b), nil)
+			for _, a := range args {
+				var body []byte
+				var err error
+				switch {
+				case strings.HasPrefix(a, "http://") || strings.HasPrefix(a, "https://"):
+					return fmt.Errorf("%s 是网址，不是分享链接；订阅地址要写进 profile 的 subscriptions", a)
+				case strings.Contains(a, "://") && !strings.Contains(strings.TrimSpace(a), "\n"):
+					// One share link: its own error says what is wrong.
+					name, spec, err := linkparse.Parse(a)
+					if err != nil {
+						return err
+					}
+					if len(spec.Unknown) > 0 {
+						fmt.Fprintf(cmd.ErrOrStderr(), "警告： 节点 %q 的这些参数无法识别，已忽略：%s\n", name, strings.Join(spec.Unknown, "、"))
+					}
+					nodes = append(nodes, proto.ToClash(name, spec))
+					continue
+				case a == "-":
+					body, err = io.ReadAll(cmd.InOrStdin())
+				default:
+					body, err = os.ReadFile(a)
+				}
+				if err != nil {
+					return err
+				}
+				snap, err := subscription.Parse(body, nil)
 				if err != nil {
 					return err
 				}

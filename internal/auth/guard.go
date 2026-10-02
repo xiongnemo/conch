@@ -7,6 +7,8 @@ import (
 	"crypto/subtle"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
+	"io"
 	"mime"
 	"net"
 	"net/http"
@@ -30,6 +32,8 @@ type Guard struct {
 	key      []byte // session signing key, derived from the password
 
 	limiter limiter
+	// Log receives a line for each wrong password; nil discards them.
+	Log io.Writer
 	// Pairings are the paired browser extensions; nil allows none.
 	Pairings *Pairings
 	// Public reports paths served without a session (the login page and
@@ -103,8 +107,21 @@ func (g *Guard) Wrap(next http.Handler) http.Handler {
 		}
 		public := g.Public != nil && g.Public(r.URL.Path)
 		if s.Auth && !public {
+			// A password in the header is a guess like one at the login
+			// page, and limited the same way.
+			ip, _, _ := net.SplitHostPort(r.RemoteAddr)
+			guess := carriesPassword(r)
+			if wait := g.limiter.wait(ip, time.Now()); guess && wait > 0 {
+				tooMany(w, wait)
+				return
+			}
 			switch g.access(r) {
 			case accessNone:
+				if guess {
+					g.failed(ip, "API 请求")
+					jsonError(w, http.StatusUnauthorized, "密码不对")
+					return
+				}
 				jsonError(w, http.StatusUnauthorized, "需要登录")
 				return
 			case accessExtension:
@@ -116,6 +133,27 @@ func (g *Guard) Wrap(next http.Handler) http.Handler {
 		}
 		next.ServeHTTP(w, r)
 	})
+}
+
+// carriesPassword reports whether a request authenticates with a password
+// (the CLI's way) rather than an extension's token, which is too long to
+// guess.
+func carriesPassword(r *http.Request) bool {
+	token, ok := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer ")
+	return ok && !strings.HasPrefix(token, "np_")
+}
+
+// failed counts a wrong password from ip and logs it.
+func (g *Guard) failed(ip, what string) {
+	n := g.limiter.fail(ip, time.Now())
+	if g.Log != nil {
+		fmt.Fprintf(g.Log, "%s失败：来自 %s 的密码不对（一小时内第 %d 次）\n", what, ip, n)
+	}
+}
+
+func tooMany(w http.ResponseWriter, wait time.Duration) {
+	w.Header().Set("Retry-After", strconv.Itoa(int(wait.Seconds())+1))
+	jsonError(w, http.StatusTooManyRequests, "密码错误的次数太多，请 "+wait.Round(time.Second).String()+" 后再试")
 }
 
 func (g *Guard) corsAllowed(origin, path string) bool {
@@ -215,15 +253,14 @@ func (g *Guard) sessionOK(v string, now time.Time) bool {
 func (g *Guard) Login(w http.ResponseWriter, r *http.Request) {
 	ip, _, _ := net.SplitHostPort(r.RemoteAddr)
 	if wait := g.limiter.wait(ip, time.Now()); wait > 0 {
-		w.Header().Set("Retry-After", strconv.Itoa(int(wait.Seconds())+1))
-		jsonError(w, http.StatusTooManyRequests, "尝试次数太多，请 "+wait.Round(time.Second).String()+" 后再试")
+		tooMany(w, wait)
 		return
 	}
 	var body struct {
 		Password string `json:"password"`
 	}
 	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4096)).Decode(&body); err != nil || !g.passwordOK(body.Password) {
-		g.limiter.fail(ip, time.Now())
+		g.failed(ip, "登录")
 		jsonError(w, http.StatusUnauthorized, "密码不对")
 		return
 	}
@@ -269,7 +306,8 @@ func (l *limiter) wait(ip string, now time.Time) time.Duration {
 	return max(0, a.last.Add(delay).Sub(now))
 }
 
-func (l *limiter) fail(ip string, now time.Time) {
+// fail counts a failure and returns how many there were in the last hour.
+func (l *limiter) fail(ip string, now time.Time) int {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	if l.fails == nil {
@@ -282,6 +320,7 @@ func (l *limiter) fail(ip string, now time.Time) {
 	}
 	a.n++
 	a.last = now
+	return a.n
 }
 
 func (l *limiter) reset(ip string) {

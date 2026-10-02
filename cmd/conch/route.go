@@ -17,6 +17,7 @@ import (
 	"github.com/xiongnemo/conch/internal/daemon"
 	"github.com/xiongnemo/conch/internal/explain"
 	"github.com/xiongnemo/conch/internal/lists"
+	"github.com/xiongnemo/conch/internal/paths"
 	"github.com/xiongnemo/conch/internal/route"
 	"github.com/xiongnemo/conch/internal/view"
 )
@@ -37,7 +38,8 @@ func newRouteCmd() *cobra.Command {
 		Short: "这个地址会怎么走？为什么？",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if _, err := lookupBackend(backendName); err != nil {
+			kernel := cmpOr(backendName, daemon.LastBackend(paths.DataDir()))
+			if _, err := lookupBackend(kernel); err != nil {
 				return err
 			}
 			q := explain.ParseQuery(args[0])
@@ -65,8 +67,8 @@ func newRouteCmd() *cobra.Command {
 				printDiags(cmd.ErrOrStderr(), diags)
 				return errReported
 			}
-			e := &explain.Explainer{Result: res, Xray: backendName == "xray", Lists: plainLoader(cmd.Context(), &pl)}
-			if !noResolve {
+			e := &explain.Explainer{Result: res, Kernel: kernel, Lists: plainLoader(cmd.Context(), &pl)}
+			if !noResolve && !pl.offline {
 				e.Resolve = func(host string) ([]netip.Addr, error) {
 					return net.DefaultResolver.LookupNetIP(cmd.Context(), "ip", host)
 				}
@@ -75,9 +77,9 @@ func newRouteCmd() *cobra.Command {
 			return nil
 		},
 	}
-	get.Flags().StringVar(&backendName, "backend", "mihomo", "按哪个内核的匹配规则来解释：mihomo、xray 或 sing-box")
+	get.Flags().StringVar(&backendName, "backend", "", "按哪个内核的匹配规则来解释：mihomo、xray 或 sing-box（默认是 daemon 上次用的）")
 	get.Flags().StringVar(&process, "app", "", "发起连接的应用（进程名或路径）")
-	get.Flags().BoolVar(&noResolve, "no-resolve", false, "不在本机解析域名")
+	get.Flags().BoolVar(&noResolve, "no-resolve", false, "不在本机解析域名（--offline 时也不解析）")
 
 	list := &cobra.Command{
 		Use:   "list",
@@ -112,11 +114,14 @@ func newRouteCmd() *cobra.Command {
 	}
 	var forText string
 	add := &cobra.Command{
-		Use:   "add <目标> <出口>",
-		Short: "添加条目，例如 conch route add openai.com AI-Exit --for 2h",
-		Args:  cobra.ExactArgs(2),
+		Use:   "add <目标> [via] <出口>",
+		Short: "添加条目，例如 conch route add openai.com via AI-Exit --for 2h",
+		Args:  cobra.RangeArgs(2, 3),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			target, via := args[0], args[1]
+			if len(args) == 3 && args[1] != "via" {
+				return fmt.Errorf("写成 conch route add <目标> <出口>，或者 conch route add <目标> via <出口>")
+			}
+			target, via := args[0], args[len(args)-1]
 			ttl, err := parseFor(forText)
 			if err != nil {
 				return err
@@ -231,7 +236,11 @@ func plainLoader(ctx context.Context, pl *pipeline) func(route.Provider) ([]list
 }
 
 func printExplanation(w io.Writer, host string, v view.Explanation) {
-	fmt.Fprintf(w, "%s → %s\n", host, v.Target)
+	unsure := ""
+	if len(v.Uncertain) > 0 {
+		unsure = "（不一定，见下）"
+	}
+	fmt.Fprintf(w, "%s → %s%s\n", host, v.Target, unsure)
 	fmt.Fprintf(w, "  命中：%s\n", v.Matched)
 	if v.Resolved != "" {
 		fmt.Fprintf(w, "  （本机解析为 %s 后按 IP 匹配）\n", v.Resolved)
@@ -244,8 +253,14 @@ func printExplanation(w io.Writer, host string, v view.Explanation) {
 		}
 	}
 	if len(v.Uncertain) > 0 {
-		fmt.Fprintln(w, "  排在前面、要等到运行时才能确定的规则（如果命中，结果会不同）：")
+		fmt.Fprintln(w, "  排在前面、这里判断不了的规则（命中的话会走别的出口）：")
 		for _, s := range v.Uncertain {
+			fmt.Fprintln(w, "    - "+s)
+		}
+	}
+	if len(v.Apps) > 0 {
+		fmt.Fprintln(w, "  如果连接来自下面这些应用，会走别的出口（用 --app 指定应用可以查得更准）：")
+		for _, s := range v.Apps {
 			fmt.Fprintln(w, "    - "+s)
 		}
 	}

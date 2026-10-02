@@ -24,6 +24,9 @@
     ],
     "rules": [
       {
+        "inbound": [
+          "›tun"
+        ],
         "query_type": [
           "A",
           "AAAA"
