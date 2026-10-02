@@ -158,7 +158,7 @@ type routing struct {
 	Rules                 []rule    `json:"rules"`
 	RuleSet               []ruleSet `json:"rule_set,omitempty"`
 	Final                 string    `json:"final"`
-	AutoDetectInterface   bool      `json:"auto_detect_interface"`
+	AutoDetectInterface   bool      `json:"auto_detect_interface,omitempty"`
 	DefaultDomainResolver string    `json:"default_domain_resolver,omitempty"`
 }
 

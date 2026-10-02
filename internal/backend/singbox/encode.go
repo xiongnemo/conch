@@ -96,7 +96,10 @@ func (Backend) Encode(r *compile.Result, opts backend.Options) (*backend.Artifac
 	cfg.Route.Rules = e.rules()
 	cfg.Route.RuleSet = e.ruleSets
 	cfg.Route.Final = e.final()
-	cfg.Route.AutoDetectInterface = true
+	// Binding outbounds to the default interface keeps TUN's own traffic
+	// out of TUN; a plain proxy leaves routing to the system (loopback,
+	// the LAN, VPNs), as mihomo's config does.
+	cfg.Route.AutoDetectInterface = e.r.Settings.TUN.Enable
 	if opts.Controller != "" {
 		cfg.Experimental = &experimental{
 			ClashAPI:  &clashAPI{ExternalController: opts.Controller, Secret: opts.Secret, AccessControlAllowOrigin: []string{corsNobody}},

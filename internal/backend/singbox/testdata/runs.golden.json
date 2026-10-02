@@ -261,7 +261,6 @@
       }
     ],
     "final": "代理",
-    "auto_detect_interface": true,
     "default_domain_resolver": "dns-1"
   }
 }
