@@ -48,9 +48,12 @@ func Up(dev string) error {
 		prio int
 		args []string
 	}{
-		{Priority, []string{"fwmark", mark, "lookup", "main"}},                   // the kernel's own packets
-		{Priority + 1, []string{"lookup", "main", "suppress_prefixlength", "0"}}, // anything but the default route
-		{Priority + 2, []string{"lookup", table}},                                // the rest: into the device
+		{Priority, []string{"fwmark", mark, "lookup", "main"}}, // the kernel's own packets
+		// DNS, wherever it goes (often the LAN's router): the kernel answers it.
+		{Priority + 1, []string{"ipproto", "udp", "dport", "53", "lookup", table}},
+		{Priority + 2, []string{"ipproto", "tcp", "dport", "53", "lookup", table}},
+		{Priority + 3, []string{"lookup", "main", "suppress_prefixlength", "0"}}, // the LAN, VPNs: as they are
+		{Priority + 4, []string{"lookup", table}},                                // the rest: into the device
 	}
 	for _, family := range []string{"-4", "-6"} {
 		removeRules(family)
@@ -83,7 +86,7 @@ func Down() error {
 }
 
 func removeRules(family string) {
-	for i := range 3 {
+	for i := range 5 {
 		for run(family, "rule", "del", "priority", strconv.Itoa(Priority+i)) == nil {
 		}
 	}

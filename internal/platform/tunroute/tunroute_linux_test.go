@@ -37,9 +37,11 @@ func TestUp(t *testing.T) {
 		"link set dev conch0 up",
 		"-4 route replace default dev conch0 table 17230",
 		"-4 rule add priority 17230 fwmark 0x434e lookup main",
-		"-4 rule add priority 17231 lookup main suppress_prefixlength 0",
-		"-4 rule add priority 17232 lookup 17230",
-		"-6 rule add priority 17232 lookup 17230",
+		"-4 rule add priority 17231 ipproto udp dport 53 lookup 17230",
+		"-4 rule add priority 17232 ipproto tcp dport 53 lookup 17230",
+		"-4 rule add priority 17233 lookup main suppress_prefixlength 0",
+		"-4 rule add priority 17234 lookup 17230",
+		"-6 rule add priority 17234 lookup 17230",
 	} {
 		if !slices.Contains(*calls, want) {
 			t.Errorf("missing %q in\n%s", want, strings.Join(*calls, "\n"))
@@ -57,7 +59,7 @@ func TestUpWithoutIPv6(t *testing.T) {
 	if err := Up("conch0"); err != nil {
 		t.Fatal(err)
 	}
-	if !slices.Contains(*calls, "-4 rule add priority 17232 lookup 17230") || !slices.Contains(*calls, "-6 route flush table 17230") {
+	if !slices.Contains(*calls, "-4 rule add priority 17234 lookup 17230") || !slices.Contains(*calls, "-6 route flush table 17230") {
 		t.Errorf("calls:\n%s", strings.Join(*calls, "\n"))
 	}
 }
@@ -65,7 +67,7 @@ func TestUpWithoutIPv6(t *testing.T) {
 func TestDown(t *testing.T) {
 	calls := fake(t, false)
 	Down()
-	for _, want := range []string{"-4 rule del priority 17230", "-4 rule del priority 17232", "-4 route flush table 17230", "-6 route flush table 17230"} {
+	for _, want := range []string{"-4 rule del priority 17230", "-4 rule del priority 17234", "-4 route flush table 17230", "-6 route flush table 17230"} {
 		if !slices.Contains(*calls, want) {
 			t.Errorf("missing %q in\n%s", want, strings.Join(*calls, "\n"))
 		}
