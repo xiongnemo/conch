@@ -437,9 +437,22 @@ conch sysproxy on
 - `conch doctor` 显示「✗ 系统代理还指向 127.0.0.1:7890，但 conch 没有在运行……」；
 - `conch doctor --fix` 显示「✓ 已恢复系统代理设置……」，设置页恢复原样。
 
-**10.5 记住开关**
+**10.5 每次启动都是纯代理**
 
-再启动 daemon。因为 10.4 里系统代理是开着的，daemon 会自动重新打开它（设置页可以确认）。然后运行 `conch sysproxy off`。
+再启动 daemon。虽然上次结束时系统代理是开着的，这次启动后它仍然是关着的：conch 启动后只是 HTTP + SOCKS5 代理，开关只管一次运行。设置页应该和 `proxy-before.txt` 一样。
+
+**10.6 在 profile 里要求开启**
+
+1. 停掉 daemon；
+2. 把 profile 里的 inbound 那一行改成 `inbound: { mixed-port: 7890, system-proxy: true }`；
+3. 再启动 daemon。
+
+预期：
+
+- 系统代理一启动就指向 127.0.0.1:7890；
+- 按 Ctrl+C 停掉后，恢复原样。
+
+然后把那一行改回去。
 
 - [ ] 10 通过
 
@@ -580,7 +593,10 @@ icacls C:\ProgramData\conch
 
 **13.9 重启电脑**
 
-服务自动启动；登录后 agent 自动启动。
+预期：
+
+- 服务自动启动，登录后 agent 也自动启动；
+- 服务重新启动后是纯代理，系统代理是关着的（除非 `C:\ProgramData\conch\profile.yaml` 里写了 `inbound: { system-proxy: true }`）。
 
 **13.10 卸载**
 

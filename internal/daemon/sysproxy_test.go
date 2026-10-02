@@ -4,6 +4,8 @@ import (
 	"io"
 	"testing"
 
+	"github.com/xiongnemo/conch/internal/compile"
+
 	"github.com/xiongnemo/conch/internal/platform/sysproxy"
 )
 
@@ -52,18 +54,61 @@ func TestSysProxyLifecycle(t *testing.T) {
 	if os.port != 7891 || d.state.SysProxy.Previous != "user" {
 		t.Fatalf("after port change: OS %d, snapshot %q", os.port, d.state.SysProxy.Previous)
 	}
-	// Stopping restores the user's settings but keeps the wish.
-	d.releaseSysProxy()
-	if os.port != 0 || !d.state.SysProxy.Wanted || d.state.SysProxy.Applied {
-		t.Fatalf("after stop: OS %d, state %+v", os.port, d.state.SysProxy)
-	}
-	// The next start turns it back on.
-	d.syncSysProxy()
-	if os.port != 7891 {
-		t.Fatalf("after restart: OS %d", os.port)
-	}
 	if err := d.SetSysProxy(false); err != nil || os.port != 0 || d.state.SysProxy.Wanted {
 		t.Fatalf("disable: %v, OS %d, state %+v", err, os.port, d.state.SysProxy)
+	}
+	d.SetSysProxy(true)
+	// Stopping restores the user's settings.
+	d.releaseSysProxy()
+	if os.port != 0 || d.state.SysProxy.Applied {
+		t.Fatalf("after stop: OS %d, state %+v", os.port, d.state.SysProxy)
+	}
+	// The next start is a plain proxy again: the switch lasted one run.
+	start(d, false)
+	if os.port != 0 || d.state.SysProxy.Wanted {
+		t.Fatalf("after restart: OS %d, state %+v", os.port, d.state.SysProxy)
+	}
+}
+
+// start runs a daemon start as Run does, with inbound.system-proxy.
+func start(d *Daemon, systemProxy bool) {
+	d.startSession()
+	d.followProfileSysProxy(&compile.Result{Settings: compile.Settings{SystemProxy: systemProxy}})
+	d.syncSysProxy()
+}
+
+// inbound.system-proxy turns it on at every start, and when an edit of the
+// profile asks for it; the switch in the UIs lasts until then.
+func TestProfileSystemProxy(t *testing.T) {
+	os := swapSysProxy(t)
+	d := testDaemon(t, 7890)
+	start(d, true)
+	if os.port != 7890 {
+		t.Fatalf("start with system-proxy: OS %d", os.port)
+	}
+	d.SetSysProxy(false)
+	d.followProfileSysProxy(&compile.Result{Settings: compile.Settings{SystemProxy: true}}) // another edit, same value
+	d.syncSysProxy()
+	if os.port != 0 {
+		t.Fatalf("the profile overrode the switch without changing: OS %d", os.port)
+	}
+	d.followProfileSysProxy(&compile.Result{Settings: compile.Settings{SystemProxy: false}})
+	d.followProfileSysProxy(&compile.Result{Settings: compile.Settings{SystemProxy: true}})
+	d.syncSysProxy()
+	if os.port != 7890 {
+		t.Fatalf("after the profile turned it on again: OS %d", os.port)
+	}
+}
+
+// A TUN switch lasts one run too; tun.enable in the profile is for every start.
+func TestStartResetsTUN(t *testing.T) {
+	swapSysProxy(t)
+	d := testDaemon(t, 7890)
+	on := true
+	d.state.TUN = &on
+	d.startSession()
+	if d.state.TUN != nil {
+		t.Errorf("TUN switch survived a restart: %v", *d.state.TUN)
 	}
 }
 

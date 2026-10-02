@@ -269,6 +269,9 @@ type Inbound struct {
 	MixedPort   int    `yaml:"mixed-port"`
 	AllowLAN    bool   `yaml:"allow-lan"`
 	BindAddress string `yaml:"bind-address"`
+	// SystemProxy points the system proxy at the mixed port at every
+	// start; otherwise conch starts as a plain HTTP and SOCKS5 proxy.
+	SystemProxy bool `yaml:"system-proxy"`
 }
 
 func (in *Inbound) UnmarshalYAML(value *yaml.Node) error {

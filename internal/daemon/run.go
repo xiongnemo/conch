@@ -16,6 +16,7 @@ func (d *Daemon) Run(ctx context.Context) error {
 	defer d.Stop()
 	defer d.releaseSysProxy()
 	defer d.releaseDNS()
+	d.startSession()
 	if err := d.Reconcile(ctx); err != nil {
 		// Keep running: the API shows the problem and edits can fix it.
 		fmt.Fprintln(d.opts.Log, "警告：", err)

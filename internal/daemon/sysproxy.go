@@ -2,6 +2,7 @@ package daemon
 
 import (
 	"fmt"
+	"github.com/xiongnemo/conch/internal/compile"
 	"path/filepath"
 
 	"github.com/xiongnemo/conch/internal/platform/sysproxy"
@@ -98,8 +99,7 @@ func (d *Daemon) syncSysProxy() {
 	d.state.save(d.statePath())
 }
 
-// releaseSysProxy puts the user's settings back when the daemon stops;
-// the wish is kept, so the next start turns it on again.
+// releaseSysProxy puts the user's settings back when the daemon stops.
 func (d *Daemon) releaseSysProxy() {
 	d.mu.Lock()
 	defer d.mu.Unlock()
@@ -125,4 +125,39 @@ func RepairSysProxy(dataDir string) (bool, error) {
 	}
 	st.SysProxy.Applied, st.SysProxy.Port, st.SysProxy.Previous = false, 0, ""
 	return true, st.save(path)
+}
+
+// startSession makes every start a plain HTTP and SOCKS5 proxy: the
+// system proxy and TUN switches only last a run. What a crash left set is
+// still repaired, and the profile can ask for both at every start
+// (inbound.system-proxy, tun.enable).
+func (d *Daemon) startSession() {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	if d.state.SysProxy != nil {
+		d.state.SysProxy.Wanted = false
+	}
+	d.state.TUN = nil
+	d.profileSysProxy = nil
+	d.state.save(d.statePath())
+}
+
+// followProfileSysProxy takes inbound.system-proxy as the wish at the
+// start and whenever an edit of the profile changes it; the switches in
+// the UIs override it until then.
+func (d *Daemon) followProfileSysProxy(res *compile.Result) {
+	want := res.Settings.SystemProxy
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	if d.profileSysProxy != nil && *d.profileSysProxy == want {
+		return
+	}
+	d.profileSysProxy = &want
+	if d.state.SysProxy == nil {
+		d.state.SysProxy = &SysProxyState{}
+	}
+	d.state.SysProxy.Wanted = want
+	if d.opts.Service {
+		d.Events.Publish(Event{Type: "state", Data: d.statusLocked()}) // agents follow
+	}
 }

@@ -63,10 +63,12 @@ type Daemon struct {
 	firewalled string
 	// the system is routed into xray's TUN device
 	tunRouted bool
-	backend   backend.Router
-	bin       string
-	home      string
-	socket    string
+	// inbound.system-proxy as last applied, to notice the profile changing it
+	profileSysProxy *bool
+	backend         backend.Router
+	bin             string
+	home            string
+	socket          string
 
 	lists *lists.Store
 	subs  *subscription.Store
@@ -447,6 +449,7 @@ func (d *Daemon) apply(ctx context.Context, res *compile.Result, art *backend.Ar
 	d.mu.Lock()
 	d.res, d.art, d.applied, d.appliedPort = res, art, art.Config, res.Settings.MixedPort
 	d.mu.Unlock()
+	d.followProfileSysProxy(res)
 	d.logLevel.Store(res.Settings.LogLevel)
 	if err := d.startSidecars(); err != nil {
 		return err

@@ -35,7 +35,7 @@ sha256sum --check --ignore-missing checksums.txt
 1. 参考 [examples/profile.yaml](examples/profile.yaml) 写一份 `profile.yaml`，放在当前目录或 `~/.config/conch/`。
 2. 运行 `conch daemon`。第一次运行会生成登录密码，保存在 `.env` 里并打印出来。
 3. 浏览器打开 <http://127.0.0.1:9277/>，或者在另一个终端运行 `conch tui`。
-4. 让系统使用 conch：`conch sysproxy on`（daemon 退出时自动恢复原来的设置），或者开启 TUN：`conch tun on`。
+4. conch 启动后只是一个 HTTP + SOCKS5 代理（默认端口 7890），不会自己改系统代理，也不会开 TUN。要让整个系统都走它：`conch sysproxy on`（daemon 退出时自动恢复原来的设置），或者开启 TUN：`conch tun on`。这两个开关只管这一次运行；想每次启动都开，就写进 profile：`inbound: { system-proxy: true }`、`tun: { enable: true }`。
 
 改了 `profile.yaml` 不需要重启，daemon 会自动应用；配置有错时内核继续使用上一份可用的配置，错误显示在 Web UI 和 `conch status` 里。用 `conch edit` 修改，可以在保存前先检查。
 

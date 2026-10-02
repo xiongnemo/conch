@@ -10,6 +10,7 @@ import (
 // Settings are the profile's global options with defaults applied.
 type Settings struct {
 	MixedPort   int
+	SystemProxy bool // turn the system proxy on at every start
 	AllowLAN    bool
 	BindAddress string
 	Mode        string // rule | global | direct
@@ -40,6 +41,7 @@ func (c *compiler) settings() Settings {
 	p := c.p
 	s := Settings{
 		MixedPort:   p.Inbound.MixedPort,
+		SystemProxy: p.Inbound.SystemProxy,
 		AllowLAN:    p.Inbound.AllowLAN,
 		BindAddress: p.Inbound.BindAddress,
 		Mode:        strings.ToLower(strings.TrimSpace(p.Mode)),
