@@ -1,4 +1,4 @@
-// Nautilus Web UI. Everything goes through the daemon's API; names come
+// Conch Web UI. Everything goes through the daemon's API; names come
 // from subscriptions and are untrusted, so the DOM is built with
 // textContent only, never innerHTML.
 

@@ -11,12 +11,12 @@ import (
 
 	"go.yaml.in/yaml/v3"
 
-	"nautilus/internal/diag"
-	"nautilus/internal/model"
-	"nautilus/internal/route"
+	"github.com/xiongnemo/conch/internal/diag"
+	"github.com/xiongnemo/conch/internal/model"
+	"github.com/xiongnemo/conch/internal/route"
 )
 
-const managedHeader = "# 由 nautilus 维护：通过 Web UI、TUI、浏览器扩展或 nautilus 命令添加的节点、链和条目。\n" +
+const managedHeader = "# 由 conch 维护：通过 Web UI、TUI、浏览器扩展或 conch 命令添加的节点、链和条目。\n" +
 	"# 可以手动修改；写法和 profile.yaml 一样。\n"
 
 // ManagedPath is managed.yaml next to the profile.

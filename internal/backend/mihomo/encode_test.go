@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"nautilus/internal/backend"
-	"nautilus/internal/backend/backendtest"
+	"github.com/xiongnemo/conch/internal/backend"
+	"github.com/xiongnemo/conch/internal/backend/backendtest"
 )
 
 func TestGolden(t *testing.T) {
@@ -15,12 +15,12 @@ func TestGolden(t *testing.T) {
 }
 
 // TestGoldenAcceptedByMihomo runs every golden config through `mihomo -t`.
-// Set NAUTILUS_MIHOMO to a mihomo binary to enable it, e.g.
-// NAUTILUS_MIHOMO=$(nautilus kernel path mihomo).
+// Set CONCH_MIHOMO to a mihomo binary to enable it, e.g.
+// CONCH_MIHOMO=$(conch kernel path mihomo).
 func TestGoldenAcceptedByMihomo(t *testing.T) {
-	bin := os.Getenv("NAUTILUS_MIHOMO")
+	bin := os.Getenv("CONCH_MIHOMO")
 	if bin == "" {
-		t.Skip("NAUTILUS_MIHOMO not set")
+		t.Skip("CONCH_MIHOMO not set")
 	}
 	for _, f := range backendtest.Configs(t, ".yaml") {
 		t.Run(f, func(t *testing.T) {
@@ -34,7 +34,7 @@ func TestGoldenAcceptedByMihomo(t *testing.T) {
 
 func TestControllerOptions(t *testing.T) {
 	art, d := backendtest.Build(t, Backend{}, "../testdata/tun.profile.yaml", backend.Options{
-		ControllerUnix: "/run/nautilus/mihomo.sock",
+		ControllerUnix: "/run/conch/mihomo.sock",
 		Controller:     "127.0.0.1:9090",
 	})
 	if art == nil {
@@ -42,7 +42,7 @@ func TestControllerOptions(t *testing.T) {
 	}
 	cfg := string(art.Config)
 	for _, want := range []string{
-		"external-controller-unix: /run/nautilus/mihomo.sock",
+		"external-controller-unix: /run/conch/mihomo.sock",
 		"external-controller: 127.0.0.1:9090",
 		// An empty allow-origins list would allow every origin.
 		"allow-origins:\n    - " + corsNobody,

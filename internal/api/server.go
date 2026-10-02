@@ -10,11 +10,11 @@ import (
 	"strings"
 	"time"
 
-	"nautilus/internal/auth"
-	"nautilus/internal/daemon"
-	"nautilus/internal/diag"
-	"nautilus/internal/explain"
-	"nautilus/internal/view"
+	"github.com/xiongnemo/conch/internal/auth"
+	"github.com/xiongnemo/conch/internal/daemon"
+	"github.com/xiongnemo/conch/internal/diag"
+	"github.com/xiongnemo/conch/internal/explain"
+	"github.com/xiongnemo/conch/internal/view"
 )
 
 // Server is the HTTP side of a daemon.

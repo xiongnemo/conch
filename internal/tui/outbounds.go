@@ -7,7 +7,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"nautilus/internal/daemon"
+	"github.com/xiongnemo/conch/internal/daemon"
 )
 
 type (
@@ -167,7 +167,7 @@ func (m *Model) outboundsKey(key string, item any) tea.Cmd {
 			return nil
 		}
 		if !o.Managed {
-			m.note(fmt.Sprintf("%s %s 写在 %s，nautilus 不会改动你手写的文件", kind, name, shortSource(o.Source)), true)
+			m.note(fmt.Sprintf("%s %s 写在 %s，conch 不会改动你手写的文件", kind, name, shortSource(o.Source)), true)
 			return nil
 		}
 		remove := m.c.DeleteNode

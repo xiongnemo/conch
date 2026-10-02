@@ -10,25 +10,25 @@ import (
 	"sync"
 	"time"
 
-	"nautilus/internal/compile"
-	"nautilus/internal/control"
-	"nautilus/internal/diag"
-	"nautilus/internal/explain"
-	"nautilus/internal/kernel"
-	"nautilus/internal/lists"
-	"nautilus/internal/platform/privilege"
-	"nautilus/internal/route"
-	"nautilus/internal/subscription"
+	"github.com/xiongnemo/conch/internal/compile"
+	"github.com/xiongnemo/conch/internal/control"
+	"github.com/xiongnemo/conch/internal/diag"
+	"github.com/xiongnemo/conch/internal/explain"
+	"github.com/xiongnemo/conch/internal/kernel"
+	"github.com/xiongnemo/conch/internal/lists"
+	"github.com/xiongnemo/conch/internal/platform/privilege"
+	"github.com/xiongnemo/conch/internal/route"
+	"github.com/xiongnemo/conch/internal/subscription"
 )
 
 // ErrUserFile means a change would have to edit profile.yaml, which
-// nautilus never rewrites.
+// conch never rewrites.
 type ErrUserFile struct {
 	What, Where string
 }
 
 func (e *ErrUserFile) Error() string {
-	return fmt.Sprintf("%s写在 %s，nautilus 不会改动你手写的文件，请在那里修改", e.What, e.Where)
+	return fmt.Sprintf("%s写在 %s，conch 不会改动你手写的文件，请在那里修改", e.What, e.Where)
 }
 
 // ErrNotFound means a named thing does not exist.
@@ -433,7 +433,7 @@ func (d *Daemon) SetMode(ctx context.Context, mode string) error {
 func (d *Daemon) SetTUN(ctx context.Context, on bool) error {
 	if on {
 		if !d.backend.Capabilities().TUN {
-			return fmt.Errorf("%s 内核暂不支持 TUN：它不会自己配置系统路由，需要 nautilus 来做；可以先用 mihomo 内核", d.backend.Name())
+			return fmt.Errorf("%s 内核暂不支持 TUN：它不会自己配置系统路由，需要 conch 来做；可以先用 mihomo 内核", d.backend.Name())
 		}
 		if err := privilege.TUNError(d.bin); err != nil {
 			return err

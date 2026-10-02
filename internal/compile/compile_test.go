@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"nautilus/internal/model"
+	"github.com/xiongnemo/conch/internal/model"
 )
 
 const baseNodes = `

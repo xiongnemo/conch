@@ -7,7 +7,7 @@ import (
 	"errors"
 	"time"
 
-	"nautilus/internal/kernel"
+	"github.com/xiongnemo/conch/internal/kernel"
 )
 
 // ErrRestart means the kernel cannot apply a config in place.
@@ -62,7 +62,7 @@ type LogLine struct {
 	// Level is debug, info, warning or error, comparable across kernels;
 	// empty for lines without one.
 	Level string
-	// Internal lines are about nautilus's own traffic: API calls and delay tests.
+	// Internal lines are about conch's own traffic: API calls and delay tests.
 	Internal bool
 	// Failure is a connection the kernel could not establish.
 	Failure *DialFailure

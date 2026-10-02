@@ -19,21 +19,21 @@ import (
 	"sync/atomic"
 	"time"
 
-	"nautilus/internal/auth"
-	"nautilus/internal/backend"
-	"nautilus/internal/backend/mihomo"
-	"nautilus/internal/backend/singbox"
-	"nautilus/internal/backend/xray"
-	"nautilus/internal/compile"
-	"nautilus/internal/control"
-	"nautilus/internal/diag"
-	"nautilus/internal/kernel"
-	"nautilus/internal/kernels"
-	"nautilus/internal/lists"
-	"nautilus/internal/model"
-	"nautilus/internal/platform/firewall"
-	"nautilus/internal/route"
-	"nautilus/internal/subscription"
+	"github.com/xiongnemo/conch/internal/auth"
+	"github.com/xiongnemo/conch/internal/backend"
+	"github.com/xiongnemo/conch/internal/backend/mihomo"
+	"github.com/xiongnemo/conch/internal/backend/singbox"
+	"github.com/xiongnemo/conch/internal/backend/xray"
+	"github.com/xiongnemo/conch/internal/compile"
+	"github.com/xiongnemo/conch/internal/control"
+	"github.com/xiongnemo/conch/internal/diag"
+	"github.com/xiongnemo/conch/internal/kernel"
+	"github.com/xiongnemo/conch/internal/kernels"
+	"github.com/xiongnemo/conch/internal/lists"
+	"github.com/xiongnemo/conch/internal/model"
+	"github.com/xiongnemo/conch/internal/platform/firewall"
+	"github.com/xiongnemo/conch/internal/route"
+	"github.com/xiongnemo/conch/internal/subscription"
 )
 
 // Options configure a daemon.
@@ -47,7 +47,7 @@ type Options struct {
 	Log         io.Writer
 	DelayURL    string // what delay tests request; empty means DelayURL
 	// Service means the daemon runs as a system service. It cannot change
-	// per-user settings then: `nautilus agent` sets the system proxy in
+	// per-user settings then: `conch agent` sets the system proxy in
 	// each desktop session instead.
 	Service bool
 }
@@ -505,5 +505,5 @@ func socketDir(dataDir string) string {
 		return dir
 	}
 	sum := sha256.Sum256([]byte(dataDir))
-	return filepath.Join(os.TempDir(), "nautilus-"+hex.EncodeToString(sum[:4]))
+	return filepath.Join(os.TempDir(), "conch-"+hex.EncodeToString(sum[:4]))
 }

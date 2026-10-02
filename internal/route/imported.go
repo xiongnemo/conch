@@ -4,8 +4,8 @@ import (
 	"net/netip"
 	"strings"
 
-	"nautilus/internal/diag"
-	"nautilus/internal/model"
+	"github.com/xiongnemo/conch/internal/diag"
+	"github.com/xiongnemo/conch/internal/model"
 )
 
 // addImported expands a subscription's own rules. Rules are parsed into

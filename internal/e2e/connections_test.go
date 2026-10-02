@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"nautilus/internal/daemon"
+	"github.com/xiongnemo/conch/internal/daemon"
 )
 
 // TestConnectionsAndFailures checks that connections are explained with
@@ -20,7 +20,7 @@ import (
 func TestConnectionsAndFailures(t *testing.T) {
 	cs := clients()
 	if len(cs) == 0 {
-		t.Skip("NAUTILUS_MIHOMO and NAUTILUS_XRAY not set")
+		t.Skip("CONCH_MIHOMO and CONCH_XRAY not set")
 	}
 	for _, c := range cs {
 		t.Run(c.name, func(t *testing.T) { testConnectionsAndFailures(t, c) })

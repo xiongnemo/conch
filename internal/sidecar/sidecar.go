@@ -12,10 +12,10 @@ import (
 
 	"go.yaml.in/yaml/v3"
 
-	"nautilus/internal/backend"
-	"nautilus/internal/compile"
-	"nautilus/internal/diag"
-	"nautilus/internal/model"
+	"github.com/xiongnemo/conch/internal/backend"
+	"github.com/xiongnemo/conch/internal/compile"
+	"github.com/xiongnemo/conch/internal/diag"
+	"github.com/xiongnemo/conch/internal/model"
 )
 
 // Kernel is the helper binary sidecars run.
@@ -86,7 +86,7 @@ func socksNode(n *model.Node, port int) *model.Node {
 	return model.NewNode(m, n.Pos)
 }
 
-// trojanGoClient is the part of trojan-go's client config nautilus writes.
+// trojanGoClient is the part of trojan-go's client config conch writes.
 type trojanGoClient struct {
 	RunType    string   `json:"run_type"`
 	LocalAddr  string   `json:"local_addr"`
@@ -186,7 +186,7 @@ func Check(res *compile.Result, installed bool) diag.List {
 	var d diag.List
 	for _, p := range res.Proxies {
 		if Needs(p) && !installed {
-			d.Errorf(p.Node.Pos, "节点 %q 是 trojan-go，需要 trojan-go 程序：运行 nautilus kernel install trojan-go", p.Node.Name)
+			d.Errorf(p.Node.Pos, "节点 %q 是 trojan-go，需要 trojan-go 程序：运行 conch kernel install trojan-go", p.Node.Name)
 			break
 		}
 	}

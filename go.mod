@@ -1,4 +1,4 @@
-module nautilus
+module github.com/xiongnemo/conch
 
 go 1.27.1
 

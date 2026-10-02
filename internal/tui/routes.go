@@ -8,7 +8,7 @@ import (
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 
-	"nautilus/internal/view"
+	"github.com/xiongnemo/conch/internal/view"
 )
 
 type entryItem struct{ e view.Entry }
@@ -170,7 +170,7 @@ func (m *Model) routesKey(key string, item any) tea.Cmd {
 	case "d", "delete", "backspace":
 		if it, ok := item.(entryItem); ok {
 			if !it.e.Managed {
-				m.note(fmt.Sprintf("%s 写在 %s，nautilus 不会改动你手写的文件；可以按 e 用临时条目覆盖它", it.e.Target, shortSource(it.e.Source)), true)
+				m.note(fmt.Sprintf("%s 写在 %s，conch 不会改动你手写的文件；可以按 e 用临时条目覆盖它", it.e.Target, shortSource(it.e.Source)), true)
 				return nil
 			}
 			target := it.e.Target

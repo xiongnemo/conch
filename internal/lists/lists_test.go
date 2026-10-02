@@ -10,7 +10,7 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"nautilus/internal/route"
+	"github.com/xiongnemo/conch/internal/route"
 )
 
 func TestParse(t *testing.T) {

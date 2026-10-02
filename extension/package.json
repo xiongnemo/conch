@@ -1,9 +1,9 @@
 {
-  "name": "nautilus-extension",
+  "name": "conch-extension",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Nautilus browser extension: see and change where the current site goes, route failed sites in one click.",
+  "description": "Conch browser extension: see and change where the current site goes, route failed sites in one click.",
   "scripts": {
     "build": "node build.mjs",
     "watch": "node build.mjs --watch",

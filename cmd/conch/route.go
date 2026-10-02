@@ -12,13 +12,13 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"nautilus/internal/api"
-	"nautilus/internal/compile"
-	"nautilus/internal/daemon"
-	"nautilus/internal/explain"
-	"nautilus/internal/lists"
-	"nautilus/internal/route"
-	"nautilus/internal/view"
+	"github.com/xiongnemo/conch/internal/api"
+	"github.com/xiongnemo/conch/internal/compile"
+	"github.com/xiongnemo/conch/internal/daemon"
+	"github.com/xiongnemo/conch/internal/explain"
+	"github.com/xiongnemo/conch/internal/lists"
+	"github.com/xiongnemo/conch/internal/route"
+	"github.com/xiongnemo/conch/internal/view"
 )
 
 func newRouteCmd() *cobra.Command {
@@ -113,14 +113,14 @@ func newRouteCmd() *cobra.Command {
 	var ttl time.Duration
 	add := &cobra.Command{
 		Use:   "add <目标> <出口>",
-		Short: "添加条目，例如 nautilus route add openai.com AI-Exit --for 2h",
+		Short: "添加条目，例如 conch route add openai.com AI-Exit --for 2h",
 		Args:  cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			target, via := args[0], args[1]
 			err := daemonClient().SetRoute(cmd.Context(), target, via, ttl)
 			if errors.Is(err, api.ErrNotRunning) {
 				if ttl > 0 {
-					return errors.New("临时条目需要 nautilus daemon 正在运行")
+					return errors.New("临时条目需要 conch daemon 正在运行")
 				}
 				err = addOffline(cmd, &pl, target, via)
 			}
@@ -134,7 +134,7 @@ func newRouteCmd() *cobra.Command {
 	add.Flags().DurationVar(&ttl, "for", 0, "临时条目的有效时长，例如 30m、2h；到期自动删除")
 	del := &cobra.Command{
 		Use:   "del <目标>",
-		Short: "删除通过 nautilus 添加的条目（包括临时条目）",
+		Short: "删除通过 conch 添加的条目（包括临时条目）",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			err := daemonClient().DeleteRoute(cmd.Context(), args[0])

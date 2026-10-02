@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"nautilus/internal/sidecar"
+	"github.com/xiongnemo/conch/internal/sidecar"
 )
 
 // State is what the daemon remembers between runs, besides the profile:
@@ -25,7 +25,7 @@ type State struct {
 	Sidecars map[string]sidecar.Ports `json:"sidecars,omitempty"`
 }
 
-// DNSState remembers the system resolver settings nautilus replaced for
+// DNSState remembers the system resolver settings conch replaced for
 // TUN, so a crash can be repaired on the next start.
 type DNSState struct {
 	Applied  bool   `json:"applied"`
@@ -40,12 +40,12 @@ type TempRoute struct {
 }
 
 // SysProxyState remembers whether the user wants the system proxy and
-// whether nautilus has set it, so a crash can be repaired on the next start.
+// whether conch has set it, so a crash can be repaired on the next start.
 type SysProxyState struct {
 	Wanted   bool   `json:"wanted"`             // the user turned it on
 	Applied  bool   `json:"applied"`            // the OS currently points at us
 	Port     int    `json:"port,omitempty"`     // the port it points at
-	Previous string `json:"previous,omitempty"` // settings before nautilus, to restore
+	Previous string `json:"previous,omitempty"` // settings before conch, to restore
 }
 
 func loadState(path string) (*State, error) {
@@ -107,7 +107,7 @@ func LastBackend(dataDir string) string {
 }
 
 // SysProxyLeftover reports whether state.json says the system proxy still
-// points at nautilus.
+// points at conch.
 func SysProxyLeftover(dataDir string) (bool, int) {
 	st, err := loadState(filepath.Join(dataDir, "state.json"))
 	if err != nil || st.SysProxy == nil || !st.SysProxy.Applied {

@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"nautilus/internal/proto"
+	"github.com/xiongnemo/conch/internal/proto"
 )
 
 func b64(s string) string { return base64.StdEncoding.EncodeToString([]byte(s)) }

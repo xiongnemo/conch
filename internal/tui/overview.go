@@ -40,7 +40,7 @@ func (m *Model) overviewRows(w int) []row {
 	}
 	tun := muted.Render("关")
 	if s.TUN {
-		tun = good.Render("开") + muted.Render("（所有程序的流量都经过 nautilus）")
+		tun = good.Render("开") + muted.Render("（所有程序的流量都经过 conch）")
 	}
 	port := "-"
 	if s.MixedPort != 0 {

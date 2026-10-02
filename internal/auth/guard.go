@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	CookieName = "nautilus_session"
+	CookieName = "conch_session"
 	sessionTTL = 30 * 24 * time.Hour
 )
 
@@ -49,7 +49,7 @@ func NewGuard(s Settings) *Guard {
 // Update installs new settings, e.g. after the password changed. Sessions
 // signed with the old password stop working.
 func (g *Guard) Update(s Settings) {
-	sum := sha256.Sum256([]byte("nautilus session v1\x00" + s.Password))
+	sum := sha256.Sum256([]byte("conch session v1\x00" + s.Password))
 	g.mu.Lock()
 	g.settings, g.key = s, sum[:]
 	g.mu.Unlock()

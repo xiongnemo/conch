@@ -1,6 +1,6 @@
 package route
 
-import "nautilus/internal/diag"
+import "github.com/xiongnemo/conch/internal/diag"
 
 // Tier is a section of the routing table. Tiers are always evaluated in
 // this order; only rule lists are ordered by the user.
@@ -64,6 +64,6 @@ type Origin struct {
 	Tier     Tier
 	Key      string // entry key, list name, or "default"
 	Pos      diag.Pos
-	Builtin  bool // added by nautilus (e.g. the default "lan" entry)
+	Builtin  bool // added by conch (e.g. the default "lan" entry)
 	Imported bool // came with a subscription rather than written by the user
 }

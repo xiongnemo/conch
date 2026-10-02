@@ -12,18 +12,18 @@ import (
 	"strings"
 	"testing"
 
-	"nautilus/internal/api"
-	"nautilus/internal/auth"
-	"nautilus/internal/daemon"
+	"github.com/xiongnemo/conch/internal/api"
+	"github.com/xiongnemo/conch/internal/auth"
+	"github.com/xiongnemo/conch/internal/daemon"
 )
 
 // TestManagedOutbounds adds nodes from share links and builds chains from
 // the API, as the Web UI and TUI do, and checks that a change that would
 // break the config is refused without touching the running one.
 func TestManagedOutbounds(t *testing.T) {
-	bin := os.Getenv("NAUTILUS_MIHOMO")
+	bin := os.Getenv("CONCH_MIHOMO")
 	if bin == "" {
-		t.Skip("NAUTILUS_MIHOMO not set")
+		t.Skip("CONCH_MIHOMO not set")
 	}
 	dir := t.TempDir()
 	profile := filepath.Join(dir, "profile.yaml")

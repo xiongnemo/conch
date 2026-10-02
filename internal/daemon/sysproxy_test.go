@@ -4,7 +4,7 @@ import (
 	"io"
 	"testing"
 
-	"nautilus/internal/platform/sysproxy"
+	"github.com/xiongnemo/conch/internal/platform/sysproxy"
 )
 
 // fakeOS records what the system proxy points at.
@@ -19,7 +19,7 @@ func swapSysProxy(t *testing.T) *fakeOS {
 	enableSysProxy = func(port int) (sysproxy.Snapshot, error) {
 		snap := sysproxy.Snapshot("user")
 		if f.port != 0 {
-			snap = "nautilus" // what a second snapshot would wrongly capture
+			snap = "conch" // what a second snapshot would wrongly capture
 		}
 		f.port = port
 		return snap, nil

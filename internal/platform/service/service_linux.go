@@ -11,13 +11,13 @@ import (
 
 // SystemLayout is where a system-wide installation lives on Linux.
 func SystemLayout() Layout {
-	return Layout{Bin: "/usr/local/bin/nautilus", ConfigDir: "/etc/nautilus", DataDir: "/var/lib/nautilus"}
+	return Layout{Bin: "/usr/local/bin/conch", ConfigDir: "/etc/conch", DataDir: "/var/lib/conch"}
 }
 
 const (
-	unitPath      = "/etc/systemd/system/nautilus.service"
-	agentUnitPath = "/etc/systemd/user/nautilus-agent.service"
-	serviceUser   = "nautilus"
+	unitPath      = "/etc/systemd/system/conch.service"
+	agentUnitPath = "/etc/systemd/user/conch-agent.service"
+	serviceUser   = "conch"
 )
 
 var lookupUser = user.Lookup
@@ -27,7 +27,7 @@ var lookupUser = user.Lookup
 func Install(o Options) error {
 	if o.Root == "" {
 		if _, err := exec.LookPath("systemctl"); err != nil {
-			return fmt.Errorf("这个系统没有 systemd，nautilus 还不能把自己装成服务")
+			return fmt.Errorf("这个系统没有 systemd，conch 还不能把自己装成服务")
 		}
 	}
 	l, files := o.Layout, o.files()
@@ -72,21 +72,21 @@ func Install(o Options) error {
 			return err
 		}
 	}
-	for _, args := range [][]string{{"daemon-reload"}, {"enable", "--now", "nautilus.service"}} {
+	for _, args := range [][]string{{"daemon-reload"}, {"enable", "--now", "conch.service"}} {
 		if _, err := o.Run("systemctl", args...); err != nil {
 			return err
 		}
 	}
-	o.logf("nautilus 服务已启动：sudo systemctl status nautilus，日志：journalctl -u nautilus")
+	o.logf("conch 服务已启动：sudo systemctl status conch，日志：journalctl -u conch")
 	if o.NoAgent {
 		return nil
 	}
-	if _, err := o.Run("systemctl", "--global", "enable", "nautilus-agent.service"); err != nil {
+	if _, err := o.Run("systemctl", "--global", "enable", "conch-agent.service"); err != nil {
 		return err
 	}
 	if o.User != nil {
 		// Start it in the installing user's running session too.
-		if _, err := o.Run("systemctl", "--user", "--machine", o.User.Name+"@", "start", "nautilus-agent.service"); err != nil {
+		if _, err := o.Run("systemctl", "--user", "--machine", o.User.Name+"@", "start", "conch-agent.service"); err != nil {
 			o.logf("没能在当前会话里启动 agent（%v），下次登录时会自动启动", err)
 		}
 	}
@@ -100,10 +100,10 @@ func Uninstall(o Options) error {
 		return ErrNotInstalled
 	}
 	if o.User != nil {
-		o.Run("systemctl", "--user", "--machine", o.User.Name+"@", "stop", "nautilus-agent.service")
+		o.Run("systemctl", "--user", "--machine", o.User.Name+"@", "stop", "conch-agent.service")
 	}
-	o.Run("systemctl", "--global", "disable", "nautilus-agent.service")
-	o.Run("systemctl", "disable", "--now", "nautilus.service")
+	o.Run("systemctl", "--global", "disable", "conch-agent.service")
+	o.Run("systemctl", "disable", "--now", "conch.service")
 	for _, p := range []string{unitPath, agentUnitPath} {
 		if err := os.Remove(o.path(p)); err != nil && !os.IsNotExist(err) {
 			return err
@@ -113,7 +113,7 @@ func Uninstall(o Options) error {
 		return err
 	}
 	l := o.Layout
-	o.logf("已卸载 nautilus 服务。配置和数据还留在 %s 和 %s，%s 也没有删除", l.ConfigDir, l.DataDir, l.Bin)
+	o.logf("已卸载 conch 服务。配置和数据还留在 %s 和 %s，%s 也没有删除", l.ConfigDir, l.DataDir, l.Bin)
 	return nil
 }
 
@@ -122,7 +122,7 @@ func Status(o Options) (string, error) {
 	if !exists(o.path(unitPath)) {
 		return "", ErrNotInstalled
 	}
-	active, _ := o.Run("systemctl", "is-active", "nautilus.service")
-	enabled, _ := o.Run("systemctl", "is-enabled", "nautilus.service")
-	return fmt.Sprintf("nautilus.service：%s，开机启动：%s", strings.TrimSpace(active), strings.TrimSpace(enabled)), nil
+	active, _ := o.Run("systemctl", "is-active", "conch.service")
+	enabled, _ := o.Run("systemctl", "is-enabled", "conch.service")
+	return fmt.Sprintf("conch.service：%s，开机启动：%s", strings.TrimSpace(active), strings.TrimSpace(enabled)), nil
 }

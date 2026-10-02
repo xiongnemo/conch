@@ -16,13 +16,13 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"nautilus/internal/api"
-	"nautilus/internal/daemon"
-	"nautilus/internal/kernels"
-	"nautilus/internal/paths"
-	"nautilus/internal/platform/privilege"
-	"nautilus/internal/platform/service"
-	"nautilus/internal/sidecar"
+	"github.com/xiongnemo/conch/internal/api"
+	"github.com/xiongnemo/conch/internal/daemon"
+	"github.com/xiongnemo/conch/internal/kernels"
+	"github.com/xiongnemo/conch/internal/paths"
+	"github.com/xiongnemo/conch/internal/platform/privilege"
+	"github.com/xiongnemo/conch/internal/platform/service"
+	"github.com/xiongnemo/conch/internal/sidecar"
 )
 
 func newDoctorCmd() *cobra.Command {
@@ -53,7 +53,7 @@ func newDoctorCmd() *cobra.Command {
 					for _, p := range res.Proxies {
 						if sidecar.Needs(p) {
 							if _, err := kernels.Current(paths.DataDir(), sidecar.Kernel, kernels.Host().OS); err != nil {
-								d.bad("节点 %q 是 trojan-go，需要 trojan-go 程序：运行 nautilus kernel install trojan-go", p.Node.Name)
+								d.bad("节点 %q 是 trojan-go，需要 trojan-go 程序：运行 conch kernel install trojan-go", p.Node.Name)
 							}
 							break
 						}
@@ -78,7 +78,7 @@ func newDoctorCmd() *cobra.Command {
 				d.note("%s", s)
 			}
 			if backend == "xray" && !kernels.HasGeodata("xray", paths.KernelHome("xray")) {
-				d.bad("xray 的 geodata 不完整，请运行 nautilus kernel geodata xray")
+				d.bad("xray 的 geodata 不完整，请运行 conch kernel geodata xray")
 			}
 
 			settings, _, err := loadSettings()
@@ -105,10 +105,10 @@ func newDoctorCmd() *cobra.Command {
 						if _, err := daemon.RepairSysProxy(paths.DataDir()); err != nil {
 							d.bad("系统代理还指向 127.0.0.1:%d，但恢复失败：%v", p, err)
 						} else {
-							d.ok("已恢复系统代理设置（之前指向已经停止的 nautilus 127.0.0.1:%d）", p)
+							d.ok("已恢复系统代理设置（之前指向已经停止的 conch 127.0.0.1:%d）", p)
 						}
 					} else {
-						d.bad("系统代理还指向 127.0.0.1:%d，但 nautilus 没有在运行，会导致无法上网；运行 nautilus doctor --fix 恢复", p)
+						d.bad("系统代理还指向 127.0.0.1:%d，但 conch 没有在运行，会导致无法上网；运行 conch doctor --fix 恢复", p)
 					}
 				}
 				if fix {
@@ -118,7 +118,7 @@ func newDoctorCmd() *cobra.Command {
 						d.ok("已恢复系统 DNS 设置（之前为 TUN 改过）")
 					}
 				} else if daemon.DNSLeftover(paths.DataDir()) {
-					d.bad("系统 DNS 还是 nautilus 为 TUN 改过的设置；运行 nautilus doctor --fix 恢复")
+					d.bad("系统 DNS 还是 conch 为 TUN 改过的设置；运行 conch doctor --fix 恢复")
 				}
 				for _, addr := range []string{net.JoinHostPort("127.0.0.1", strconv.Itoa(port)), settings.Listen} {
 					if port == 0 || addr == "" {
@@ -216,7 +216,7 @@ func newEnvCmd() *cobra.Command {
 	var shell string
 	cmd := &cobra.Command{
 		Use:   "env",
-		Short: "打印让命令行程序走 nautilus 的环境变量，例如 eval \"$(nautilus env)\"",
+		Short: "打印让命令行程序走 conch 的环境变量，例如 eval \"$(conch env)\"",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			port, err := proxyPort(cmd.Context())
@@ -243,7 +243,7 @@ func newEnvCmd() *cobra.Command {
 func newRunCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:                "run -- <命令> [参数…]",
-		Short:              "让一条命令走 nautilus，例如 nautilus run -- git clone …",
+		Short:              "让一条命令走 conch，例如 conch run -- git clone …",
 		Args:               cobra.MinimumNArgs(1),
 		DisableFlagParsing: false,
 		RunE: func(cmd *cobra.Command, args []string) error {

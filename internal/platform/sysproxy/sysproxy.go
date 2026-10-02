@@ -19,8 +19,8 @@ type Status struct {
 	Server  string `json:"server,omitempty"` // host:port of the HTTP proxy
 }
 
-// ErrUnsupported means this desktop has no setting nautilus knows how to change.
-var ErrUnsupported = errors.New("没法自动设置这个桌面环境的系统代理；请在应用里手动设置 HTTP/SOCKS5 代理，或使用 nautilus run -- <命令>")
+// ErrUnsupported means this desktop has no setting conch knows how to change.
+var ErrUnsupported = errors.New("没法自动设置这个桌面环境的系统代理；请在应用里手动设置 HTTP/SOCKS5 代理，或使用 conch run -- <命令>")
 
 // Bypass lists destinations that should never go through the proxy.
 var Bypass = []string{"localhost", "127.0.0.0/8", "::1", "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "169.254.0.0/16", "*.local"}

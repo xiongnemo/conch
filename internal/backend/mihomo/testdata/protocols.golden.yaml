@@ -1,4 +1,4 @@
-# 由 nautilus 生成，请不要手动修改；需要改动时请编辑 profile.yaml
+# 由 conch 生成，请不要手动修改；需要改动时请编辑 profile.yaml
 
 mixed-port: 7890
 allow-lan: false
@@ -95,7 +95,7 @@ proxies:
     username: u
     password: p
     headers:
-      User-Agent: nautilus
+      User-Agent: conch
   - name: hy2
     type: hysteria2
     server: h.example.com

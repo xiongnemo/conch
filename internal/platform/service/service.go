@@ -1,4 +1,4 @@
-// Package service installs nautilus as a system service: a daemon that
+// Package service installs conch as a system service: a daemon that
 // starts at boot and may use TUN, plus an agent in each desktop session
 // that sets the user's system proxy, which the service cannot.
 package service
@@ -14,15 +14,15 @@ import (
 	"runtime"
 	"strings"
 
-	"nautilus/internal/auth"
+	"github.com/xiongnemo/conch/internal/auth"
 )
 
 // Name identifies the service to the OS.
-const Name = "nautilus"
+const Name = "conch"
 
 // Layout is where a system-wide installation keeps things.
 type Layout struct {
-	Bin       string // the nautilus binary the service runs
+	Bin       string // the conch binary the service runs
 	ConfigDir string // profile.yaml, managed.yaml and .env
 	DataDir   string // kernels, caches and state
 	Log       string // where the service's output goes, if the OS does not keep it
@@ -61,7 +61,7 @@ type Options struct {
 	Log     io.Writer
 	// Profile is the profile to start the service with if it has none.
 	Profile string
-	// Exe is the nautilus binary to install; empty means this one.
+	// Exe is the conch binary to install; empty means this one.
 	Exe string
 	// Root prefixes every system path written to; tests set it.
 	Root string
@@ -88,8 +88,8 @@ func (o *Options) logf(format string, args ...any) {
 	}
 }
 
-// ErrNotInstalled means there is no nautilus service.
-var ErrNotInstalled = errors.New("nautilus 服务没有安装")
+// ErrNotInstalled means there is no conch service.
+var ErrNotInstalled = errors.New("conch 服务没有安装")
 
 // copyFile copies src to dst with mode, unless they are the same file.
 func copyFile(src, dst string, mode fs.FileMode) error {

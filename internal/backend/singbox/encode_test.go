@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"nautilus/internal/backend"
-	"nautilus/internal/backend/backendtest"
+	"github.com/xiongnemo/conch/internal/backend"
+	"github.com/xiongnemo/conch/internal/backend/backendtest"
 )
 
 func TestGolden(t *testing.T) {
@@ -19,11 +19,11 @@ func TestGolden(t *testing.T) {
 // TestGoldenAcceptedBySingBox runs every golden config through
 // `sing-box check`:
 //
-//	NAUTILUS_SING_BOX=$(nautilus kernel path sing-box)
+//	CONCH_SING_BOX=$(conch kernel path sing-box)
 func TestGoldenAcceptedBySingBox(t *testing.T) {
-	bin := os.Getenv("NAUTILUS_SING_BOX")
+	bin := os.Getenv("CONCH_SING_BOX")
 	if bin == "" {
-		t.Skip("NAUTILUS_SING_BOX not set")
+		t.Skip("CONCH_SING_BOX not set")
 	}
 	for _, f := range backendtest.Configs(t, ".json") {
 		t.Run(f, func(t *testing.T) {

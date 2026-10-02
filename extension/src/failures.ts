@@ -27,7 +27,7 @@ export function countsAsFailure(error: string, url: string): boolean {
   }
 }
 
-// hostOf returns the host of a URL as nautilus writes it: IPv6 without brackets.
+// hostOf returns the host of a URL as conch writes it: IPv6 without brackets.
 export function hostOf(url: string): string {
   return new URL(url).hostname.replace(/^\[(.*)\]$/, "$1");
 }

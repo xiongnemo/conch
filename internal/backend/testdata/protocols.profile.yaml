@@ -16,7 +16,7 @@ nodes:
   - { name: trojan-pinned, type: trojan, server: p.example.com, port: 443, password: p, skip-cert-verify: true,
       fingerprint: 0f1e2d3c4b5a69788796a5b4c3d2e1f00f1e2d3c4b5a69788796a5b4c3d2e1f0 }
   - { name: socks-tls, type: socks5, server: 192.0.2.7, port: 1080, username: u, password: p, tls: true, skip-cert-verify: true }
-  - { name: http-auth, type: http, server: 192.0.2.8, port: 8080, username: u, password: p, headers: { User-Agent: nautilus } }
+  - { name: http-auth, type: http, server: 192.0.2.8, port: 8080, username: u, password: p, headers: { User-Agent: conch } }
   - { name: hy2, type: hysteria2, server: h.example.com, port: 443, password: p, up: 50, down: 200,
       obfs: salamander, obfs-password: o, ports: "20000-30000", hop-interval: 30, sni: h.example.com }
   - { name: wg, type: wireguard, server: 192.0.2.10, port: 51820, ip: 172.16.0.2, mtu: 1280, udp: true, reserved: [1, 2, 3],

@@ -1,8 +1,8 @@
 // Package e2e runs compiled configs in real kernels, entirely on loopback.
-// The hop servers are mihomo instances, so NAUTILUS_MIHOMO is required;
-// set NAUTILUS_XRAY as well to also test xray as the client:
+// The hop servers are mihomo instances, so CONCH_MIHOMO is required;
+// set CONCH_XRAY as well to also test xray as the client:
 //
-//	NAUTILUS_MIHOMO=$(nautilus kernel path mihomo) NAUTILUS_XRAY=$(nautilus kernel path xray) go test ./internal/e2e
+//	CONCH_MIHOMO=$(conch kernel path mihomo) CONCH_XRAY=$(conch kernel path xray) go test ./internal/e2e
 package e2e
 
 import (
@@ -20,12 +20,12 @@ import (
 	"testing"
 	"time"
 
-	"nautilus/internal/backend"
-	"nautilus/internal/backend/mihomo"
-	"nautilus/internal/backend/singbox"
-	"nautilus/internal/backend/xray"
-	"nautilus/internal/compile"
-	"nautilus/internal/model"
+	"github.com/xiongnemo/conch/internal/backend"
+	"github.com/xiongnemo/conch/internal/backend/mihomo"
+	"github.com/xiongnemo/conch/internal/backend/singbox"
+	"github.com/xiongnemo/conch/internal/backend/xray"
+	"github.com/xiongnemo/conch/internal/compile"
+	"github.com/xiongnemo/conch/internal/model"
 )
 
 func freePort(t *testing.T) int {
@@ -60,7 +60,7 @@ type kernel struct {
 	out  *syncBuffer
 }
 
-// client describes a kernel that runs nautilus-compiled configs.
+// client describes a kernel that runs conch-compiled configs.
 type client struct {
 	name   string
 	bin    string
@@ -75,13 +75,13 @@ func xrayArgs(_, file string) []string { return []string{"run", "-c", file} }
 
 func clients() []client {
 	var out []client
-	if bin := os.Getenv("NAUTILUS_MIHOMO"); bin != "" {
+	if bin := os.Getenv("CONCH_MIHOMO"); bin != "" {
 		out = append(out, client{"mihomo", bin, mihomo.Backend{}, "config.yaml", mihomoArgs})
 	}
-	if bin := os.Getenv("NAUTILUS_XRAY"); bin != "" {
+	if bin := os.Getenv("CONCH_XRAY"); bin != "" {
 		out = append(out, client{"xray", bin, xray.Backend{}, "config.json", xrayArgs})
 	}
-	if bin := os.Getenv("NAUTILUS_SING_BOX"); bin != "" {
+	if bin := os.Getenv("CONCH_SING_BOX"); bin != "" {
 		out = append(out, client{"sing-box", bin, singbox.Backend{}, "config.json", singBoxArgs})
 	}
 	return out
@@ -92,9 +92,9 @@ func singBoxArgs(dir, file string) []string {
 }
 
 func hopServerBin(t *testing.T) string {
-	bin := os.Getenv("NAUTILUS_MIHOMO")
+	bin := os.Getenv("CONCH_MIHOMO")
 	if bin == "" {
-		t.Skip("NAUTILUS_MIHOMO not set")
+		t.Skip("CONCH_MIHOMO not set")
 	}
 	return bin
 }
@@ -133,7 +133,7 @@ func start(t *testing.T, name, bin, file, config string, args func(dir, file str
 	}
 }
 
-// compileProfile compiles a nautilus profile for a backend.
+// compileProfile compiles a conch profile for a backend.
 func compileProfile(t *testing.T, b backend.Router, src string) string {
 	t.Helper()
 	p, err := model.Parse([]byte(src), "profile.yaml")

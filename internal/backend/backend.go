@@ -8,13 +8,13 @@ import (
 	"slices"
 	"strings"
 
-	"nautilus/internal/compile"
-	"nautilus/internal/diag"
-	"nautilus/internal/lists"
-	"nautilus/internal/route"
+	"github.com/xiongnemo/conch/internal/compile"
+	"github.com/xiongnemo/conch/internal/diag"
+	"github.com/xiongnemo/conch/internal/lists"
+	"github.com/xiongnemo/conch/internal/route"
 )
 
-// TargetOS is the OS compiled configs run on, which is the OS nautilus
+// TargetOS is the OS compiled configs run on, which is the OS conch
 // runs on. Some capabilities depend on it; tests pin it so that goldens are
 // the same everywhere.
 var TargetOS = runtime.GOOS
@@ -37,7 +37,7 @@ type ListLoader func(p route.Provider) (entries []lists.Entry, skipped []string,
 // Options are runtime settings that are not part of the user's profile.
 type Options struct {
 	// ControllerUnix is a unix socket for the kernel API. Kernels do not
-	// authenticate it, so it must live in a directory only nautilus can access.
+	// authenticate it, so it must live in a directory only conch can access.
 	ControllerUnix string
 	// ControllerPipe is the Windows named-pipe equivalent of ControllerUnix.
 	ControllerPipe string
@@ -127,7 +127,7 @@ func Check(r *compile.Result, caps Capabilities, backendName string) diag.List {
 	for _, p := range r.Proxies {
 		if strings.EqualFold(p.Node.View.Type, "trojan-go") {
 			// The daemon runs these in sidecars and gives backends SOCKS5 nodes.
-			d.Errorf(p.Node.Pos, "节点 %q 是 trojan-go，要由 nautilus daemon 运行 trojan-go 边车，不能单独编译成 %s 的配置", p.Node.Name, backendName)
+			d.Errorf(p.Node.Pos, "节点 %q 是 trojan-go，要由 conch daemon 运行 trojan-go 边车，不能单独编译成 %s 的配置", p.Node.Name, backendName)
 			break
 		}
 	}

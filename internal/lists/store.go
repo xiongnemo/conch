@@ -12,8 +12,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"nautilus/internal/fetch"
-	"nautilus/internal/route"
+	"github.com/xiongnemo/conch/internal/fetch"
+	"github.com/xiongnemo/conch/internal/route"
 )
 
 // Store keeps downloaded rule lists in a cache directory.

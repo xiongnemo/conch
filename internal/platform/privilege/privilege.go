@@ -1,4 +1,4 @@
-// Package privilege says whether nautilus may do what needs more than a
+// Package privilege says whether conch may do what needs more than a
 // user's rights, such as creating a TUN device, and how to get them.
 package privilege
 

@@ -9,12 +9,12 @@ import (
 
 	"go.yaml.in/yaml/v3"
 
-	"nautilus/internal/backend"
-	"nautilus/internal/compile"
-	"nautilus/internal/diag"
-	"nautilus/internal/lists"
-	"nautilus/internal/model"
-	"nautilus/internal/route"
+	"github.com/xiongnemo/conch/internal/backend"
+	"github.com/xiongnemo/conch/internal/compile"
+	"github.com/xiongnemo/conch/internal/diag"
+	"github.com/xiongnemo/conch/internal/lists"
+	"github.com/xiongnemo/conch/internal/model"
+	"github.com/xiongnemo/conch/internal/route"
 )
 
 type Backend struct{}
@@ -27,7 +27,7 @@ func (Backend) Capabilities() backend.Capabilities {
 
 // corsNobody is an origin no page can have. mihomo treats an empty
 // allow-origins list as "allow every origin", so we must list something.
-const corsNobody = "https://nautilus.invalid"
+const corsNobody = "https://conch.invalid"
 
 const providerInterval = 86400
 
@@ -154,7 +154,7 @@ func (Backend) Encode(r *compile.Result, opts backend.Options) (*backend.Artifac
 
 	root := &yaml.Node{
 		Kind:        yaml.DocumentNode,
-		HeadComment: "由 nautilus 生成，请不要手动修改；需要改动时请编辑 profile.yaml",
+		HeadComment: "由 conch 生成，请不要手动修改；需要改动时请编辑 profile.yaml",
 		Content:     []*yaml.Node{doc.node},
 	}
 	var buf bytes.Buffer
@@ -193,7 +193,7 @@ func autoProxyPayload(p route.Provider, load backend.ListLoader) ([]string, []st
 	}
 	if len(payload) == 0 {
 		// An empty provider is invalid; this one can never match.
-		payload = []string{"DOMAIN,nautilus.invalid"}
+		payload = []string{"DOMAIN,conch.invalid"}
 	}
 	return payload, skipped, nil
 }

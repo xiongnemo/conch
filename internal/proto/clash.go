@@ -9,7 +9,7 @@ import (
 
 	"go.yaml.in/yaml/v3"
 
-	"nautilus/internal/model"
+	"github.com/xiongnemo/conch/internal/model"
 )
 
 // FromClash decodes a mihomo/Clash proxy mapping. It never fails: fields it

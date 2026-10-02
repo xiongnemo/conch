@@ -1,4 +1,4 @@
-// Command nautilus is a proxy shell: it compiles a routing-table profile
+// Command conch is a proxy shell: it compiles a routing-table profile
 // into kernel configuration and manages the kernel.
 package main
 
@@ -19,12 +19,12 @@ var errReported = errors.New("reported")
 func main() {
 	// Windows: cobra stops programs started from Explorer with this text.
 	// The agent is started by Explorer at logon, so not it.
-	cobra.MousetrapHelpText = "这是命令行程序，请在 PowerShell 或 Windows 终端里运行，例如 nautilus daemon。\n"
+	cobra.MousetrapHelpText = "这是命令行程序，请在 PowerShell 或 Windows 终端里运行，例如 conch daemon。\n"
 	if len(os.Args) > 1 && os.Args[1] == "agent" {
 		cobra.MousetrapHelpText = ""
 	}
 	root := &cobra.Command{
-		Use:           "nautilus",
+		Use:           "conch",
 		Short:         "路由表式分流 + 多跳链式代理",
 		SilenceUsage:  true,
 		SilenceErrors: true,

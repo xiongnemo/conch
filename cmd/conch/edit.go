@@ -13,11 +13,11 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"nautilus/internal/backend"
-	"nautilus/internal/daemon"
-	"nautilus/internal/diag"
-	"nautilus/internal/model"
-	"nautilus/internal/paths"
+	"github.com/xiongnemo/conch/internal/backend"
+	"github.com/xiongnemo/conch/internal/daemon"
+	"github.com/xiongnemo/conch/internal/diag"
+	"github.com/xiongnemo/conch/internal/model"
+	"github.com/xiongnemo/conch/internal/paths"
 )
 
 func newEditCmd() *cobra.Command {
@@ -25,7 +25,7 @@ func newEditCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "edit",
 		Short: "用编辑器修改 profile.yaml，保存前先检查",
-		Long: `用 $VISUAL 或 $EDITOR 打开 profile.yaml 的一份副本。保存并退出编辑器后，nautilus 先检查它：
+		Long: `用 $VISUAL 或 $EDITOR 打开 profile.yaml 的一份副本。保存并退出编辑器后，conch 先检查它：
 有错误就带着错误说明重新打开，没有错误才写回 profile.yaml，正在运行的 daemon 会自动应用。
 想放弃修改，清空文件再保存即可。`,
 		Args: cobra.NoArgs,
@@ -48,7 +48,7 @@ func editProfile(cmd *cobra.Command, pl *pipeline) error {
 	if err != nil {
 		return err
 	}
-	f, err := os.CreateTemp("", "nautilus-profile-*.yaml")
+	f, err := os.CreateTemp("", "conch-profile-*.yaml")
 	if err != nil {
 		return err
 	}
@@ -93,7 +93,7 @@ func editProfile(cmd *cobra.Command, pl *pipeline) error {
 	}
 }
 
-// headerMark starts each line nautilus puts above the profile; they are
+// headerMark starts each line conch puts above the profile; they are
 // removed before the profile is checked and saved.
 const headerMark = "#> "
 
@@ -105,7 +105,7 @@ func errorHeader(diags diag.List) []string {
 		}
 	}
 	lines := []string{
-		headerMark + "nautilus：这份 profile 有错误，还没有保存。改好后保存并退出编辑器；\n",
+		headerMark + "conch：这份 profile 有错误，还没有保存。改好后保存并退出编辑器；\n",
 		headerMark + "想放弃修改，清空文件再保存。以 #> 开头的这几行会自动去掉。\n",
 	}
 	offset := len(lines) + len(errs) + 1 // line numbers as shown in the editor

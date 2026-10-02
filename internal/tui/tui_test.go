@@ -12,12 +12,12 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
-	"nautilus/internal/api"
-	"nautilus/internal/control"
-	"nautilus/internal/daemon"
-	"nautilus/internal/kernel"
-	"nautilus/internal/subscription"
-	"nautilus/internal/view"
+	"github.com/xiongnemo/conch/internal/api"
+	"github.com/xiongnemo/conch/internal/control"
+	"github.com/xiongnemo/conch/internal/daemon"
+	"github.com/xiongnemo/conch/internal/kernel"
+	"github.com/xiongnemo/conch/internal/subscription"
+	"github.com/xiongnemo/conch/internal/view"
 )
 
 // fake is a daemon that records what the TUI asks of it.
@@ -356,7 +356,7 @@ func TestManagedOutbounds(t *testing.T) {
 	h.keys("ctrl+s")
 	h.wantCall("chain Exit2 香港自动>home")
 
-	// Only what nautilus added can be changed or deleted.
+	// Only what conch added can be changed or deleted.
 	h.keys("down", "down") // the chain AI-Exit
 	h.cursorOn("AI-Exit")
 	h.keys("e")
@@ -384,7 +384,7 @@ func TestRoutes(t *testing.T) {
 
 	// Entries in profile.yaml are never rewritten.
 	h.keys("d")
-	h.see("nautilus 不会改动你手写的文件")
+	h.see("conch 不会改动你手写的文件")
 	h.keys("down", "down", "d", "y") // openai.com, from managed.yaml
 	h.wantCall("delete openai.com")
 
@@ -445,5 +445,5 @@ func TestNotRunning(t *testing.T) {
 	h := &harness{t: t, f: f, m: New(context.Background(), f)}
 	h.send(tea.WindowSizeMsg{Width: 100, Height: 20})
 	h.run(h.m.Init())
-	h.see("未连接", "nautilus daemon 没有在运行")
+	h.see("未连接", "conch daemon 没有在运行")
 }

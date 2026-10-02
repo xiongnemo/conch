@@ -8,7 +8,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"nautilus/internal/daemon"
+	"github.com/xiongnemo/conch/internal/daemon"
 )
 
 type (

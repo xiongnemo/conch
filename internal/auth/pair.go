@@ -21,7 +21,7 @@ import (
 
 // Pairings lets browser extensions use part of the API with a token of
 // their own. The user pairs an extension by typing a short code that
-// `nautilus pair` or the Web UI shows; the code works once, for two
+// `conch pair` or the Web UI shows; the code works once, for two
 // minutes, and five wrong guesses use it up.
 type Pairings struct {
 	path string

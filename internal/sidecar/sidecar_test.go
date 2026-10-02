@@ -8,11 +8,11 @@ import (
 	"strings"
 	"testing"
 
-	"nautilus/internal/backend"
-	"nautilus/internal/backend/mihomo"
-	"nautilus/internal/backend/xray"
-	"nautilus/internal/compile"
-	"nautilus/internal/model"
+	"github.com/xiongnemo/conch/internal/backend"
+	"github.com/xiongnemo/conch/internal/backend/mihomo"
+	"github.com/xiongnemo/conch/internal/backend/xray"
+	"github.com/xiongnemo/conch/internal/compile"
+	"github.com/xiongnemo/conch/internal/model"
 )
 
 const profile = `
@@ -95,7 +95,7 @@ func TestKernelsAcceptSidecars(t *testing.T) {
 		if art == nil {
 			t.Fatalf("%s: %v", name, d.Err())
 		}
-		bin := os.Getenv("NAUTILUS_" + strings.ToUpper(name))
+		bin := os.Getenv("CONCH_" + strings.ToUpper(name))
 		if bin == "" {
 			continue
 		}

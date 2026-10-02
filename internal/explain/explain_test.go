@@ -5,10 +5,10 @@ import (
 	"net/netip"
 	"testing"
 
-	"nautilus/internal/compile"
-	"nautilus/internal/lists"
-	"nautilus/internal/model"
-	"nautilus/internal/route"
+	"github.com/xiongnemo/conch/internal/compile"
+	"github.com/xiongnemo/conch/internal/lists"
+	"github.com/xiongnemo/conch/internal/model"
+	"github.com/xiongnemo/conch/internal/route"
 )
 
 const profile = `

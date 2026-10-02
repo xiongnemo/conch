@@ -10,9 +10,9 @@ import (
 
 	"go.yaml.in/yaml/v3"
 
-	"nautilus/internal/linkparse"
-	"nautilus/internal/model"
-	"nautilus/internal/proto"
+	"github.com/xiongnemo/conch/internal/linkparse"
+	"github.com/xiongnemo/conch/internal/model"
+	"github.com/xiongnemo/conch/internal/proto"
 )
 
 // Snapshot is a parsed subscription, before it is merged into a profile.
@@ -127,7 +127,7 @@ func parseClash(root *yaml.Node, fetch FetchFunc) (*Snapshot, error) {
 }
 
 // addProvider inlines a proxy-provider: dialer-proxy cannot point at
-// provider nodes, and nautilus needs to see every node anyway.
+// provider nodes, and conch needs to see every node anyway.
 func (s *Snapshot) addProvider(name string, m *yaml.Node, fetch FetchFunc) {
 	str := func(k string) string { return model.WeakString(model.Lookup(m, k)) }
 	var nodes []*yaml.Node

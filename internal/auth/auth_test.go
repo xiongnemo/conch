@@ -20,8 +20,8 @@ func private(fi os.FileInfo) bool {
 
 func TestLoadPrecedence(t *testing.T) {
 	cwd, cfg := t.TempDir(), t.TempDir()
-	os.WriteFile(filepath.Join(cfg, ".env"), []byte("NAUTILUS_PASSWORD=from-config\nNAUTILUS_LISTEN=127.0.0.1:1111\n"), 0o600)
-	os.WriteFile(filepath.Join(cwd, ".env"), []byte("# comment\nexport NAUTILUS_PASSWORD=\"from-cwd\"\n"), 0o600)
+	os.WriteFile(filepath.Join(cfg, ".env"), []byte("CONCH_PASSWORD=from-config\nCONCH_LISTEN=127.0.0.1:1111\n"), 0o600)
+	os.WriteFile(filepath.Join(cwd, ".env"), []byte("# comment\nexport CONCH_PASSWORD=\"from-cwd\"\n"), 0o600)
 	s, err := Load(cwd, cfg)
 	if err != nil {
 		t.Fatal(err)
@@ -29,7 +29,7 @@ func TestLoadPrecedence(t *testing.T) {
 	if s.Password != "from-cwd" || s.Listen != "127.0.0.1:1111" || !s.Auth || s.PasswordFile != filepath.Join(cwd, ".env") {
 		t.Errorf("settings = %+v (./.env wins per key, config dir fills the rest)", s)
 	}
-	t.Setenv("NAUTILUS_PASSWORD", "from-env")
+	t.Setenv("CONCH_PASSWORD", "from-env")
 	if s, _ := Load(cwd, cfg); s.Password != "from-env" {
 		t.Errorf("the environment must win, got %q", s.Password)
 	}
@@ -37,7 +37,7 @@ func TestLoadPrecedence(t *testing.T) {
 
 func TestAuthOffOnlyOnLoopback(t *testing.T) {
 	cwd := t.TempDir()
-	os.WriteFile(filepath.Join(cwd, ".env"), []byte("NAUTILUS_AUTH=off\nNAUTILUS_LISTEN=0.0.0.0:9277\n"), 0o600)
+	os.WriteFile(filepath.Join(cwd, ".env"), []byte("CONCH_AUTH=off\nCONCH_LISTEN=0.0.0.0:9277\n"), 0o600)
 	if _, err := Load(cwd, t.TempDir()); err == nil {
 		t.Error("an unauthenticated API must not listen beyond loopback")
 	}
@@ -53,7 +53,7 @@ func TestEnsureAndSetPassword(t *testing.T) {
 	}
 	st, _ := os.Stat(file)
 	data, _ := os.ReadFile(file)
-	if !private(st) || !strings.Contains(string(data), "OTHER=1\nNAUTILUS_PASSWORD="+s.Password) {
+	if !private(st) || !strings.Contains(string(data), "OTHER=1\nCONCH_PASSWORD="+s.Password) {
 		t.Errorf("file mode %v, content %q", st.Mode().Perm(), data)
 	}
 	if err := SetPassword(file, "new"); err != nil {
@@ -63,7 +63,7 @@ func TestEnsureAndSetPassword(t *testing.T) {
 		t.Errorf("after SetPassword the password is %q", got.Password)
 	}
 	data, _ = os.ReadFile(file)
-	if strings.Count(string(data), "NAUTILUS_PASSWORD") != 1 || !strings.Contains(string(data), "OTHER=1") {
+	if strings.Count(string(data), "CONCH_PASSWORD") != 1 || !strings.Contains(string(data), "OTHER=1") {
 		t.Errorf("SetPassword must replace the line and keep the others: %q", data)
 	}
 }

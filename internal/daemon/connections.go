@@ -10,12 +10,12 @@ import (
 
 	"golang.org/x/net/publicsuffix"
 
-	"nautilus/internal/backend"
-	"nautilus/internal/compile"
-	"nautilus/internal/control"
-	"nautilus/internal/explain"
-	"nautilus/internal/route"
-	"nautilus/internal/view"
+	"github.com/xiongnemo/conch/internal/backend"
+	"github.com/xiongnemo/conch/internal/compile"
+	"github.com/xiongnemo/conch/internal/control"
+	"github.com/xiongnemo/conch/internal/explain"
+	"github.com/xiongnemo/conch/internal/route"
+	"github.com/xiongnemo/conch/internal/view"
 )
 
 // Connection is an open connection explained in the user's terms.

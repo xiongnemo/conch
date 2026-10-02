@@ -40,7 +40,7 @@ func TestXrayObserveLog(t *testing.T) {
 		{"2026/10/01 22:41:48 [Warning] [33] app/proxyman/outbound: failed to process outbound traffic > proxy/vless/outbound: failed to find an available destination", "warning", false, false}, // counted once
 		// A connection that broke after it was established is not a failure to connect.
 		{"2026/10/01 22:41:49 [Info] [22] app/proxyman/outbound: failed to process outbound traffic > proxy/freedom: connection ends > read: connection reset by peer", "debug", false, false},
-		// nautilus's own API calls and delay tests.
+		// conch's own API calls and delay tests.
 		{"2026/10/01 22:41:49 [Info] [44] app/dispatcher: Hit route rule: [›api] so taking detour [›api] for [tcp:127.0.0.1:1]", "debug", true, false},
 		{"2026/10/01 22:41:49 from @ accepted tcp:127.0.0.1:1 [›api -> ›api]", "info", true, false},
 		{"2026/10/01 22:41:50 [Info] [55] app/dispatcher: Hit route rule: [›probe›1] so taking detour [dead] for [tcp:www.gstatic.com:443]", "debug", true, false},
@@ -68,7 +68,7 @@ func TestXrayObserveLog(t *testing.T) {
 		ids = append(ids, c.ID)
 	}
 	if !slices.Equal(ids, []string{"66", "33", "22", "11"}) {
-		t.Fatalf("connections = %q, want newest first without nautilus's own", ids)
+		t.Fatalf("connections = %q, want newest first without conch's own", ids)
 	}
 	if c := conns[3]; c.Host != "chatgpt.com" || c.Port != "443" || c.Network != "tcp" || c.RuleTag != "#3 openai.com" || !slices.Equal(c.Chains, []string{"AI-Exit"}) {
 		t.Errorf("chatgpt.com = %+v", c)

@@ -10,7 +10,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
-	"nautilus/internal/daemon"
+	"github.com/xiongnemo/conch/internal/daemon"
 )
 
 // linkDialog adds a node from a share link.

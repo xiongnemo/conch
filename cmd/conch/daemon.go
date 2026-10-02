@@ -15,12 +15,12 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"nautilus/internal/api"
-	"nautilus/internal/auth"
-	"nautilus/internal/daemon"
-	"nautilus/internal/kernels"
-	"nautilus/internal/paths"
-	"nautilus/web"
+	"github.com/xiongnemo/conch/internal/api"
+	"github.com/xiongnemo/conch/internal/auth"
+	"github.com/xiongnemo/conch/internal/daemon"
+	"github.com/xiongnemo/conch/internal/kernels"
+	"github.com/xiongnemo/conch/internal/paths"
+	"github.com/xiongnemo/conch/web"
 )
 
 // resolveProfile finds the profile: the flag, else ./profile.yaml, else
@@ -56,7 +56,7 @@ func newDaemonCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			// The service passes its directories explicitly.
 			if f.configDir != "" {
-				os.Setenv("NAUTILUS_CONFIG_DIR", f.configDir)
+				os.Setenv("CONCH_CONFIG_DIR", f.configDir)
 				// Windows starts services in System32, where .env and
 				// profile.yaml would be looked for first.
 				if err := os.Chdir(f.configDir); err != nil {
@@ -64,7 +64,7 @@ func newDaemonCmd() *cobra.Command {
 				}
 			}
 			if f.dataDir != "" {
-				os.Setenv("NAUTILUS_DATA_DIR", f.dataDir)
+				os.Setenv("CONCH_DATA_DIR", f.dataDir)
 			}
 			return serve(cmd.Context(), cmd.ErrOrStderr(), func(ctx context.Context, out io.Writer) error {
 				return runDaemon(ctx, out, f)
@@ -75,7 +75,7 @@ func newDaemonCmd() *cobra.Command {
 	fl.StringVarP(&f.profile, "profile", "p", "", "profile 文件（默认是当前目录或配置目录里的 profile.yaml）")
 	fl.StringVar(&f.backend, "backend", "", "内核：mihomo、xray 或 sing-box（默认沿用上次的选择，第一次是 mihomo）")
 	fl.BoolVar(&f.offline, "offline", false, "不下载订阅和规则列表，只用已缓存的")
-	fl.BoolVar(&f.service, "service", false, "作为系统服务运行（由 nautilus service install 设置）：系统代理交给每个用户的 nautilus agent")
+	fl.BoolVar(&f.service, "service", false, "作为系统服务运行（由 conch service install 设置）：系统代理交给每个用户的 conch agent")
 	fl.StringVar(&f.configDir, "config-dir", "", "配置目录（默认 "+paths.ConfigDir()+"）")
 	fl.StringVar(&f.dataDir, "data-dir", "", "数据目录（默认 "+paths.DataDir()+"）")
 	for _, name := range []string{"service", "config-dir", "data-dir"} {
@@ -242,7 +242,7 @@ func newPasswdCmd() *cobra.Command {
 			}
 			fmt.Fprintf(cmd.OutOrStdout(), "新密码已保存到 %s：%s\n正在运行的 daemon 会在几秒内改用新密码，之前的登录会话会失效。\n", file, password)
 			if settings.PasswordFile == "环境变量" {
-				fmt.Fprintln(cmd.ErrOrStderr(), "注意：环境变量 NAUTILUS_PASSWORD 优先于 .env，需要同时修改它")
+				fmt.Fprintln(cmd.ErrOrStderr(), "注意：环境变量 CONCH_PASSWORD 优先于 .env，需要同时修改它")
 			}
 			return nil
 		},
@@ -284,7 +284,7 @@ func newTUNCmd() *cobra.Command {
 				return err
 			}
 			if on {
-				fmt.Fprintln(cmd.OutOrStdout(), "TUN 已开启：不认识代理设置的程序也会经过 nautilus")
+				fmt.Fprintln(cmd.OutOrStdout(), "TUN 已开启：不认识代理设置的程序也会经过 conch")
 			} else {
 				fmt.Fprintln(cmd.OutOrStdout(), "TUN 已关闭")
 			}
@@ -315,7 +315,7 @@ func newSysProxyCmd() *cobra.Command {
 	}
 	cmd := &cobra.Command{Use: "sysproxy", Short: "开关系统代理（需要 daemon 在运行）"}
 	cmd.AddCommand(
-		&cobra.Command{Use: "on", Short: "让系统和浏览器使用 nautilus", Args: cobra.NoArgs, RunE: set(true)},
+		&cobra.Command{Use: "on", Short: "让系统和浏览器使用 conch", Args: cobra.NoArgs, RunE: set(true)},
 		&cobra.Command{Use: "off", Short: "恢复原来的系统代理设置", Args: cobra.NoArgs, RunE: set(false)},
 	)
 	return cmd

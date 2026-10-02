@@ -10,8 +10,8 @@ import (
 // SystemLayout is where a system-wide installation lives on macOS. The
 // daemon runs as root: macOS lets only root create utun devices.
 func SystemLayout() Layout {
-	base := "/Library/Application Support/nautilus"
-	return Layout{Bin: "/usr/local/bin/nautilus", ConfigDir: base, DataDir: filepath.Join(base, "data"), Log: "/Library/Logs/nautilus.log"}
+	base := "/Library/Application Support/conch"
+	return Layout{Bin: "/usr/local/bin/conch", ConfigDir: base, DataDir: filepath.Join(base, "data"), Log: "/Library/Logs/conch.log"}
 }
 
 var (
@@ -54,7 +54,7 @@ func Install(o Options) error {
 	if _, err := o.Run("launchctl", "bootstrap", "system", daemonPlist); err != nil {
 		return err
 	}
-	o.logf("nautilus 服务已启动，日志在 %s", l.Log)
+	o.logf("conch 服务已启动，日志在 %s", l.Log)
 	if o.NoAgent {
 		return nil
 	}
@@ -87,7 +87,7 @@ func Uninstall(o Options) error {
 		}
 	}
 	l := o.Layout
-	o.logf("已卸载 nautilus 服务。配置和数据还留在 %s，%s 也没有删除", l.ConfigDir, l.Bin)
+	o.logf("已卸载 conch 服务。配置和数据还留在 %s，%s 也没有删除", l.ConfigDir, l.Bin)
 	return nil
 }
 

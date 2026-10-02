@@ -11,7 +11,7 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 
-	"nautilus/internal/daemon"
+	"github.com/xiongnemo/conch/internal/daemon"
 )
 
 // dialog takes over the keyboard until it closes itself.

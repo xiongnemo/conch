@@ -8,7 +8,7 @@ import (
 
 	"golang.org/x/sys/windows"
 
-	"nautilus/internal/paths"
+	"github.com/xiongnemo/conch/internal/paths"
 )
 
 var (

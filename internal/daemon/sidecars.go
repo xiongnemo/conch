@@ -13,11 +13,11 @@ import (
 	"runtime"
 	"sync"
 
-	"nautilus/internal/backend"
-	"nautilus/internal/compile"
-	"nautilus/internal/kernel"
-	"nautilus/internal/kernels"
-	"nautilus/internal/sidecar"
+	"github.com/xiongnemo/conch/internal/backend"
+	"github.com/xiongnemo/conch/internal/compile"
+	"github.com/xiongnemo/conch/internal/kernel"
+	"github.com/xiongnemo/conch/internal/kernels"
+	"github.com/xiongnemo/conch/internal/sidecar"
 )
 
 // sidecarSet tracks the running sidecars and the next set to run.
@@ -73,7 +73,7 @@ func (d *Daemon) sidecarBin(ctx context.Context) (string, error) {
 		inst, err = kernels.Install(ctx, kernels.InstallOptions{Kernel: sidecar.Kernel, Dir: d.opts.DataDir, Target: kernels.Host(), Log: d.opts.Log})
 	}
 	if err != nil {
-		return "", fmt.Errorf("trojan-go 节点需要 trojan-go 程序（可以运行 nautilus kernel install trojan-go）：%w", err)
+		return "", fmt.Errorf("trojan-go 节点需要 trojan-go 程序（可以运行 conch kernel install trojan-go）：%w", err)
 	}
 	return inst.Path, nil
 }

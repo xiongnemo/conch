@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"nautilus/internal/diag"
-	"nautilus/internal/model"
+	"github.com/xiongnemo/conch/internal/diag"
+	"github.com/xiongnemo/conch/internal/model"
 )
 
 // Resolver maps a Via to the name of an emitted outbound. It reports its

@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"nautilus/internal/diag"
-	"nautilus/internal/model"
+	"github.com/xiongnemo/conch/internal/diag"
+	"github.com/xiongnemo/conch/internal/model"
 )
 
 func TestParseTarget(t *testing.T) {

@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"strings"
 
-	"nautilus/internal/model"
+	"github.com/xiongnemo/conch/internal/model"
 )
 
 func (c *compiler) resolveChains() {

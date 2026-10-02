@@ -3,7 +3,7 @@
 // Chains use detour, groups become selector and urltest outbounds, and the
 // routing table becomes route rules evaluated in order. sing-box matches IP
 // rules only against IP destinations unless a resolve action ran before,
-// which is what nautilus' no-resolve default already means.
+// which is what conch' no-resolve default already means.
 package singbox
 
 import (
@@ -15,12 +15,12 @@ import (
 	"strconv"
 	"strings"
 
-	"nautilus/internal/backend"
-	"nautilus/internal/compile"
-	"nautilus/internal/diag"
-	"nautilus/internal/lists"
-	"nautilus/internal/model"
-	"nautilus/internal/route"
+	"github.com/xiongnemo/conch/internal/backend"
+	"github.com/xiongnemo/conch/internal/compile"
+	"github.com/xiongnemo/conch/internal/diag"
+	"github.com/xiongnemo/conch/internal/lists"
+	"github.com/xiongnemo/conch/internal/model"
+	"github.com/xiongnemo/conch/internal/route"
 )
 
 type Backend struct{}
@@ -39,7 +39,7 @@ const (
 	// Where geosite:/geoip: categories come from, as for mihomo.
 	ruleSetBase = "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo/"
 	// An origin no page can have, so browsers may not call the API.
-	corsNobody = "https://nautilus.invalid"
+	corsNobody = "https://conch.invalid"
 )
 
 type encoder struct {

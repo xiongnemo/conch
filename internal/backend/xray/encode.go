@@ -18,11 +18,11 @@ import (
 	"strconv"
 	"strings"
 
-	"nautilus/internal/backend"
-	"nautilus/internal/compile"
-	"nautilus/internal/diag"
-	"nautilus/internal/lists"
-	"nautilus/internal/route"
+	"github.com/xiongnemo/conch/internal/backend"
+	"github.com/xiongnemo/conch/internal/compile"
+	"github.com/xiongnemo/conch/internal/diag"
+	"github.com/xiongnemo/conch/internal/lists"
+	"github.com/xiongnemo/conch/internal/route"
 )
 
 type Backend struct{}
@@ -120,7 +120,7 @@ func (Backend) Encode(r *compile.Result, opts backend.Options) (*backend.Artifac
 			})
 			internal := []rule{{InboundTag: []string{apiTag}, OutboundTag: apiTag, RuleTag: apiTag}}
 			// xray has no delay-test API. Each probe is an HTTP proxy on a
-			// unix socket whose balancer nautilus overrides to the outbound
+			// unix socket whose balancer conch overrides to the outbound
 			// under test, so tests go through the very outbound users use.
 			for i, socket := range opts.Probes {
 				tag := ProbeTag(i)
@@ -216,7 +216,7 @@ func (e *encoder) group(g *compile.Group) {
 	e.loopback(g.Name)
 	switch g.Type {
 	case "select":
-		// The selection lives in the selector; at runtime nautilus switches
+		// The selection lives in the selector; at runtime conch switches
 		// it instantly through RoutingService.OverrideBalancerTarget.
 		selected := members[0]
 		if g.Selected != "" {
@@ -394,7 +394,7 @@ func (e *encoder) manifestRule(first, last int, r route.Rule, x rule) {
 }
 
 // ruleTag names a rule after the compiled rule it came from. xray logs the
-// tag of the rule each connection matched, which is how nautilus explains
+// tag of the rule each connection matched, which is how conch explains
 // connections, and the key keeps xray's own log readable.
 func ruleTag(index, part int, key string) string {
 	key = tagKey(key)
@@ -424,7 +424,7 @@ func RuleIndex(tag string) (int, bool) {
 }
 
 // ProbeTag names the i-th probe: an inbound, a rule and a balancer whose
-// target nautilus overrides to measure the delay through any outbound.
+// target conch overrides to measure the delay through any outbound.
 func ProbeTag(i int) string {
 	return compile.HopSep + "probe" + compile.HopSep + strconv.Itoa(i+1)
 }

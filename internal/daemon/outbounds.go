@@ -7,10 +7,10 @@ import (
 	"os"
 	"strings"
 
-	"nautilus/internal/diag"
-	"nautilus/internal/linkparse"
-	"nautilus/internal/model"
-	"nautilus/internal/proto"
+	"github.com/xiongnemo/conch/internal/diag"
+	"github.com/xiongnemo/conch/internal/linkparse"
+	"github.com/xiongnemo/conch/internal/model"
+	"github.com/xiongnemo/conch/internal/proto"
 )
 
 // Nodes and chains added from the UIs live in managed.yaml. Each change

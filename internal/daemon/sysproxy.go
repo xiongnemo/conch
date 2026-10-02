@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"nautilus/internal/platform/sysproxy"
+	"github.com/xiongnemo/conch/internal/platform/sysproxy"
 )
 
 // The OS proxy setting is swapped for tests.
@@ -46,7 +46,7 @@ func (d *Daemon) SetSysProxy(on bool) error {
 
 // applySysProxy points the OS at port; d.mu must be held. The snapshot of
 // the user's own settings is taken only once, so pointing at a new port
-// never records nautilus' previous setting as the one to restore.
+// never records conch' previous setting as the one to restore.
 func (d *Daemon) applySysProxy(port int) error {
 	sp := d.state.SysProxy
 	snap, err := enableSysProxy(port)
@@ -113,7 +113,7 @@ func (d *Daemon) releaseSysProxy() {
 }
 
 // RepairSysProxy restores a system proxy left pointing at a daemon that is
-// no longer running. It is for `nautilus doctor --fix`.
+// no longer running. It is for `conch doctor --fix`.
 func RepairSysProxy(dataDir string) (bool, error) {
 	path := filepath.Join(dataDir, "state.json")
 	st, err := loadState(path)

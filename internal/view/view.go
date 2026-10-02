@@ -12,9 +12,9 @@ import (
 	"strings"
 	"time"
 
-	"nautilus/internal/compile"
-	"nautilus/internal/explain"
-	"nautilus/internal/route"
+	"github.com/xiongnemo/conch/internal/compile"
+	"github.com/xiongnemo/conch/internal/explain"
+	"github.com/xiongnemo/conch/internal/route"
 )
 
 // Entry is one manual route.
@@ -25,7 +25,7 @@ type Entry struct {
 	Depth     int        `json:"depth,omitempty"`  // nesting in the domain tree
 	Resolve   bool       `json:"resolve,omitempty"`
 	Expires   *time.Time `json:"expires,omitempty"`
-	Managed   bool       `json:"managed,omitempty"` // editable through nautilus
+	Managed   bool       `json:"managed,omitempty"` // editable through conch
 	Generated bool       `json:"generated,omitempty"`
 }
 

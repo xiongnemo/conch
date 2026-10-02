@@ -171,7 +171,7 @@ func (s *Supervisor) restartLater(gen int) {
 	s.backoff = min(s.backoff*2, time.Minute)
 	last := s.status.LastExit
 	s.mu.Unlock()
-	s.line(fmt.Sprintf("[nautilus] 内核意外退出（%s），%s 后重启", last, delay))
+	s.line(fmt.Sprintf("[conch] 内核意外退出（%s），%s 后重启", last, delay))
 	time.AfterFunc(delay, func() {
 		s.mu.Lock()
 		current := gen == s.gen
@@ -183,7 +183,7 @@ func (s *Supervisor) restartLater(gen int) {
 			return
 		}
 		if err := s.launch(gen); err != nil {
-			s.line("[nautilus] " + err.Error())
+			s.line("[conch] " + err.Error())
 			s.mu.Lock()
 			current = gen == s.gen
 			s.mu.Unlock()

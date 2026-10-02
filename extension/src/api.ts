@@ -68,7 +68,7 @@ async function send(base: string, method: string, path: string, body?: unknown, 
   try {
     return await fetch(base + "/api/v1" + path, { method, headers, body: body === undefined ? undefined : JSON.stringify(body) });
   } catch {
-    throw new APIError(0, `连不上 nautilus daemon（${base}），它在运行吗？`);
+    throw new APIError(0, `连不上 conch daemon（${base}），它在运行吗？`);
   }
 }
 
@@ -78,7 +78,7 @@ async function result<T>(res: Response): Promise<T> {
   return data as T;
 }
 
-// pair trades a code from `nautilus pair` or the Web UI for a token.
+// pair trades a code from `conch pair` or the Web UI for a token.
 export async function pair(base: string, code: string, name: string): Promise<Pairing> {
   const v = await result<{ id: string; token: string }>(await send(base, "POST", "/pair", { code, name }));
   return { base, token: v.token, id: v.id };

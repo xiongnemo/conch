@@ -16,11 +16,11 @@ import (
 	"strings"
 )
 
-// Settings come from NAUTILUS_* variables.
+// Settings come from CONCH_* variables.
 type Settings struct {
 	Password string
-	Auth     bool   // NAUTILUS_AUTH, default on
-	Listen   string // NAUTILUS_LISTEN, default 127.0.0.1:9277
+	Auth     bool   // CONCH_AUTH, default on
+	Listen   string // CONCH_LISTEN, default 127.0.0.1:9277
 	TLSCert  string
 	TLSKey   string
 	// PasswordFile is the .env the password was read from, if any.
@@ -50,25 +50,25 @@ func Load(cwd, configDir string) (Settings, error) {
 			values[k], from[k] = v, files[i]
 		}
 	}
-	for _, k := range []string{"NAUTILUS_PASSWORD", "NAUTILUS_AUTH", "NAUTILUS_LISTEN", "NAUTILUS_TLS_CERT", "NAUTILUS_TLS_KEY"} {
+	for _, k := range []string{"CONCH_PASSWORD", "CONCH_AUTH", "CONCH_LISTEN", "CONCH_TLS_CERT", "CONCH_TLS_KEY"} {
 		if v, ok := os.LookupEnv(k); ok {
 			values[k], from[k] = v, "环境变量"
 		}
 	}
 	s := Settings{
-		Password:     values["NAUTILUS_PASSWORD"],
-		PasswordFile: from["NAUTILUS_PASSWORD"],
-		Listen:       values["NAUTILUS_LISTEN"],
-		TLSCert:      values["NAUTILUS_TLS_CERT"],
-		TLSKey:       values["NAUTILUS_TLS_KEY"],
+		Password:     values["CONCH_PASSWORD"],
+		PasswordFile: from["CONCH_PASSWORD"],
+		Listen:       values["CONCH_LISTEN"],
+		TLSCert:      values["CONCH_TLS_CERT"],
+		TLSKey:       values["CONCH_TLS_KEY"],
 		Auth:         true,
 	}
-	switch strings.ToLower(values["NAUTILUS_AUTH"]) {
+	switch strings.ToLower(values["CONCH_AUTH"]) {
 	case "", "on", "true", "1", "yes":
 	case "off", "false", "0", "no":
 		s.Auth = false
 	default:
-		return s, fmt.Errorf("NAUTILUS_AUTH 应该是 on 或 off，而不是 %q", values["NAUTILUS_AUTH"])
+		return s, fmt.Errorf("CONCH_AUTH 应该是 on 或 off，而不是 %q", values["CONCH_AUTH"])
 	}
 	if s.Listen == "" {
 		s.Listen = DefaultListen
@@ -80,13 +80,13 @@ func Load(cwd, configDir string) (Settings, error) {
 func (s Settings) check() error {
 	host, _, err := net.SplitHostPort(s.Listen)
 	if err != nil {
-		return fmt.Errorf("NAUTILUS_LISTEN %q 应该写成 地址:端口", s.Listen)
+		return fmt.Errorf("CONCH_LISTEN %q 应该写成 地址:端口", s.Listen)
 	}
 	if !s.Auth && !IsLoopback(host) {
-		return fmt.Errorf("关闭鉴权时只能监听本机地址，而 NAUTILUS_LISTEN 是 %s", s.Listen)
+		return fmt.Errorf("关闭鉴权时只能监听本机地址，而 CONCH_LISTEN 是 %s", s.Listen)
 	}
 	if (s.TLSCert == "") != (s.TLSKey == "") {
-		return errors.New("NAUTILUS_TLS_CERT 和 NAUTILUS_TLS_KEY 需要同时设置")
+		return errors.New("CONCH_TLS_CERT 和 CONCH_TLS_KEY 需要同时设置")
 	}
 	return nil
 }
@@ -111,7 +111,7 @@ func Ensure(s *Settings, cwd, configDir string) (string, error) {
 	s.Password = NewPassword()
 	var lastErr error
 	for _, f := range EnvFiles(cwd, configDir) {
-		if err := appendEnv(f, "NAUTILUS_PASSWORD", s.Password); err != nil {
+		if err := appendEnv(f, "CONCH_PASSWORD", s.Password); err != nil {
 			lastErr = err
 			continue
 		}
@@ -121,7 +121,7 @@ func Ensure(s *Settings, cwd, configDir string) (string, error) {
 	return "", fmt.Errorf("无法保存生成的密码：%w", lastErr)
 }
 
-// SetPassword replaces NAUTILUS_PASSWORD in an .env file, keeping the
+// SetPassword replaces CONCH_PASSWORD in an .env file, keeping the
 // other lines.
 func SetPassword(file, password string) error {
 	data, err := os.ReadFile(file)
@@ -131,15 +131,15 @@ func SetPassword(file, password string) error {
 	var lines []string
 	replaced := false
 	for _, l := range strings.Split(strings.TrimRight(string(data), "\n"), "\n") {
-		if k, _, ok := parseLine(l); ok && k == "NAUTILUS_PASSWORD" {
-			l, replaced = "NAUTILUS_PASSWORD="+password, true
+		if k, _, ok := parseLine(l); ok && k == "CONCH_PASSWORD" {
+			l, replaced = "CONCH_PASSWORD="+password, true
 		}
 		if l != "" || len(lines) > 0 {
 			lines = append(lines, l)
 		}
 	}
 	if !replaced {
-		lines = append(lines, "NAUTILUS_PASSWORD="+password)
+		lines = append(lines, "CONCH_PASSWORD="+password)
 	}
 	return writePrivate(file, []byte(strings.Join(lines, "\n")+"\n"))
 }
@@ -231,7 +231,7 @@ func PasswordIn(file string) string {
 	if err != nil {
 		return ""
 	}
-	return env["NAUTILUS_PASSWORD"]
+	return env["CONCH_PASSWORD"]
 }
 
 // NewPassword returns a random password.

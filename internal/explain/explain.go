@@ -12,9 +12,9 @@ import (
 	"strconv"
 	"strings"
 
-	"nautilus/internal/compile"
-	"nautilus/internal/lists"
-	"nautilus/internal/route"
+	"github.com/xiongnemo/conch/internal/compile"
+	"github.com/xiongnemo/conch/internal/lists"
+	"github.com/xiongnemo/conch/internal/route"
 )
 
 // Query describes a connection.

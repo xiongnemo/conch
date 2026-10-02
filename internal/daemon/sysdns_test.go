@@ -3,8 +3,8 @@ package daemon
 import (
 	"testing"
 
-	"nautilus/internal/compile"
-	"nautilus/internal/platform/sysdns"
+	"github.com/xiongnemo/conch/internal/compile"
+	"github.com/xiongnemo/conch/internal/platform/sysdns"
 )
 
 func swapDNS(t *testing.T) *string {
@@ -38,7 +38,7 @@ func TestDNSTakeover(t *testing.T) {
 	if *resolver != "1.12.12.12" {
 		t.Fatalf("with TUN the resolver is %q", *resolver)
 	}
-	d.syncDNS() // reconciling again must not snapshot nautilus' own setting
+	d.syncDNS() // reconciling again must not snapshot conch' own setting
 	d.res.Settings.TUN.Enable = false
 	d.syncDNS()
 	if *resolver != "router" || d.state.DNS != nil {

@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"nautilus/internal/fetch"
+	"github.com/xiongnemo/conch/internal/fetch"
 )
 
 const geodataBase = "https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/"

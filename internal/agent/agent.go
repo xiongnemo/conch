@@ -13,9 +13,9 @@ import (
 	"path/filepath"
 	"time"
 
-	"nautilus/internal/api"
-	"nautilus/internal/daemon"
-	"nautilus/internal/platform/sysproxy"
+	"github.com/xiongnemo/conch/internal/api"
+	"github.com/xiongnemo/conch/internal/daemon"
+	"github.com/xiongnemo/conch/internal/platform/sysproxy"
 )
 
 // Events is the part of the API client the agent uses.
@@ -27,7 +27,7 @@ type Events interface {
 type Agent struct {
 	Client Events
 	// StatePath remembers the user's own settings while the proxy points
-	// at nautilus, so they come back even after a crash.
+	// at conch, so they come back even after a crash.
 	StatePath string
 	Log       io.Writer
 	Retry     time.Duration // between attempts to reach the daemon

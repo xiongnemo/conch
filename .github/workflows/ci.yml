@@ -80,19 +80,19 @@ jobs:
           npm run build
       - name: Install mihomo, xray, sing-box and trojan-go, verified against the embedded checksums
         run: |
-          go build -o /tmp/nautilus ./cmd/nautilus
-          /tmp/nautilus kernel install mihomo
-          /tmp/nautilus kernel install xray --geodata
-          /tmp/nautilus kernel install sing-box
-          /tmp/nautilus kernel install trojan-go
+          go build -o /tmp/conch ./cmd/conch
+          /tmp/conch kernel install mihomo
+          /tmp/conch kernel install xray --geodata
+          /tmp/conch kernel install sing-box
+          /tmp/conch kernel install trojan-go
           {
-            echo "NAUTILUS_MIHOMO=$(/tmp/nautilus kernel path mihomo)"
-            echo "NAUTILUS_XRAY=$(/tmp/nautilus kernel path xray)"
-            echo "NAUTILUS_XRAY_ASSETS=$HOME/.local/share/nautilus/home/xray"
-            echo "NAUTILUS_SING_BOX=$(/tmp/nautilus kernel path sing-box)"
-            echo "NAUTILUS_TROJAN_GO=$(/tmp/nautilus kernel path trojan-go)"
-            echo "NAUTILUS_CHROME=$(command -v google-chrome)"
-            echo "NAUTILUS_EXTENSION=$PWD/extension/dist/chrome"
+            echo "CONCH_MIHOMO=$(/tmp/conch kernel path mihomo)"
+            echo "CONCH_XRAY=$(/tmp/conch kernel path xray)"
+            echo "CONCH_XRAY_ASSETS=$HOME/.local/share/conch/home/xray"
+            echo "CONCH_SING_BOX=$(/tmp/conch kernel path sing-box)"
+            echo "CONCH_TROJAN_GO=$(/tmp/conch kernel path trojan-go)"
+            echo "CONCH_CHROME=$(command -v google-chrome)"
+            echo "CONCH_EXTENSION=$PWD/extension/dist/chrome"
           } >> "$GITHUB_ENV"
       - name: Kernels accept every golden config; daemon, API, sidecars and extension work end to end
         shell: bash
@@ -116,12 +116,12 @@ jobs:
           go-version-file: go.mod
       - name: Install mihomo and sing-box
         run: |
-          go build -o /tmp/nautilus ./cmd/nautilus
-          /tmp/nautilus kernel install mihomo
-          /tmp/nautilus kernel install sing-box
+          go build -o /tmp/conch ./cmd/conch
+          /tmp/conch kernel install mihomo
+          /tmp/conch kernel install sing-box
           {
-            echo "NAUTILUS_MIHOMO=$(/tmp/nautilus kernel path mihomo)"
-            echo "NAUTILUS_SING_BOX=$(/tmp/nautilus kernel path sing-box)"
+            echo "CONCH_MIHOMO=$(/tmp/conch kernel path mihomo)"
+            echo "CONCH_SING_BOX=$(/tmp/conch kernel path sing-box)"
           } >> "$GITHUB_ENV"
       - name: TUN, in a network namespace of its own
         shell: bash
@@ -136,23 +136,23 @@ jobs:
           # Programs in the namespace ask a resolver only TUN answers.
           sudo mkdir -p /etc/netns/nt
           echo "nameserver 10.200.0.53" | sudo tee /etc/netns/nt/resolv.conf
-          sudo ip netns exec nt env NAUTILUS_TUN_TEST=10.200.0.2 NAUTILUS_MIHOMO="$NAUTILUS_MIHOMO" NAUTILUS_SING_BOX="$NAUTILUS_SING_BOX" \
+          sudo ip netns exec nt env CONCH_TUN_TEST=10.200.0.2 CONCH_MIHOMO="$CONCH_MIHOMO" CONCH_SING_BOX="$CONCH_SING_BOX" \
             /tmp/e2e.test -test.run TestTUN -test.v -test.count=1 | tee tun.log
           if grep -- '--- SKIP' tun.log; then exit 1; fi
       - name: System service (systemd)
         shell: bash
         run: |
-          mkdir -p ~/.config/nautilus
-          printf 'routes: { default: DIRECT }\ninbound: { mixed-port: 7890 }\n' > ~/.config/nautilus/profile.yaml
-          printf 'NAUTILUS_PASSWORD=ci-service\n' > ~/.config/nautilus/.env
-          sudo /tmp/nautilus service install --no-agent
-          for i in $(seq 1 60); do /tmp/nautilus status 2>/dev/null | grep -q 运行中 && break; sleep 1; done
-          /tmp/nautilus status
-          /tmp/nautilus service status
-          systemctl show nautilus -p User -p AmbientCapabilities -p WorkingDirectory
+          mkdir -p ~/.config/conch
+          printf 'routes: { default: DIRECT }\ninbound: { mixed-port: 7890 }\n' > ~/.config/conch/profile.yaml
+          printf 'CONCH_PASSWORD=ci-service\n' > ~/.config/conch/.env
+          sudo /tmp/conch service install --no-agent
+          for i in $(seq 1 60); do /tmp/conch status 2>/dev/null | grep -q 运行中 && break; sleep 1; done
+          /tmp/conch status
+          /tmp/conch service status
+          systemctl show conch -p User -p AmbientCapabilities -p WorkingDirectory
           test "$(curl -s -m 20 -x http://127.0.0.1:7890 -o /dev/null -w '%{http_code}' https://www.google.com/generate_204)" = 204
-          sudo /tmp/nautilus service uninstall
-          if systemctl is-active --quiet nautilus; then exit 1; fi
+          sudo /tmp/conch service uninstall
+          if systemctl is-active --quiet conch; then exit 1; fi
 
   # The daemon on Windows: controllers over unix sockets, Job Objects,
   # kernels' Windows builds.
@@ -168,15 +168,15 @@ jobs:
       - name: Install mihomo, xray, sing-box and trojan-go
         shell: bash
         run: |
-          go build -o nautilus.exe ./cmd/nautilus
-          for k in mihomo sing-box trojan-go; do ./nautilus.exe kernel install $k; done
-          ./nautilus.exe kernel install xray --geodata
+          go build -o conch.exe ./cmd/conch
+          for k in mihomo sing-box trojan-go; do ./conch.exe kernel install $k; done
+          ./conch.exe kernel install xray --geodata
           {
-            echo "NAUTILUS_MIHOMO=$(./nautilus.exe kernel path mihomo)"
-            echo "NAUTILUS_XRAY=$(./nautilus.exe kernel path xray)"
-            echo "NAUTILUS_XRAY_ASSETS=$LOCALAPPDATA\\nautilus\\home\\xray"
-            echo "NAUTILUS_SING_BOX=$(./nautilus.exe kernel path sing-box)"
-            echo "NAUTILUS_TROJAN_GO=$(./nautilus.exe kernel path trojan-go)"
+            echo "CONCH_MIHOMO=$(./conch.exe kernel path mihomo)"
+            echo "CONCH_XRAY=$(./conch.exe kernel path xray)"
+            echo "CONCH_XRAY_ASSETS=$LOCALAPPDATA\\conch\\home\\xray"
+            echo "CONCH_SING_BOX=$(./conch.exe kernel path sing-box)"
+            echo "CONCH_TROJAN_GO=$(./conch.exe kernel path trojan-go)"
           } >> "$GITHUB_ENV"
       - name: Kernels accept every golden config; daemon, API and sidecars work end to end
         shell: bash
@@ -206,7 +206,7 @@ jobs:
       # Unzip and load chrome/ (Chrome, Edge) or firefox/ as an unpacked extension.
       - uses: actions/upload-artifact@v7
         with:
-          name: nautilus-extension
+          name: conch-extension
           path: extension/dist/
           retention-days: 14
 
@@ -240,9 +240,9 @@ jobs:
           GOMIPS: softfloat
           TAGS: ${{ matrix.lite && 'lite' || '' }}
         run: |
-          name=nautilus${TAGS:+-$TAGS}_${GOOS}_${GOARCH}
+          name=conch${TAGS:+-$TAGS}_${GOOS}_${GOARCH}
           if [ "$GOOS" = windows ]; then name=$name.exe; fi
-          go build -trimpath -tags "$TAGS" -ldflags "-s -w -X main.version=dev-${GITHUB_SHA::7}" -o "out/$name" ./cmd/nautilus
+          go build -trimpath -tags "$TAGS" -ldflags "-s -w -X main.version=dev-${GITHUB_SHA::7}" -o "out/$name" ./cmd/conch
           echo "file=out/$name" >> "$GITHUB_OUTPUT"
       - uses: actions/upload-artifact@v7
         with:

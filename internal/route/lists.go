@@ -7,7 +7,7 @@ import (
 	"regexp"
 	"strings"
 
-	"nautilus/internal/model"
+	"github.com/xiongnemo/conch/internal/model"
 )
 
 // Provider is a rule set the kernel downloads and keeps up to date.

@@ -21,7 +21,7 @@ const (
 )
 
 // TUNError returns nil if the kernel at bin can create a TUN device: when
-// nautilus runs as root or with ambient capabilities (the systemd
+// conch runs as root or with ambient capabilities (the systemd
 // service), or when the binary itself carries the capabilities.
 func TUNError(bin string) error {
 	if os.Geteuid() == 0 || processHas("CapAmb", capNetAdmin) {
@@ -32,7 +32,7 @@ func TUNError(bin string) error {
 	}
 	self, err := os.Executable()
 	if err != nil {
-		self = "nautilus"
+		self = "conch"
 	}
 	return fmt.Errorf("%w。可以给内核加上网络权限（升级内核后要重新做一次）：\n  sudo setcap cap_net_admin,cap_net_bind_service,cap_net_raw+ep %s\n也可以用 sudo %s service install 安装成系统服务", ErrTUN, bin, self)
 }

@@ -7,8 +7,8 @@ import (
 	"strconv"
 	"strings"
 
-	"nautilus/internal/compile"
-	"nautilus/internal/proto"
+	"github.com/xiongnemo/conch/internal/compile"
+	"github.com/xiongnemo/conch/internal/proto"
 )
 
 // Shadowsocks methods sing-box implements.

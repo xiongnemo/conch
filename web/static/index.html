@@ -3,15 +3,15 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Nautilus</title>
+  <title>Conch</title>
   <link rel="stylesheet" href="style.css">
   <script type="module" src="app.js"></script>
 </head>
 <body>
   <section id="login" class="login" hidden>
     <form id="login-form" class="card">
-      <h1>Nautilus</h1>
-      <p class="muted">请输入密码。密码在 <code>.env</code> 的 <code>NAUTILUS_PASSWORD</code> 里。</p>
+      <h1>Conch</h1>
+      <p class="muted">请输入密码。密码在 <code>.env</code> 的 <code>CONCH_PASSWORD</code> 里。</p>
       <input id="password" type="password" autocomplete="current-password" placeholder="密码" required autofocus>
       <button type="submit">登录</button>
       <p id="login-error" class="error" hidden></p>
@@ -20,7 +20,7 @@
 
   <div id="app" hidden>
     <header>
-      <strong class="brand">Nautilus</strong>
+      <strong class="brand">Conch</strong>
       <span id="kernel" class="pill"></span>
       <nav id="tabs">
         <button data-tab="overview" class="active">概览</button>
@@ -29,7 +29,7 @@
         <button data-tab="connections">连接</button>
         <button data-tab="logs">日志</button>
       </nav>
-      <label class="switch" title="让系统和浏览器使用 nautilus；daemon 退出时恢复原来的设置">
+      <label class="switch" title="让系统和浏览器使用 conch；daemon 退出时恢复原来的设置">
         <input id="sysproxy" type="checkbox"> 系统代理
       </label>
       <label class="switch" title="用 TUN 网卡接管所有程序的流量，包括不认识代理设置的程序">

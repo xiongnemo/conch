@@ -18,7 +18,7 @@ import (
 	"slices"
 	"strings"
 
-	"nautilus/internal/kernels"
+	"github.com/xiongnemo/conch/internal/kernels"
 )
 
 func main() {

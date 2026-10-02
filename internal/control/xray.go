@@ -17,11 +17,11 @@ import (
 	"sync"
 	"time"
 
-	"nautilus/internal/kernel"
+	"github.com/xiongnemo/conch/internal/kernel"
 )
 
 // Xray controls xray through its gRPC API, using the xray binary's own
-// "xray api" client so nautilus needs no gRPC stubs. The API is served on
+// "xray api" client so conch needs no gRPC stubs. The API is served on
 // a unix socket in a private directory.
 type Xray struct {
 	Bin    string
@@ -35,7 +35,7 @@ type Xray struct {
 }
 
 // Probe is an HTTP proxy inbound whose balancer can be pointed at any
-// outbound, which lets nautilus measure delays through that outbound.
+// outbound, which lets conch measure delays through that outbound.
 type Probe struct {
 	Tag    string // of the inbound, its routing rule and its balancer
 	Socket string
@@ -307,7 +307,7 @@ type sessions struct {
 type session struct {
 	Connection
 	detours  []string // outbounds in the order routing chose them
-	internal bool     // nautilus's own: API calls and delay tests
+	internal bool     // conch's own: API calls and delay tests
 	failed   bool
 }
 
@@ -328,7 +328,7 @@ var (
 )
 
 // observe reads one log message of session id. It returns the failure
-// the message reports and whether the session is nautilus's own.
+// the message reports and whether the session is conch's own.
 func (s *sessions) observe(id, msg string, now time.Time) (*DialFailure, bool) {
 	var ruleTag, out, dest string
 	routed := true

@@ -10,8 +10,8 @@ import (
 
 	"golang.org/x/sys/windows/svc"
 
-	"nautilus/internal/paths"
-	"nautilus/internal/platform/service"
+	"github.com/xiongnemo/conch/internal/paths"
+	"github.com/xiongnemo/conch/internal/platform/service"
 )
 
 // serve runs a long-lived command: under the service manager it answers
@@ -25,7 +25,7 @@ func serve(ctx context.Context, out io.Writer, run func(context.Context, io.Writ
 		defer stop()
 		return run(ctx, out)
 	}
-	log, err := os.OpenFile(filepath.Join(paths.ConfigDir(), "nautilus.log"), os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600)
+	log, err := os.OpenFile(filepath.Join(paths.ConfigDir(), "conch.log"), os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600)
 	if err == nil {
 		defer log.Close()
 		out = log

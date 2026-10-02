@@ -14,9 +14,9 @@ import (
 	"strings"
 	"time"
 
-	"nautilus/internal/auth"
-	"nautilus/internal/daemon"
-	"nautilus/internal/view"
+	"github.com/xiongnemo/conch/internal/auth"
+	"github.com/xiongnemo/conch/internal/daemon"
+	"github.com/xiongnemo/conch/internal/view"
 )
 
 // Client talks to a running daemon.
@@ -54,7 +54,7 @@ func (e *APIError) Error() string {
 }
 
 // ErrNotRunning means no daemon answered.
-var ErrNotRunning = errors.New("nautilus daemon 没有在运行")
+var ErrNotRunning = errors.New("conch daemon 没有在运行")
 
 func (c *Client) do(ctx context.Context, method, path string, body, out any) error {
 	var r io.Reader
@@ -305,4 +305,4 @@ func (c *Client) Events(ctx context.Context) (<-chan Event, error) {
 }
 
 // String helps error messages mention where the daemon was expected.
-func (c *Client) String() string { return fmt.Sprintf("nautilus daemon（%s）", c.Base) }
+func (c *Client) String() string { return fmt.Sprintf("conch daemon（%s）", c.Base) }

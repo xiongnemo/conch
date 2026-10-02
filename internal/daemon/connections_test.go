@@ -7,10 +7,10 @@ import (
 	"testing"
 	"time"
 
-	"nautilus/internal/backend"
-	"nautilus/internal/compile"
-	"nautilus/internal/control"
-	"nautilus/internal/route"
+	"github.com/xiongnemo/conch/internal/backend"
+	"github.com/xiongnemo/conch/internal/compile"
+	"github.com/xiongnemo/conch/internal/control"
+	"github.com/xiongnemo/conch/internal/route"
 )
 
 func TestFailures(t *testing.T) {
@@ -37,7 +37,7 @@ func TestFailures(t *testing.T) {
 }
 
 // The log follows the profile's log-level even when the kernel runs
-// more verbosely for nautilus's sake.
+// more verbosely for conch's sake.
 func TestShown(t *testing.T) {
 	for _, c := range []struct {
 		level, setting string

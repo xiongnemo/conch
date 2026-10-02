@@ -9,9 +9,9 @@ import (
 
 	"go.yaml.in/yaml/v3"
 
-	"nautilus/internal/diag"
-	"nautilus/internal/model"
-	"nautilus/internal/route"
+	"github.com/xiongnemo/conch/internal/diag"
+	"github.com/xiongnemo/conch/internal/model"
+	"github.com/xiongnemo/conch/internal/route"
 )
 
 var builtins = []string{"DIRECT", "REJECT", "REJECT-DROP", "GLOBAL"}

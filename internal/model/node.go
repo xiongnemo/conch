@@ -5,7 +5,7 @@ import (
 
 	"go.yaml.in/yaml/v3"
 
-	"nautilus/internal/diag"
+	"github.com/xiongnemo/conch/internal/diag"
 )
 
 // NativeFormat identifies how a node was originally written. A backend that

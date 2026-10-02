@@ -15,7 +15,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"nautilus/internal/fetch"
+	"github.com/xiongnemo/conch/internal/fetch"
 )
 
 type InstallOptions struct {
@@ -118,7 +118,7 @@ func Install(ctx context.Context, o InstallOptions) (*Installed, error) {
 type NotInstalledError struct{ Kernel string }
 
 func (e *NotInstalledError) Error() string {
-	return fmt.Sprintf("还没有安装 %s，请先运行 nautilus kernel install %s", e.Kernel, e.Kernel)
+	return fmt.Sprintf("还没有安装 %s，请先运行 conch kernel install %s", e.Kernel, e.Kernel)
 }
 
 // Current returns the path of the kernel marked as current.

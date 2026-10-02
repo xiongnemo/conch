@@ -1,5 +1,5 @@
 // Package fetch downloads files over HTTP with the checks every download
-// in nautilus needs.
+// in conch needs.
 package fetch
 
 import (

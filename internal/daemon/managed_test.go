@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"nautilus/internal/model"
+	"github.com/xiongnemo/conch/internal/model"
 )
 
 // Routes from managed.yaml say where they are written; temporary ones
@@ -31,7 +31,7 @@ func TestMergeEntries(t *testing.T) {
 
 // Unix socket paths may not be much longer than 100 bytes on any OS.
 func TestSocketDir(t *testing.T) {
-	base := filepath.Join(string(filepath.Separator)+"home", "u", "nautilus")
+	base := filepath.Join(string(filepath.Separator)+"home", "u", "conch")
 	if got := socketDir(base); got != filepath.Join(base, "run") {
 		t.Errorf("socketDir(%s) = %s", base, got)
 	}

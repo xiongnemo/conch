@@ -12,17 +12,17 @@ import (
 	"golang.org/x/sys/windows/svc"
 	"golang.org/x/sys/windows/svc/mgr"
 
-	"nautilus/internal/platform/firewall"
+	"github.com/xiongnemo/conch/internal/platform/firewall"
 )
 
 // SystemLayout is where a system-wide installation lives on Windows.
 func SystemLayout() Layout {
-	data := filepath.Join(cmpOr(os.Getenv("ProgramData"), `C:\ProgramData`), "nautilus")
+	data := filepath.Join(cmpOr(os.Getenv("ProgramData"), `C:\ProgramData`), "conch")
 	return Layout{
-		Bin:       filepath.Join(cmpOr(os.Getenv("ProgramFiles"), `C:\Program Files`), "nautilus", "nautilus.exe"),
+		Bin:       filepath.Join(cmpOr(os.Getenv("ProgramFiles"), `C:\Program Files`), "conch", "conch.exe"),
 		ConfigDir: data,
 		DataDir:   filepath.Join(data, "data"),
-		Log:       filepath.Join(data, "nautilus.log"),
+		Log:       filepath.Join(data, "conch.log"),
 	}
 }
 
@@ -35,8 +35,8 @@ func cmpOr(a, b string) string {
 
 const (
 	runKey       = `Software\Microsoft\Windows\CurrentVersion\Run`
-	agentValue   = "nautilus-agent"
-	firewallRule = "Nautilus kernel"
+	agentValue   = "conch-agent"
+	firewallRule = "Conch kernel"
 )
 
 // Install registers and starts the Windows service and starts the agent
@@ -81,8 +81,8 @@ func Install(o Options) error {
 		time.Sleep(time.Second) // deletion completes once handles close
 	}
 	s, err := m.CreateService(Name, l.Bin, mgr.Config{
-		DisplayName: "Nautilus",
-		Description: "Nautilus 代理：分流、链式代理和 TUN",
+		DisplayName: "Conch",
+		Description: "Conch 代理：分流、链式代理和 TUN",
 		StartType:   mgr.StartAutomatic,
 	}, "daemon", "--service", "--config-dir", l.ConfigDir, "--data-dir", l.DataDir)
 	if err != nil {
@@ -93,7 +93,7 @@ func Install(o Options) error {
 	if err := s.Start(); err != nil {
 		return fmt.Errorf("启动服务：%w", err)
 	}
-	o.logf("nautilus 服务已启动，日志在 %s", l.Log)
+	o.logf("conch 服务已启动，日志在 %s", l.Log)
 	// The daemon lets the kernel through the firewall when it turns TUN
 	// on; this name is what versions before that used.
 	o.Run("netsh", "advfirewall", "firewall", "delete", "rule", "name="+firewallRule)
@@ -108,7 +108,7 @@ func Install(o Options) error {
 	if err := k.SetStringValue(agentValue, fmt.Sprintf(`"%s" agent`, l.Bin)); err != nil {
 		return err
 	}
-	o.logf("agent 会在下次登录时自动启动；现在可以先运行 nautilus agent")
+	o.logf("agent 会在下次登录时自动启动；现在可以先运行 conch agent")
 	return nil
 }
 
@@ -144,7 +144,7 @@ func Uninstall(o Options) error {
 		k.DeleteValue(agentValue)
 		k.Close()
 	}
-	o.logf("已卸载 nautilus 服务。配置和数据还留在 %s", o.Layout.ConfigDir)
+	o.logf("已卸载 conch 服务。配置和数据还留在 %s", o.Layout.ConfigDir)
 	return nil
 }
 
@@ -170,5 +170,5 @@ func Status(o Options) (string, error) {
 	}
 	state := svc.State(q.CurrentState)
 	states := map[svc.State]string{svc.Running: "运行中", svc.Stopped: "已停止", svc.StartPending: "正在启动", svc.StopPending: "正在停止"}
-	return "nautilus 服务：" + cmpOr(states[state], fmt.Sprint(state)), nil
+	return "conch 服务：" + cmpOr(states[state], fmt.Sprint(state)), nil
 }

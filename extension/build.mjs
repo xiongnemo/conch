@@ -6,9 +6,9 @@ import { cpSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 const pkg = JSON.parse(readFileSync("package.json", "utf8"));
 const base = {
   manifest_version: 3,
-  name: "Nautilus",
+  name: "Conch",
   version: pkg.version,
-  description: "看当前网站经由 nautilus 走哪个出口、为什么，一键改走别的出口；记录网页加载失败的网站。",
+  description: "看当前网站经由 conch 走哪个出口、为什么，一键改走别的出口；记录网页加载失败的网站。",
   icons: { 16: "icons/16.png", 32: "icons/32.png", 48: "icons/48.png", 128: "icons/128.png" },
   action: { default_popup: "popup.html", default_icon: { 16: "icons/16.png", 32: "icons/32.png" } },
   permissions: ["storage", "activeTab", "webRequest"],
@@ -22,7 +22,7 @@ const browsers = {
   firefox: {
     ...base,
     background: { scripts: ["background.js"] },
-    browser_specific_settings: { gecko: { id: "nautilus@nautilus.invalid", strict_min_version: "128.0" } },
+    browser_specific_settings: { gecko: { id: "conch@conch.invalid", strict_min_version: "128.0" } },
   },
 };
 

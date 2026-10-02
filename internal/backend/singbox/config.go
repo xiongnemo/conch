@@ -1,6 +1,6 @@
 package singbox
 
-// The subset of sing-box 1.14's JSON configuration nautilus emits. sing-box
+// The subset of sing-box 1.14's JSON configuration conch emits. sing-box
 // rejects unknown keys, so only fields it knows are declared here.
 
 type config struct {
@@ -53,7 +53,7 @@ type inbound struct {
 	Stack       string   `json:"stack,omitempty"`
 }
 
-// outbound is every kind of outbound nautilus emits; each kind uses some
+// outbound is every kind of outbound conch emits; each kind uses some
 // of the fields.
 type outbound struct {
 	Type       string `json:"type"`

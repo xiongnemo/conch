@@ -4,7 +4,7 @@ import (
 	"slices"
 	"strings"
 
-	"nautilus/internal/diag"
+	"github.com/xiongnemo/conch/internal/diag"
 )
 
 // Settings are the profile's global options with defaults applied.

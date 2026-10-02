@@ -12,7 +12,7 @@ import (
 	"strconv"
 	"strings"
 
-	"nautilus/internal/proto"
+	"github.com/xiongnemo/conch/internal/proto"
 )
 
 // Parse parses one share link and returns the node's name and spec.

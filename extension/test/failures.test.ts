@@ -23,7 +23,7 @@ test("failures are counted per host, newest first", () => {
   ]);
 });
 
-test("hosts are written the way nautilus writes them", () => {
+test("hosts are written the way conch writes them", () => {
   assert.equal(hostOf("https://[2001:db8::1]:8443/x"), "2001:db8::1");
   assert.equal(hostOf("https://Example.COM/"), "example.com");
 });

@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"nautilus/internal/kernel"
+	"github.com/xiongnemo/conch/internal/kernel"
 )
 
 // SingBox controls sing-box through its Clash-compatible API. sing-box

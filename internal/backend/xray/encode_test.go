@@ -9,9 +9,9 @@ import (
 	"strings"
 	"testing"
 
-	"nautilus/internal/backend"
-	"nautilus/internal/backend/backendtest"
-	"nautilus/internal/lists"
+	"github.com/xiongnemo/conch/internal/backend"
+	"github.com/xiongnemo/conch/internal/backend/backendtest"
+	"github.com/xiongnemo/conch/internal/lists"
 )
 
 func TestGolden(t *testing.T) {
@@ -32,11 +32,11 @@ func TestNoAppEntriesOnMacOS(t *testing.T) {
 // TestGoldenAcceptedByXray runs every golden config through `xray run -test`.
 // It needs an xray binary and the geodata its rules reference:
 //
-//	NAUTILUS_XRAY=$(nautilus kernel path xray) NAUTILUS_XRAY_ASSETS=<dir with geoip.dat, geosite.dat>
+//	CONCH_XRAY=$(conch kernel path xray) CONCH_XRAY_ASSETS=<dir with geoip.dat, geosite.dat>
 func TestGoldenAcceptedByXray(t *testing.T) {
-	bin, assets := os.Getenv("NAUTILUS_XRAY"), os.Getenv("NAUTILUS_XRAY_ASSETS")
+	bin, assets := os.Getenv("CONCH_XRAY"), os.Getenv("CONCH_XRAY_ASSETS")
 	if bin == "" || assets == "" {
-		t.Skip("NAUTILUS_XRAY or NAUTILUS_XRAY_ASSETS not set")
+		t.Skip("CONCH_XRAY or CONCH_XRAY_ASSETS not set")
 	}
 	for _, f := range backendtest.Configs(t, ".json") {
 		t.Run(f, func(t *testing.T) {
@@ -91,7 +91,7 @@ func TestEntryRules(t *testing.T) {
 }
 
 func TestAPIOptions(t *testing.T) {
-	art, d := backendtest.Build(t, Backend{}, "../testdata/groups.profile.yaml", backend.Options{ControllerUnix: "/run/nautilus/xray.sock"})
+	art, d := backendtest.Build(t, Backend{}, "../testdata/groups.profile.yaml", backend.Options{ControllerUnix: "/run/conch/xray.sock"})
 	if art == nil {
 		t.Fatal(d.Err())
 	}
@@ -104,7 +104,7 @@ func TestAPIOptions(t *testing.T) {
 		t.Errorf("api = %+v, stats = %v, policy = %v", cfg.API, cfg.Stats, cfg.Policy)
 	}
 	in := cfg.Inbounds[len(cfg.Inbounds)-1]
-	if in.Protocol != "dokodemo-door" || in.Listen != "/run/nautilus/xray.sock" ||
+	if in.Protocol != "dokodemo-door" || in.Listen != "/run/conch/xray.sock" ||
 		cfg.Routing.Rules[0].InboundTag[0] != apiTag || cfg.Routing.Rules[0].OutboundTag != apiTag {
 		t.Errorf("unix API inbound = %+v, first rule = %+v", in, cfg.Routing.Rules[0])
 	}
@@ -114,7 +114,7 @@ func TestAPIOptions(t *testing.T) {
 }
 
 // Every emitted user rule carries a tag naming the compiled rule it came
-// from: xray logs it for each connection, and nautilus maps it back.
+// from: xray logs it for each connection, and conch maps it back.
 func TestRuleTags(t *testing.T) {
 	for _, opts := range []backend.Options{{}, {ControllerUnix: "/run/x.sock", Probes: []string{"/run/p1.sock"}}} {
 		art, d := backendtest.Build(t, Backend{}, "../testdata/groups.profile.yaml", opts)

@@ -1,5 +1,5 @@
-/nautilus
-/nautilus.exe
+/conch
+/conch.exe
 /dist/
 *.part
 .env

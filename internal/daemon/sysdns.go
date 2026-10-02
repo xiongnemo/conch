@@ -6,7 +6,7 @@ import (
 	"net/url"
 	"path/filepath"
 
-	"nautilus/internal/platform/sysdns"
+	"github.com/xiongnemo/conch/internal/platform/sysdns"
 )
 
 // The system resolver setting is swapped for tests.
@@ -18,7 +18,7 @@ var (
 
 // takeoverDNS is where the system resolver is pointed while TUN runs.
 // Any address routed into TUN is captured; a public resolver keeps names
-// resolving even if nautilus dies before putting the settings back.
+// resolving even if conch dies before putting the settings back.
 func (d *Daemon) takeoverDNS() string {
 	if d.res != nil {
 		for _, ns := range d.res.Settings.DNS.Nameservers {
@@ -82,7 +82,7 @@ func (d *Daemon) releaseDNS() {
 }
 
 // RepairDNS restores a system resolver left redirected by a daemon that
-// is no longer running. It is for `nautilus doctor --fix`.
+// is no longer running. It is for `conch doctor --fix`.
 func RepairDNS(dataDir string) (bool, error) {
 	path := filepath.Join(dataDir, "state.json")
 	st, err := loadState(path)

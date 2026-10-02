@@ -18,21 +18,21 @@ import (
 	"testing"
 	"time"
 
-	"nautilus/internal/api"
-	"nautilus/internal/auth"
-	"nautilus/internal/daemon"
-	"nautilus/web"
+	"github.com/xiongnemo/conch/internal/api"
+	"github.com/xiongnemo/conch/internal/auth"
+	"github.com/xiongnemo/conch/internal/daemon"
+	"github.com/xiongnemo/conch/web"
 )
 
 // TestExtension loads the browser extension into Chrome, pairs it with a
 // daemon and uses its popup: it explains the site in a tab, routes it
 // elsewhere, and lists the hosts the page failed to load.
 //
-//	NAUTILUS_CHROME=$(command -v google-chrome) NAUTILUS_EXTENSION=$PWD/extension/dist/chrome
+//	CONCH_CHROME=$(command -v google-chrome) CONCH_EXTENSION=$PWD/extension/dist/chrome
 func TestExtension(t *testing.T) {
-	chrome, ext, bin := os.Getenv("NAUTILUS_CHROME"), os.Getenv("NAUTILUS_EXTENSION"), os.Getenv("NAUTILUS_MIHOMO")
+	chrome, ext, bin := os.Getenv("CONCH_CHROME"), os.Getenv("CONCH_EXTENSION"), os.Getenv("CONCH_MIHOMO")
 	if chrome == "" || ext == "" || bin == "" {
-		t.Skip("NAUTILUS_CHROME, NAUTILUS_EXTENSION or NAUTILUS_MIHOMO not set")
+		t.Skip("CONCH_CHROME, CONCH_EXTENSION or CONCH_MIHOMO not set")
 	}
 	extDir := grantAllSites(t, ext)
 
@@ -92,8 +92,8 @@ inbound: { mixed-port: %d }
 	sitePage := b.open(t, siteURL)
 	popup := b.open(t, "chrome-extension://"+loaded.ID+"/popup.html")
 
-	// Pair with a code, as a user copies it from `nautilus pair`.
-	popup.waitText(t, "form.pair", "nautilus pair")
+	// Pair with a code, as a user copies it from `conch pair`.
+	popup.waitText(t, "form.pair", "conch pair")
 	popup.shot(t, "popup-pair")
 	code, _ := guard.Pairings.NewCode(time.Now())
 	popup.eval(t, fmt.Sprintf(`document.querySelector("#base").value = %q; document.querySelector("#code").value = %q;
@@ -322,10 +322,10 @@ func (b *browser) open(t *testing.T, url string) *tab {
 	return &tab{b, attached.SessionID}
 }
 
-// shot saves a screenshot of the tab into $NAUTILUS_SCREENSHOTS, if set,
+// shot saves a screenshot of the tab into $CONCH_SCREENSHOTS, if set,
 // for looking at the popup the way users see it.
 func (tb *tab) shot(t *testing.T, name string) {
-	dir := os.Getenv("NAUTILUS_SCREENSHOTS")
+	dir := os.Getenv("CONCH_SCREENSHOTS")
 	if dir == "" {
 		return
 	}

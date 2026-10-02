@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"nautilus/internal/diag"
+	"github.com/xiongnemo/conch/internal/diag"
 )
 
 // The explanation put above a broken profile is removed before saving,

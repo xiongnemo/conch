@@ -4,7 +4,7 @@ import (
 	"slices"
 	"strings"
 
-	"nautilus/internal/compile"
+	"github.com/xiongnemo/conch/internal/compile"
 )
 
 // assignTags maps outbound names to xray tags. Balancer selectors and the

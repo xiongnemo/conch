@@ -8,9 +8,9 @@ import (
 	"strconv"
 	"strings"
 
-	"nautilus/internal/diag"
-	"nautilus/internal/model"
-	"nautilus/internal/route"
+	"github.com/xiongnemo/conch/internal/diag"
+	"github.com/xiongnemo/conch/internal/model"
+	"github.com/xiongnemo/conch/internal/route"
 )
 
 // HopSep separates parts of generated clone names. It is stripped from

@@ -12,8 +12,8 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"nautilus/internal/diag"
-	"nautilus/internal/model"
+	"github.com/xiongnemo/conch/internal/diag"
+	"github.com/xiongnemo/conch/internal/model"
 )
 
 const links = "trojan://p@t.example.com:443?sni=t.example.com#香港 01\nss://YWVzLTEyOC1nY206cA@1.2.3.4:8388#日本 01\nvless://u@h:443?weird=1#x\n"

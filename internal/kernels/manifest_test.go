@@ -2,7 +2,7 @@ package kernels
 
 import "testing"
 
-// Every machine nautilus supports finds its asset in the embedded
+// Every machine conch supports finds its asset in the embedded
 // manifest, so installs never fail on a checksum that was not recorded.
 func TestAssetsInManifest(t *testing.T) {
 	m, err := Embedded()
@@ -22,7 +22,7 @@ func TestAssetsInManifest(t *testing.T) {
 		for _, tg := range targets {
 			a, err := AssetFor(name, rel.Version, tg)
 			if err != nil {
-				// The primary kernels run everywhere nautilus does; sing-box
+				// The primary kernels run everywhere conch does; sing-box
 				// and trojan-go have no builds for some systems.
 				if name == "mihomo" || name == "xray" {
 					t.Errorf("%s %+v: %v", name, tg, err)

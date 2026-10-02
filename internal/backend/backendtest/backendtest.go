@@ -14,13 +14,13 @@ import (
 	"strings"
 	"testing"
 
-	"nautilus/internal/backend"
-	"nautilus/internal/compile"
-	"nautilus/internal/diag"
-	"nautilus/internal/lists"
-	"nautilus/internal/model"
-	"nautilus/internal/route"
-	"nautilus/internal/subscription"
+	"github.com/xiongnemo/conch/internal/backend"
+	"github.com/xiongnemo/conch/internal/compile"
+	"github.com/xiongnemo/conch/internal/diag"
+	"github.com/xiongnemo/conch/internal/lists"
+	"github.com/xiongnemo/conch/internal/model"
+	"github.com/xiongnemo/conch/internal/route"
+	"github.com/xiongnemo/conch/internal/subscription"
 )
 
 var update = flag.Bool("update", false, "rewrite golden files")

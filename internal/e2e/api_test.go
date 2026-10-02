@@ -13,19 +13,19 @@ import (
 	"testing"
 	"time"
 
-	"nautilus/internal/api"
-	"nautilus/internal/auth"
-	"nautilus/internal/daemon"
-	"nautilus/internal/platform/privilege"
-	"nautilus/web"
+	"github.com/xiongnemo/conch/internal/api"
+	"github.com/xiongnemo/conch/internal/auth"
+	"github.com/xiongnemo/conch/internal/daemon"
+	"github.com/xiongnemo/conch/internal/platform/privilege"
+	"github.com/xiongnemo/conch/web"
 )
 
 // TestAPI runs the HTTP API against a real daemon: authentication, the
 // operations the Web UI uses, and the event stream.
 func TestAPI(t *testing.T) {
-	bin := os.Getenv("NAUTILUS_MIHOMO")
+	bin := os.Getenv("CONCH_MIHOMO")
 	if bin == "" {
-		t.Skip("NAUTILUS_MIHOMO not set")
+		t.Skip("CONCH_MIHOMO not set")
 	}
 	dir := t.TempDir()
 	profile := filepath.Join(dir, "profile.yaml")

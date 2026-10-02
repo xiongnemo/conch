@@ -1,4 +1,4 @@
-// Package kernels downloads and verifies kernel binaries. Every nautilus
+// Package kernels downloads and verifies kernel binaries. Every conch
 // release embeds the sha256 of each tested kernel asset, so downloads can
 // be verified even when they come through a mirror.
 package kernels

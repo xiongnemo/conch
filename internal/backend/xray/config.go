@@ -1,6 +1,6 @@
 package xray
 
-// The subset of Xray-core's JSON configuration nautilus emits. Field order
+// The subset of Xray-core's JSON configuration conch emits. Field order
 // follows the documentation so generated files read naturally.
 
 type config struct {

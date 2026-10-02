@@ -13,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	"nautilus/internal/daemon"
+	"github.com/xiongnemo/conch/internal/daemon"
 )
 
 // TestDaemon drives a daemon through the life of a profile: start, switch

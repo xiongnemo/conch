@@ -18,7 +18,7 @@ import (
 	"testing"
 	"time"
 
-	"nautilus/internal/daemon"
+	"github.com/xiongnemo/conch/internal/daemon"
 )
 
 // TestTrojanGoSidecar runs a trojan-go server (TLS, websocket, its
@@ -26,11 +26,11 @@ import (
 // kernel: directly, and as the second hop of a chain, where the sidecar
 // must dial through the first hop.
 //
-//	NAUTILUS_TROJAN_GO=$(nautilus kernel path trojan-go)
+//	CONCH_TROJAN_GO=$(conch kernel path trojan-go)
 func TestTrojanGoSidecar(t *testing.T) {
-	tg, hopBin := os.Getenv("NAUTILUS_TROJAN_GO"), os.Getenv("NAUTILUS_MIHOMO")
+	tg, hopBin := os.Getenv("CONCH_TROJAN_GO"), os.Getenv("CONCH_MIHOMO")
 	if tg == "" || hopBin == "" {
-		t.Skip("NAUTILUS_TROJAN_GO or NAUTILUS_MIHOMO not set")
+		t.Skip("CONCH_TROJAN_GO or CONCH_MIHOMO not set")
 	}
 	for _, c := range clients() {
 		t.Run(c.name, func(t *testing.T) { testTrojanGo(t, tg, hopBin, c) })

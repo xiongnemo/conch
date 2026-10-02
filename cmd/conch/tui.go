@@ -5,7 +5,7 @@ package main
 import (
 	"github.com/spf13/cobra"
 
-	"nautilus/internal/tui"
+	"github.com/xiongnemo/conch/internal/tui"
 )
 
 func newTUICmd() *cobra.Command {

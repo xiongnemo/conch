@@ -12,17 +12,17 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"nautilus/internal/auth"
-	"nautilus/internal/paths"
-	"nautilus/internal/platform/service"
+	"github.com/xiongnemo/conch/internal/auth"
+	"github.com/xiongnemo/conch/internal/paths"
+	"github.com/xiongnemo/conch/internal/platform/service"
 )
 
 func newServiceCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "service",
-		Short: "把 nautilus 装成系统服务：开机启动，可以开启 TUN",
-		Long: `把 nautilus 装成系统服务（Linux 用 systemd，macOS 用 launchd，Windows 用服务管理器）。
-服务开机启动，并且有开启 TUN 需要的权限；每个用户登录后，nautilus agent 会替服务设置这个用户的系统代理。
+		Short: "把 conch 装成系统服务：开机启动，可以开启 TUN",
+		Long: `把 conch 装成系统服务（Linux 用 systemd，macOS 用 launchd，Windows 用服务管理器）。
+服务开机启动，并且有开启 TUN 需要的权限；每个用户登录后，conch agent 会替服务设置这个用户的系统代理。
 安装时会带上你现在的 profile、已下载的内核和登录密码。需要用 sudo（Windows 上以管理员身份）运行。`,
 	}
 	var noAgent bool
@@ -52,7 +52,7 @@ func newServiceCmd() *cobra.Command {
 			}
 			if c, err := net.DialTimeout("tcp", auth.DefaultListen, time.Second); err == nil {
 				c.Close()
-				fmt.Fprintf(cmd.ErrOrStderr(), "注意：%s 已经有程序在监听，可能是你自己运行的 nautilus daemon；请先停掉它，否则服务无法使用这个端口\n", auth.DefaultListen)
+				fmt.Fprintf(cmd.ErrOrStderr(), "注意：%s 已经有程序在监听，可能是你自己运行的 conch daemon；请先停掉它，否则服务无法使用这个端口\n", auth.DefaultListen)
 			}
 			if err := service.Install(o); err != nil {
 				return err
@@ -83,7 +83,7 @@ func newServiceCmd() *cobra.Command {
 			o := service.Options{Layout: service.SystemLayout(), Run: service.Exec}
 			s, err := service.Status(o)
 			if errors.Is(err, service.ErrNotInstalled) {
-				fmt.Fprintln(cmd.OutOrStdout(), "nautilus 服务没有安装")
+				fmt.Fprintln(cmd.OutOrStdout(), "conch 服务没有安装")
 				return nil
 			}
 			if err != nil {
@@ -107,7 +107,7 @@ func serviceOptions(cmd *cobra.Command) (service.Options, error) {
 		u, err = user.Current()
 	} else {
 		if os.Geteuid() != 0 {
-			return o, errors.New("需要 root 权限：sudo nautilus service " + cmd.Name())
+			return o, errors.New("需要 root 权限：sudo conch service " + cmd.Name())
 		}
 		if name := os.Getenv("SUDO_USER"); name != "" && name != "root" {
 			u, err = user.Lookup(name)

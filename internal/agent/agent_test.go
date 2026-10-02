@@ -10,9 +10,9 @@ import (
 	"testing"
 	"time"
 
-	"nautilus/internal/api"
-	"nautilus/internal/daemon"
-	"nautilus/internal/platform/sysproxy"
+	"github.com/xiongnemo/conch/internal/api"
+	"github.com/xiongnemo/conch/internal/daemon"
+	"github.com/xiongnemo/conch/internal/platform/sysproxy"
 )
 
 // daemonStub hands out one event stream per connection.
@@ -121,7 +121,7 @@ func TestAgent(t *testing.T) {
 	}
 }
 
-// An agent that crashed while the proxy pointed at nautilus restores the
+// An agent that crashed while the proxy pointed at conch restores the
 // user's own setting, not its own, when it starts again.
 func TestAgentRepairsAfterCrash(t *testing.T) {
 	desk := &desktop{setting: "corp-proxy:3128"}

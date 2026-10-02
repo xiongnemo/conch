@@ -184,7 +184,7 @@
         "user": "u",
         "pass": "p",
         "headers": {
-          "User-Agent": "nautilus"
+          "User-Agent": "conch"
         }
       }
     },

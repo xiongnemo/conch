@@ -73,9 +73,9 @@ function showPairing(note?: string) {
   const code = h("input", { id: "code", inputmode: "numeric", maxlength: "6", pattern: "\\d{6}", placeholder: "6 位数字", required: true, autocomplete: "off" });
   const error = h("p", { class: "error", hidden: true });
   const form = h("form", { class: "pair" },
-    h("h1", {}, "连接 nautilus"),
+    h("h1", {}, "连接 conch"),
     note ? h("p", { class: "error" }, note) : null,
-    h("p", { class: "muted" }, "在终端运行 ", h("code", {}, "nautilus pair"), "，或在 Web UI 里点「配对浏览器扩展」，把配对码填在这里。"),
+    h("p", { class: "muted" }, "在终端运行 ", h("code", {}, "conch pair"), "，或在 Web UI 里点「配对浏览器扩展」，把配对码填在这里。"),
     h("label", {}, "daemon 地址", base),
     h("label", {}, "配对码", code),
     h("button", { type: "submit" }, "配对"),
@@ -247,7 +247,7 @@ async function showFailures(d: Daemon, page: Page, site: Element, into: Element)
 async function showMain(p: Pairing) {
   const d = new Daemon(p);
   const page = await currentPage();
-  const header = h("header", {}, h("strong", {}, "Nautilus"), h("span", { class: "pill" }, "…"));
+  const header = h("header", {}, h("strong", {}, "Conch"), h("span", { class: "pill" }, "…"));
   const site = h("div", { id: "site" });
   const failures = h("div", { id: "failures" });
   const webUI = h("button", { type: "button", class: "link" }, "打开 Web UI");

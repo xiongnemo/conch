@@ -9,18 +9,18 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"nautilus/internal/backend"
-	"nautilus/internal/backend/mihomo"
-	"nautilus/internal/backend/singbox"
-	"nautilus/internal/backend/xray"
-	"nautilus/internal/compile"
-	"nautilus/internal/daemon"
-	"nautilus/internal/diag"
-	"nautilus/internal/lists"
-	"nautilus/internal/model"
-	"nautilus/internal/paths"
-	"nautilus/internal/route"
-	"nautilus/internal/subscription"
+	"github.com/xiongnemo/conch/internal/backend"
+	"github.com/xiongnemo/conch/internal/backend/mihomo"
+	"github.com/xiongnemo/conch/internal/backend/singbox"
+	"github.com/xiongnemo/conch/internal/backend/xray"
+	"github.com/xiongnemo/conch/internal/compile"
+	"github.com/xiongnemo/conch/internal/daemon"
+	"github.com/xiongnemo/conch/internal/diag"
+	"github.com/xiongnemo/conch/internal/lists"
+	"github.com/xiongnemo/conch/internal/model"
+	"github.com/xiongnemo/conch/internal/paths"
+	"github.com/xiongnemo/conch/internal/route"
+	"github.com/xiongnemo/conch/internal/subscription"
 )
 
 var backends = map[string]backend.Router{

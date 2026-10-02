@@ -9,7 +9,7 @@ import (
 	"os/exec"
 	"regexp"
 
-	"nautilus/internal/kernel"
+	"github.com/xiongnemo/conch/internal/kernel"
 )
 
 // Mihomo controls mihomo through its REST API on a unix socket. mihomo

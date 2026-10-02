@@ -16,7 +16,7 @@ import (
 	"strings"
 	"time"
 
-	"nautilus/internal/model"
+	"github.com/xiongnemo/conch/internal/model"
 )
 
 // DefaultUserAgent makes most providers answer with a Clash/mihomo config,

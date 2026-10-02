@@ -13,10 +13,10 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"nautilus/internal/api"
-	"nautilus/internal/control"
-	"nautilus/internal/daemon"
-	"nautilus/internal/view"
+	"github.com/xiongnemo/conch/internal/api"
+	"github.com/xiongnemo/conch/internal/control"
+	"github.com/xiongnemo/conch/internal/daemon"
+	"github.com/xiongnemo/conch/internal/view"
 )
 
 // Client is the part of the daemon's API the TUI uses; *api.Client has it.
@@ -285,9 +285,9 @@ func errText(err error) string {
 	var e *api.APIError
 	switch {
 	case errors.Is(err, api.ErrNotRunning):
-		return "nautilus daemon 没有在运行：先在另一个终端运行 nautilus daemon"
+		return "conch daemon 没有在运行：先在另一个终端运行 conch daemon"
 	case errors.As(err, &e) && e.Status == http.StatusUnauthorized:
-		return "密码不对：TUI 使用 .env 里的 NAUTILUS_PASSWORD，和 daemon 用的应该是同一个文件"
+		return "密码不对：TUI 使用 .env 里的 CONCH_PASSWORD，和 daemon 用的应该是同一个文件"
 	case errors.As(err, &e):
 		text := e.Error()
 		if e.Body.Where != "" {
@@ -514,7 +514,7 @@ func (m *Model) bodyHeight() int {
 func (m *Model) View() tea.View {
 	v := tea.NewView(m.render())
 	v.AltScreen = true
-	v.WindowTitle = "Nautilus"
+	v.WindowTitle = "Conch"
 	return v
 }
 
@@ -557,7 +557,7 @@ func (m *Model) header() string {
 			tabs = append(tabs, tabOff.Render(label))
 		}
 	}
-	left := bold.Render("Nautilus") + " " + strings.Join(tabs, "")
+	left := bold.Render("Conch") + " " + strings.Join(tabs, "")
 	var right string
 	switch {
 	case !m.connected:
@@ -638,7 +638,7 @@ func (m *Model) helpView(h int) string {
 		"  m 切换分流模式 · s 开关系统代理 · t 开关 TUN · u 更新选中的订阅 · R 重启内核",
 		titleStyle.Render("出口"),
 		"  enter 展开出口组或选择成员 · t 测速（出口组：测所有成员；链：逐跳测速）",
-		"  n 粘贴分享链接添加节点 · c 新建链 · e 修改选中的链 · d 删除用 nautilus 添加的节点或链",
+		"  n 粘贴分享链接添加节点 · c 新建链 · e 修改选中的链 · d 删除用 conch 添加的节点或链",
 		titleStyle.Render("路由"),
 		"  / 查询一个地址会怎么走 · a 添加条目 · e 修改选中条目的出口 · d 删除选中的条目",
 		titleStyle.Render("连接"),

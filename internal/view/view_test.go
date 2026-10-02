@@ -4,9 +4,9 @@ import (
 	"slices"
 	"testing"
 
-	"nautilus/internal/compile"
-	"nautilus/internal/explain"
-	"nautilus/internal/route"
+	"github.com/xiongnemo/conch/internal/compile"
+	"github.com/xiongnemo/conch/internal/explain"
+	"github.com/xiongnemo/conch/internal/route"
 )
 
 // Subscriptions repeat rules and carry dozens of app rules; the

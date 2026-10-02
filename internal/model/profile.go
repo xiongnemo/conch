@@ -10,7 +10,7 @@ import (
 
 	"go.yaml.in/yaml/v3"
 
-	"nautilus/internal/diag"
+	"github.com/xiongnemo/conch/internal/diag"
 )
 
 // Profile is what the user writes: where traffic may go (nodes, groups,

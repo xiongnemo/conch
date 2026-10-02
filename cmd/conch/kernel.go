@@ -8,9 +8,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"nautilus/internal/kernels"
-	"nautilus/internal/paths"
-	"nautilus/internal/platform/privilege"
+	"github.com/xiongnemo/conch/internal/kernels"
+	"github.com/xiongnemo/conch/internal/paths"
+	"github.com/xiongnemo/conch/internal/platform/privilege"
 )
 
 func newKernelCmd() *cobra.Command {
@@ -112,12 +112,12 @@ func newKernelSetcapCmd() *cobra.Command {
 			}
 			dataDir := paths.DataDir()
 			// Under sudo, the kernel is the invoking user's, not root's.
-			if name := os.Getenv("SUDO_USER"); os.Geteuid() == 0 && name != "" && os.Getenv("NAUTILUS_DATA_DIR") == "" {
+			if name := os.Getenv("SUDO_USER"); os.Geteuid() == 0 && name != "" && os.Getenv("CONCH_DATA_DIR") == "" {
 				u, err := user.Lookup(name)
 				if err != nil {
 					return err
 				}
-				dataDir = filepath.Join(u.HomeDir, ".local", "share", "nautilus")
+				dataDir = filepath.Join(u.HomeDir, ".local", "share", "conch")
 			}
 			inst, err := kernels.Current(dataDir, kernel, kernels.Host().OS)
 			if err != nil {

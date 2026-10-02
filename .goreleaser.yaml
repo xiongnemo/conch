@@ -1,19 +1,19 @@
 # Release builds. CI runs `goreleaser release --clean` on version tags;
 # try it locally with `goreleaser release --snapshot --clean --skip=sign`.
 version: 2
-project_name: nautilus
+project_name: conch
 
 before:
   hooks:
     - go mod download
     # The browser extension, zipped for the Chrome Web Store and AMO.
     - sh -c "cd extension && npm ci --no-audit --no-fund && npm run build"
-    - sh -c "rm -rf dist-extension && mkdir dist-extension && cd extension/dist/chrome && zip -qr ../../../dist-extension/nautilus-extension-chrome-{{ .Version }}.zip . && cd ../firefox && zip -qr ../../../dist-extension/nautilus-extension-firefox-{{ .Version }}.zip ."
+    - sh -c "rm -rf dist-extension && mkdir dist-extension && cd extension/dist/chrome && zip -qr ../../../dist-extension/conch-extension-chrome-{{ .Version }}.zip . && cd ../firefox && zip -qr ../../../dist-extension/conch-extension-firefox-{{ .Version }}.zip ."
 
 builds:
-  - id: nautilus
-    main: ./cmd/nautilus
-    binary: nautilus
+  - id: conch
+    main: ./cmd/conch
+    binary: conch
     env: [CGO_ENABLED=0]
     flags: [-trimpath]
     ldflags: ["-s -w -X main.version={{ .Version }}"]
@@ -32,9 +32,9 @@ builds:
       - windows_arm64
       - freebsd_amd64_v1
   # For routers (OpenWrt): no TUI, and a memory limit for small RAM.
-  - id: nautilus-lite
-    main: ./cmd/nautilus
-    binary: nautilus
+  - id: conch-lite
+    main: ./cmd/conch
+    binary: conch
     env: [CGO_ENABLED=0]
     flags: [-trimpath]
     tags: [lite]
@@ -46,7 +46,7 @@ builds:
       - linux_mips_softfloat
 
 archives:
-  - ids: [nautilus]
+  - ids: [conch]
     formats: [tar.gz]
     format_overrides:
       - goos: windows
@@ -56,7 +56,7 @@ archives:
     files:
       - examples/profile.yaml
   - id: lite
-    ids: [nautilus-lite]
+    ids: [conch-lite]
     formats: [tar.gz]
     name_template: >-
       {{ .ProjectName }}-lite_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ with .Arm }}v{{ . }}{{ end }}{{ with .Mips }}_{{ . }}{{ end }}
@@ -67,16 +67,16 @@ checksum:
   name_template: checksums.txt
 
 nfpms:
-  - package_name: nautilus
-    ids: [nautilus]
+  - package_name: conch
+    ids: [conch]
     maintainer: Nemo Xiong <nemo@anzupop.com>
-    homepage: https://github.com/xiongnemo/nautilus
+    homepage: https://github.com/xiongnemo/conch
     description: Routing-table proxy shell with multi-hop chains, for the mihomo, xray and sing-box kernels.
     formats: [deb, rpm, apk, archlinux]
     bindir: /usr/bin
     contents:
       - src: examples/profile.yaml
-        dst: /usr/share/doc/nautilus/profile.example.yaml
+        dst: /usr/share/doc/conch/profile.example.yaml
 
 # A keyless signature (Sigstore) for the checksums, which cover every
 # artifact; the README shows how to verify it.

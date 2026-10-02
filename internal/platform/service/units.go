@@ -12,19 +12,19 @@ import (
 // Capabilities the daemon passes on to the kernel for TUN.
 const systemdCaps = "CAP_NET_ADMIN CAP_NET_BIND_SERVICE CAP_NET_RAW"
 
-// SystemdUnit runs the daemon as the unprivileged user nautilus, with
+// SystemdUnit runs the daemon as the unprivileged user conch, with
 // just the capabilities TUN needs.
 func SystemdUnit(l Layout) string {
-	return fmt.Sprintf(`# Installed by nautilus service install.
+	return fmt.Sprintf(`# Installed by conch service install.
 [Unit]
-Description=Nautilus proxy daemon
+Description=Conch proxy daemon
 After=network-online.target
 Wants=network-online.target
 
 [Service]
 Type=simple
-User=nautilus
-Group=nautilus
+User=conch
+Group=conch
 ExecStart=%s daemon --service --config-dir %s --data-dir %s
 WorkingDirectory=%s
 AmbientCapabilities=%s
@@ -44,9 +44,9 @@ WantedBy=multi-user.target
 
 // SystemdAgentUnit runs the agent in every user's session.
 func SystemdAgentUnit(l Layout) string {
-	return fmt.Sprintf(`# Installed by nautilus service install.
+	return fmt.Sprintf(`# Installed by conch service install.
 [Unit]
-Description=Nautilus agent: system proxy for this session
+Description=Conch agent: system proxy for this session
 
 [Service]
 Type=simple
@@ -68,8 +68,8 @@ func systemdQuote(s string) string {
 
 // Launchd labels.
 const (
-	LaunchdDaemon = "io.nautilus.daemon"
-	LaunchdAgent  = "io.nautilus.agent"
+	LaunchdDaemon = "io.github.xiongnemo.conch.daemon"
+	LaunchdAgent  = "io.github.xiongnemo.conch.agent"
 )
 
 // LaunchdDaemonPlist runs the daemon as root, which TUN needs on macOS.

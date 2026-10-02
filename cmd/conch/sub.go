@@ -12,10 +12,10 @@ import (
 	"github.com/spf13/cobra"
 	"go.yaml.in/yaml/v3"
 
-	"nautilus/internal/api"
-	"nautilus/internal/model"
-	"nautilus/internal/paths"
-	"nautilus/internal/subscription"
+	"github.com/xiongnemo/conch/internal/api"
+	"github.com/xiongnemo/conch/internal/model"
+	"github.com/xiongnemo/conch/internal/paths"
+	"github.com/xiongnemo/conch/internal/subscription"
 )
 
 func newSubCmd() *cobra.Command {

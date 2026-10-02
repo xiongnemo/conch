@@ -30,10 +30,10 @@ func TestSubUpdateThroughDaemon(t *testing.T) {
 	dir := t.TempDir()
 	os.WriteFile(filepath.Join(dir, "profile.yaml"), []byte("subscriptions:\n  - { name: 机场, url: https://example.com/sub }\n"), 0o644)
 	t.Chdir(t.TempDir())
-	t.Setenv("NAUTILUS_CONFIG_DIR", dir)
-	t.Setenv("NAUTILUS_DATA_DIR", t.TempDir())
-	t.Setenv("NAUTILUS_LISTEN", strings.TrimPrefix(srv.URL, "http://"))
-	t.Setenv("NAUTILUS_PASSWORD", "x")
+	t.Setenv("CONCH_CONFIG_DIR", dir)
+	t.Setenv("CONCH_DATA_DIR", t.TempDir())
+	t.Setenv("CONCH_LISTEN", strings.TrimPrefix(srv.URL, "http://"))
+	t.Setenv("CONCH_PASSWORD", "x")
 
 	cmd := newSubCmd()
 	var out bytes.Buffer

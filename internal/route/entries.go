@@ -5,8 +5,8 @@ import (
 	"slices"
 	"strings"
 
-	"nautilus/internal/diag"
-	"nautilus/internal/model"
+	"github.com/xiongnemo/conch/internal/diag"
+	"github.com/xiongnemo/conch/internal/model"
 )
 
 // entry is a parsed manual route.
@@ -16,7 +16,7 @@ type entry struct {
 	resolve bool
 	key     string // as written; "lan" for all of its expansions
 	pos     diag.Pos
-	builtin bool // implicit "lan → DIRECT" added by nautilus
+	builtin bool // implicit "lan → DIRECT" added by conch
 	fromLAN bool // expansion of a lan entry, explicit or implicit
 }
 

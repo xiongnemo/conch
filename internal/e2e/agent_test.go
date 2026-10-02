@@ -10,19 +10,19 @@ import (
 	"testing"
 	"time"
 
-	"nautilus/internal/agent"
-	"nautilus/internal/api"
-	"nautilus/internal/auth"
-	"nautilus/internal/daemon"
-	"nautilus/internal/platform/sysproxy"
+	"github.com/xiongnemo/conch/internal/agent"
+	"github.com/xiongnemo/conch/internal/api"
+	"github.com/xiongnemo/conch/internal/auth"
+	"github.com/xiongnemo/conch/internal/daemon"
+	"github.com/xiongnemo/conch/internal/platform/sysproxy"
 )
 
 // TestServiceAgent runs a daemon in service mode with an agent beside it:
 // the daemon leaves the system proxy alone, the agent sets and restores it.
 func TestServiceAgent(t *testing.T) {
-	bin := os.Getenv("NAUTILUS_MIHOMO")
+	bin := os.Getenv("CONCH_MIHOMO")
 	if bin == "" {
-		t.Skip("NAUTILUS_MIHOMO not set")
+		t.Skip("CONCH_MIHOMO not set")
 	}
 	dir := t.TempDir()
 	profile := filepath.Join(dir, "profile.yaml")

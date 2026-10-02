@@ -12,7 +12,7 @@ func newPairCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "pair",
 		Short: "获取配对码，让浏览器扩展连接 daemon",
-		Long: `获取一个 6 位配对码，在 nautilus 浏览器扩展里输入，扩展就能查询和修改路由。
+		Long: `获取一个 6 位配对码，在 conch 浏览器扩展里输入，扩展就能查询和修改路由。
 配对码只能用一次，2 分钟内有效。扩展只能查看和修改路由，不能改模式、系统代理或重启内核。`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {

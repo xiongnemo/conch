@@ -15,7 +15,7 @@ import (
 	"testing"
 	"time"
 
-	"nautilus/internal/daemon"
+	"github.com/xiongnemo/conch/internal/daemon"
 )
 
 // TestTUN turns TUN on and checks that a program that knows nothing of
@@ -25,11 +25,11 @@ import (
 // network it runs in, so the test only runs as root in a network namespace
 // of its own that has nothing but a local address (see ci.yml):
 //
-//	NAUTILUS_TUN_TEST=10.200.0.2 (the namespace's address)
+//	CONCH_TUN_TEST=10.200.0.2 (the namespace's address)
 func TestTUN(t *testing.T) {
-	addr := os.Getenv("NAUTILUS_TUN_TEST")
+	addr := os.Getenv("CONCH_TUN_TEST")
 	if addr == "" {
-		t.Skip("NAUTILUS_TUN_TEST not set: needs root in a network namespace of its own")
+		t.Skip("CONCH_TUN_TEST not set: needs root in a network namespace of its own")
 	}
 	hopBin := hopServerBin(t)
 	for _, c := range clients() {
