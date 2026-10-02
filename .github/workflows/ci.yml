@@ -225,10 +225,38 @@ jobs:
       - name: Kernels accept every golden config; daemon, API, sidecars and extension work end to end
         shell: bash
         run: |
-          # Tests use a second loopback address, which macOS only has once added.
+          # Tests use more loopback addresses, which macOS only has once added.
           sudo ifconfig lo0 alias 127.0.0.2 up
+          sudo ifconfig lo0 alias 127.0.0.3 up
           go test -race -count=1 -v ./internal/backend/... ./internal/e2e ./internal/sidecar | tee e2e.log
           if grep -- '--- SKIP' e2e.log | grep -v TestTUN; then exit 1; fi
+      - name: System proxy (networksetup) and system service (launchd)
+        shell: bash
+        run: |
+          mkdir -p ~/.config/conch
+          printf 'routes: { default: DIRECT }\ninbound: { mixed-port: 7890 }\n' > ~/.config/conch/profile.yaml
+          printf 'CONCH_PASSWORD=ci-service\n' > ~/.config/conch/.env
+          ready() { for i in $(seq 1 90); do /tmp/conch status 2>/dev/null | grep -q 运行中 && return; sleep 1; done; return 1; }
+          # The switch points every network service at conch, and stopping
+          # the daemon puts the settings back.
+          /tmp/conch daemon > daemon.log 2>&1 &
+          daemon=$!
+          ready || { cat daemon.log; exit 1; }
+          /tmp/conch sysproxy on
+          scutil --proxy | tee during.txt
+          grep -q 'HTTPEnable : 1' during.txt && grep -q 'HTTPPort : 7890' during.txt && grep -q 'SOCKSEnable : 1' during.txt
+          kill -INT $daemon
+          wait $daemon || true
+          scutil --proxy | tee after.txt
+          if grep -E 'HTTPEnable : 1|HTTPSEnable : 1|SOCKSEnable : 1' after.txt; then cat daemon.log; exit 1; fi
+          # launchd: the service carries the profile, kernel and password.
+          sudo /tmp/conch service install --no-agent
+          ready || { sudo cat /Library/Logs/conch.log || true; exit 1; }
+          /tmp/conch status
+          /tmp/conch service status
+          test "$(curl -s -m 20 -x http://127.0.0.1:7890 -o /dev/null -w '%{http_code}' https://www.google.com/generate_204)" = 204
+          sudo /tmp/conch service uninstall
+          if sudo launchctl print system/io.github.xiongnemo.conch.daemon >/dev/null 2>&1; then exit 1; fi
 
   extension:
     runs-on: ubuntu-latest

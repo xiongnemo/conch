@@ -156,13 +156,27 @@ func getVia(t *testing.T, proxyPort int, target string) string {
 	t.Helper()
 	proxy, _ := url.Parse(fmt.Sprintf("http://127.0.0.1:%d", proxyPort))
 	client := &http.Client{Transport: &http.Transport{Proxy: http.ProxyURL(proxy)}, Timeout: 10 * time.Second}
-	resp, err := client.Get(target)
+	get := func() (string, error) {
+		resp, err := client.Get(target)
+		if err != nil {
+			return "", err
+		}
+		defer resp.Body.Close()
+		body, err := io.ReadAll(resp.Body)
+		return string(body), err
+	}
+	// A kernel listens a moment before it handles connections (mihomo
+	// closes them until its config is loaded): an answer that never came
+	// is tried again for a while.
+	body, err := get()
+	for deadline := time.Now().Add(5 * time.Second); (err != nil || body == "") && time.Now().Before(deadline); {
+		time.Sleep(100 * time.Millisecond)
+		body, err = get()
+	}
 	if err != nil {
 		t.Fatalf("GET %s via proxy: %v", target, err)
 	}
-	defer resp.Body.Close()
-	body, _ := io.ReadAll(resp.Body)
-	return string(body)
+	return body
 }
 
 // TestChainTraversesHopsInOrder checks, for every client kernel, that
