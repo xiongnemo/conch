@@ -16,3 +16,6 @@ func TUNError(string) error {
 }
 
 func SetTUNCaps(string) error { return fmt.Errorf("只有 Linux 需要给内核设置权限") }
+
+// RoutesError is for kernels conch routes TUN for, which run on Linux only.
+func RoutesError() error { return nil }

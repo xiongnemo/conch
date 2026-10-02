@@ -37,6 +37,19 @@ func TUNError(bin string) error {
 	return fmt.Errorf("%w。可以给内核加上网络权限（升级内核后要重新做一次）：\n  sudo setcap cap_net_admin,cap_net_bind_service,cap_net_raw+ep %s\n也可以用 sudo %s service install 安装成系统服务", ErrTUN, bin, self)
 }
 
+// RoutesError returns nil if conch itself may change the system's
+// routes, which it does for kernels that only bring a TUN device up (xray).
+func RoutesError() error {
+	if os.Geteuid() == 0 || processHas("CapEff", capNetAdmin) {
+		return nil
+	}
+	self, err := os.Executable()
+	if err != nil {
+		self = "conch"
+	}
+	return fmt.Errorf("%w：xray 只会建 TUN 网卡，系统路由要由 conch 来改，所以 conch 自己也需要管理网络的权限。可以用 sudo 运行 conch daemon，或者 sudo %s service install 安装成系统服务", ErrTUN, self)
+}
+
 // processHas reports whether a capability is in one of this process's
 // sets in /proc/self/status (CapEff, CapAmb, …).
 func processHas(set string, capability int) bool {

@@ -65,6 +65,9 @@ type Supervisor struct {
 	// OnLine receives every line the kernel prints and says whether to
 	// keep it in Logs. It must not block.
 	OnLine func(string) bool
+	// OnRestart runs, in a goroutine of its own, each time the process
+	// started again after it exited unexpectedly.
+	OnRestart func()
 	// Logs keeps the most recent lines.
 	Logs *Ring
 
@@ -182,7 +185,11 @@ func (s *Supervisor) restartLater(gen int) {
 		if !current {
 			return
 		}
-		if err := s.launch(gen); err != nil {
+		err := s.launch(gen)
+		if err == nil && s.OnRestart != nil {
+			go s.OnRestart()
+		}
+		if err != nil {
 			s.line("[conch] " + err.Error())
 			s.mu.Lock()
 			current = gen == s.gen

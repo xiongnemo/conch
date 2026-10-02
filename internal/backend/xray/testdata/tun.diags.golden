@@ -1,1 +1,0 @@
-错误：xray 后端暂不支持 TUN：它不会自己配置系统路由。要用 TUN，请换用 mihomo 或 sing-box 后端

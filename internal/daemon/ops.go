@@ -433,10 +433,15 @@ func (d *Daemon) SetMode(ctx context.Context, mode string) error {
 func (d *Daemon) SetTUN(ctx context.Context, on bool) error {
 	if on {
 		if !d.backend.Capabilities().TUN {
-			return fmt.Errorf("%s 内核暂不支持 TUN：它不会自己配置系统路由，需要 conch 来做；可以先用 mihomo 内核", d.backend.Name())
+			return fmt.Errorf("%s 内核在这个系统上暂不支持 TUN，可以换用 mihomo 或 sing-box 内核", d.backend.Name())
 		}
 		if err := privilege.TUNError(d.bin); err != nil {
 			return err
+		}
+		if d.backend.Name() == "xray" {
+			if err := privilege.RoutesError(); err != nil {
+				return err
+			}
 		}
 	}
 	d.mu.Lock()

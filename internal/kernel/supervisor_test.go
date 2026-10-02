@@ -125,3 +125,22 @@ func TestCleanBeforeStart(t *testing.T) {
 		t.Errorf("a start found the stale file: %q", lines)
 	}
 }
+
+// OnRestart runs after restarts that follow a crash, not after Start.
+func TestOnRestart(t *testing.T) {
+	s := NewSupervisor()
+	restarted := make(chan struct{}, 10)
+	s.OnRestart = func() { restarted <- struct{}{} }
+	if err := s.Start(Spec{Path: "/bin/sh", Args: []string{"-c", "exit 1"}}); err != nil {
+		t.Fatal(err)
+	}
+	defer s.Stop()
+	select {
+	case <-restarted:
+	case <-time.After(5 * time.Second):
+		t.Fatal("OnRestart did not run after a crash")
+	}
+	if n := s.Status().Restarts; n < 1 {
+		t.Errorf("restarts = %d", n)
+	}
+}

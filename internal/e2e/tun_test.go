@@ -21,7 +21,8 @@ import (
 // TestTUN turns TUN on and checks that a program that knows nothing of
 // the proxy goes through it: the kernel answers its DNS (fake IPs) and its
 // connections follow the routing table, through one hop and through a
-// chain; with TUN off they no longer do. TUN takes over the routing of the
+// chain; with TUN off they no longer do. For xray, which only brings the
+// device up, conch routes the system into it. TUN takes over the routing of the
 // network it runs in, so the test only runs as root in a network namespace
 // of its own that has nothing but a local address (see ci.yml):
 //
@@ -33,9 +34,6 @@ func TestTUN(t *testing.T) {
 	}
 	hopBin := hopServerBin(t)
 	for _, c := range clients() {
-		if c.name == "xray" {
-			continue // no TUN
-		}
 		t.Run(c.name, func(t *testing.T) { testTUN(t, addr, hopBin, c) })
 	}
 }

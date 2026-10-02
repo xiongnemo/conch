@@ -32,6 +32,7 @@ import (
 	"github.com/xiongnemo/conch/internal/lists"
 	"github.com/xiongnemo/conch/internal/model"
 	"github.com/xiongnemo/conch/internal/platform/firewall"
+	"github.com/xiongnemo/conch/internal/platform/tunroute"
 	"github.com/xiongnemo/conch/internal/route"
 	"github.com/xiongnemo/conch/internal/subscription"
 )
@@ -60,10 +61,12 @@ type Daemon struct {
 	ctl    control.Kernel
 	// the kernel binary let through Windows' firewall, for TUN
 	firewalled string
-	backend    backend.Router
-	bin        string
-	home       string
-	socket     string
+	// the system is routed into xray's TUN device
+	tunRouted bool
+	backend   backend.Router
+	bin       string
+	home      string
+	socket    string
 
 	lists *lists.Store
 	subs  *subscription.Store
@@ -153,6 +156,16 @@ func New(opts Options) (*Daemon, error) {
 		d.controller, d.secret = fmt.Sprintf("127.0.0.1:%d", freeLocalPort()), auth.NewPassword()
 		d.ctl = control.NewSingBox(d.controller, d.secret)
 	}
+	d.sup.OnRestart = func() {
+		d.mu.Lock()
+		routed := d.tunRouted
+		d.mu.Unlock()
+		if routed { // the device came back with the kernel, the routes into it did not
+			if err := tunroute.Up(xray.TUNDevice); err != nil {
+				fmt.Fprintln(d.opts.Log, "警告：", err)
+			}
+		}
+	}
 	d.sup.OnLine = func(l string) bool {
 		ll := d.ctl.ObserveLog(l)
 		if ll.Failure != nil {
@@ -195,9 +208,38 @@ func (d *Daemon) Stop() {
 	if d.stopTraffic != nil {
 		d.stopTraffic()
 	}
+	routed := d.tunRouted
+	d.tunRouted = false
 	d.mu.Unlock()
 	d.sup.Stop()
 	d.stopSidecars()
+	if routed {
+		tunroute.Down()
+	}
+}
+
+// routeTUN routes the system into xray's TUN device when TUN is on, and
+// back out when it is off: xray only brings the device up. It runs after
+// every start of the kernel, whose new device starts without routes.
+func (d *Daemon) routeTUN(res *compile.Result) error {
+	want := d.backend.Name() == "xray" && res.Settings.TUN.Enable
+	d.mu.Lock()
+	routed := d.tunRouted
+	d.mu.Unlock()
+	switch {
+	case want:
+		if err := tunroute.Up(xray.TUNDevice); err != nil {
+			return err
+		}
+	case routed:
+		tunroute.Down()
+	default:
+		return nil
+	}
+	d.mu.Lock()
+	d.tunRouted = want
+	d.mu.Unlock()
+	return nil
 }
 
 // ErrConfig wraps profile problems; the kernel keeps its last good config.
@@ -395,6 +437,9 @@ func (d *Daemon) apply(ctx context.Context, res *compile.Result, art *backend.Ar
 			return err
 		}
 		if err := d.waitReady(ctx, res.Settings.MixedPort); err != nil {
+			return err
+		}
+		if err := d.routeTUN(res); err != nil {
 			return err
 		}
 		d.startTraffic()

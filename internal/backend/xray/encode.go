@@ -22,6 +22,7 @@ import (
 	"github.com/xiongnemo/conch/internal/compile"
 	"github.com/xiongnemo/conch/internal/diag"
 	"github.com/xiongnemo/conch/internal/lists"
+	"github.com/xiongnemo/conch/internal/platform/tunroute"
 	"github.com/xiongnemo/conch/internal/route"
 )
 
@@ -31,7 +32,9 @@ func (Backend) Name() string { return "xray" }
 
 func (Backend) Capabilities() backend.Capabilities {
 	// xray v26.3.27 finds processes on Windows and Linux only.
-	return backend.Capabilities{ProcessMatch: backend.TargetOS != "darwin", KeywordMatch: true, Chains: true}
+	// TUN: xray brings the device up, conch routes the system into it,
+	// which it only knows how to do on Linux so far.
+	return backend.Capabilities{ProcessMatch: backend.TargetOS != "darwin", KeywordMatch: true, Chains: true, TUN: backend.TargetOS == "linux"}
 }
 
 const (
@@ -98,6 +101,9 @@ func (Backend) Encode(r *compile.Result, opts backend.Options) (*backend.Artifac
 		if s.IPv6 {
 			cfg.DNS.QueryStrategy = "UseIP"
 		}
+	}
+	if r.Settings.TUN.Enable {
+		e.tun(&cfg)
 	}
 	if opts.ControllerUnix != "" || opts.Controller != "" {
 		services := []string{"HandlerService", "RoutingService", "StatsService"}
@@ -572,6 +578,65 @@ func (e *encoder) mixedInbound() inbound {
 		// Route-only sniffing lets domain rules apply to clients that
 		// connect by IP, without changing where the connection goes.
 		Sniffing: &sniffing{Enabled: true, DestOverride: []string{"http", "tls", "quic"}, RouteOnly: true},
+	}
+}
+
+// TUNDevice is the device xray creates for TUN, which conch routes into.
+const TUNDevice = "conch0"
+
+const (
+	inTUN  = compile.HopSep + "tun"
+	dnsIn  = compile.HopSep + "dns-in" // xray's own DNS queries
+	dnsOut = compile.HopSep + "dns"    // queries through the device
+)
+
+// tun adds the TUN inbound. xray only brings the device up and conch
+// routes the system into it (tunroute), so whatever xray sends itself
+// carries tunroute.Mark to stay out of it, and xray resolves its servers'
+// names with its own resolver: through the system's, the queries would
+// come back through the device.
+func (e *encoder) tun(cfg *config) {
+	s := e.r.Settings
+	sniff := []string{"http", "tls", "quic"}
+	servers := slices.Clone(s.DNS.Nameservers) // queried through routing, marked
+	if s.DNS.Mode == "fake-ip" {
+		sniff = append([]string{"fakedns"}, sniff...)
+		servers = append([]string{"fakedns"}, servers...)
+		cfg.FakeDNS = []fakeDNSPool{{IPPool: "198.18.0.0/15", PoolSize: 65535}}
+	}
+	cfg.Inbounds = append(cfg.Inbounds, inbound{Tag: inTUN, Protocol: "tun", Settings: tunSettings{Name: TUNDevice, MTU: 1500},
+		Sniffing: &sniffing{Enabled: true, DestOverride: sniff}})
+	strategy := "UseIPv4"
+	if cfg.DNS != nil {
+		strategy = cfg.DNS.QueryStrategy
+	}
+	cfg.DNS = &dnsConfig{Servers: servers, QueryStrategy: strategy, Tag: dnsIn}
+	// DNS through the device is answered by xray's resolver; the
+	// resolver's own queries go out directly.
+	cfg.Outbounds = append(cfg.Outbounds, outbound{Tag: dnsOut, Protocol: "dns", Settings: dnsOutboundSettings{NonIPQuery: "reject"}})
+	cfg.Routing.Rules = append([]rule{
+		{InboundTag: []string{inTUN}, Port: "53", OutboundTag: dnsOut, RuleTag: dnsOut},
+		{InboundTag: []string{dnsIn}, OutboundTag: e.tags["DIRECT"], RuleTag: dnsIn},
+	}, cfg.Routing.Rules...)
+	for i := range cfg.Outbounds {
+		o := &cfg.Outbounds[i]
+		switch o.Protocol {
+		case "loopback", "blackhole", "dns":
+			continue
+		case "freedom":
+			o.Settings = freedomSettings{DomainStrategy: "UseIP"}
+		}
+		if o.StreamSettings == nil {
+			o.StreamSettings = &streamSettings{}
+		}
+		if o.StreamSettings.Sockopt == nil {
+			o.StreamSettings.Sockopt = &sockopt{}
+		}
+		so := o.StreamSettings.Sockopt
+		so.Mark = tunroute.Mark
+		if so.DialerProxy == "" {
+			so.DomainStrategy = cmp.Or(so.DomainStrategy, "UseIP")
+		}
 	}
 }
 

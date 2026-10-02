@@ -135,7 +135,8 @@ func Check(r *compile.Result, caps Capabilities, backendName string) diag.List {
 		d.Errorf(r.Chains[0].Pos, "%s 后端不支持链式代理", backendName)
 	}
 	if r.Settings.TUN.Enable && !caps.TUN {
-		d.Errorf(diag.Pos{}, "%s 后端暂不支持 TUN：它不会自己配置系统路由。要用 TUN，请换用 mihomo 或 sing-box 后端", backendName)
+		// Only ever because of the OS: xray's TUN is Linux-only so far.
+		d.Errorf(diag.Pos{}, "%s 后端在 %s 上暂不支持 TUN：要用 TUN，请换用 mihomo 或 sing-box 后端", backendName, cmp.Or(osNames[TargetOS], TargetOS))
 	}
 	return dedupe(d)
 }

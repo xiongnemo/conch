@@ -9,6 +9,7 @@ type config struct {
 	Stats       *struct{}     `json:"stats,omitempty"`
 	Policy      *policyConfig `json:"policy,omitempty"`
 	DNS         *dnsConfig    `json:"dns,omitempty"`
+	FakeDNS     []fakeDNSPool `json:"fakeDns,omitempty"`
 	Inbounds    []inbound     `json:"inbounds"`
 	Outbounds   []outbound    `json:"outbounds"`
 	Routing     routing       `json:"routing"`
@@ -45,6 +46,25 @@ type policySystem struct {
 type dnsConfig struct {
 	Servers       []string `json:"servers"`
 	QueryStrategy string   `json:"queryStrategy,omitempty"`
+	Tag           string   `json:"tag,omitempty"` // the inbound tag its own queries are routed with
+}
+
+type fakeDNSPool struct {
+	IPPool   string `json:"ipPool"`
+	PoolSize int    `json:"poolSize"`
+}
+
+type tunSettings struct {
+	Name string `json:"name"`
+	MTU  int    `json:"MTU"`
+}
+
+type dnsOutboundSettings struct {
+	NonIPQuery string `json:"nonIPQuery"`
+}
+
+type freedomSettings struct {
+	DomainStrategy string `json:"domainStrategy,omitempty"`
 }
 
 type inbound struct {

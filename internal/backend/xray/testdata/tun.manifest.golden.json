@@ -1,0 +1,15 @@
+{
+  "backend": "xray",
+  "proxies": [
+    {
+      "name": "n1",
+      "kind": "node",
+      "node": "n1"
+    }
+  ],
+  "rules": null,
+  "tags": {
+    "Proxy": "Proxy»",
+    "REJECT": "REJECT»"
+  }
+}

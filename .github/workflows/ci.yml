@@ -114,13 +114,13 @@ jobs:
       - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
-      - name: Install mihomo and sing-box
+      - name: Install mihomo, xray and sing-box
         run: |
           go build -o /tmp/conch ./cmd/conch
-          /tmp/conch kernel install mihomo
-          /tmp/conch kernel install sing-box
+          for k in mihomo xray sing-box; do /tmp/conch kernel install $k; done
           {
             echo "CONCH_MIHOMO=$(/tmp/conch kernel path mihomo)"
+            echo "CONCH_XRAY=$(/tmp/conch kernel path xray)"
             echo "CONCH_SING_BOX=$(/tmp/conch kernel path sing-box)"
           } >> "$GITHUB_ENV"
       - name: TUN, in a network namespace of its own
@@ -136,7 +136,7 @@ jobs:
           # Programs in the namespace ask a resolver only TUN answers.
           sudo mkdir -p /etc/netns/nt
           echo "nameserver 10.200.0.53" | sudo tee /etc/netns/nt/resolv.conf
-          sudo ip netns exec nt env CONCH_TUN_TEST=10.200.0.2 CONCH_MIHOMO="$CONCH_MIHOMO" CONCH_SING_BOX="$CONCH_SING_BOX" \
+          sudo ip netns exec nt env CONCH_TUN_TEST=10.200.0.2 CONCH_MIHOMO="$CONCH_MIHOMO" CONCH_XRAY="$CONCH_XRAY" CONCH_SING_BOX="$CONCH_SING_BOX" \
             /tmp/e2e.test -test.run TestTUN -test.v -test.count=1 | tee tun.log
           if grep -- '--- SKIP' tun.log; then exit 1; fi
       - name: System service (systemd)

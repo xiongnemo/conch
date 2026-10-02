@@ -107,7 +107,7 @@ sudo conch service uninstall    # 保留配置和数据
 
 服务会带上你现在的 profile、已下载的内核和登录密码。服务改不了每个用户的系统代理，所以每个用户登录后会运行 `conch agent` 来设置。
 
-不装服务也能开 TUN：Linux 上给内核加权限（`sudo conch kernel setcap`，升级内核后要重做一次）；macOS 需要 root；Windows 需要管理员。macOS 上开启 TUN 时，conch 会临时把系统 DNS 指向一个能被 TUN 接管的地址，关闭时恢复（sing-box 自己处理）。xray 内核暂不支持 TUN。
+不装服务也能开 TUN：Linux 上给内核加权限（`sudo conch kernel setcap`，升级内核后要重做一次）；macOS 需要 root；Windows 需要管理员。macOS 上开启 TUN 时，conch 会临时把系统 DNS 指向一个能被 TUN 接管的地址，关闭时恢复（sing-box 自己处理）。xray 内核的 TUN 目前只支持 Linux：xray 只建网卡，系统路由由 conch 来配，所以 conch 自己也要有权限（root 或系统服务）。
 
 ## 文件
 

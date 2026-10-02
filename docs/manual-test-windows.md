@@ -453,7 +453,7 @@ conch sysproxy on
 - Web UI 出口页：测速；在「出口」组里切换成员。
 - Web UI 连接页：每条连接都有「命中」和出口路径。打开 baidu.com 这类走订阅规则的网站，「命中」也要写出具体是哪一条，例如「订阅 订阅 的规则 域名后缀 baidu.com」。
 - 加一条路由（例如 `conch route add example.net E --for 5m`），大约 1 秒后生效。xray 改配置要重启内核，期间可能有一两个请求失败。
-- `conch tun on`：预期报错，内容包含「xray 内核暂不支持 TUN」。
+- `conch tun on`：预期报错，内容包含「xray 内核在这个系统上暂不支持 TUN」。xray 的 TUN 目前只在 Linux 上可用。
 
 **11.2 sing-box**
 
