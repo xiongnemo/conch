@@ -225,6 +225,8 @@ jobs:
       - name: Kernels accept every golden config; daemon, API, sidecars and extension work end to end
         shell: bash
         run: |
+          # Tests use a second loopback address, which macOS only has once added.
+          sudo ifconfig lo0 alias 127.0.0.2 up
           go test -race -count=1 -v ./internal/backend/... ./internal/e2e ./internal/sidecar | tee e2e.log
           if grep -- '--- SKIP' e2e.log | grep -v TestTUN; then exit 1; fi
 

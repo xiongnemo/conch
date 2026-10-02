@@ -10,6 +10,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -172,8 +173,9 @@ inbound: { mixed-port: %d }
 	// nothing changes.
 	if privilege.TUNError(bin) != nil {
 		err := c.SetTUN(ctx, true)
-		if !errors.As(err, &apiErr) || !strings.Contains(apiErr.Body.Error, "sudo setcap cap_net_admin") {
-			t.Errorf("TUN without privileges: %v", err)
+		way := map[string]string{"linux": "sudo setcap cap_net_admin", "darwin": "sudo conch service install", "windows": "conch service install"}[runtime.GOOS]
+		if !errors.As(err, &apiErr) || !strings.Contains(apiErr.Body.Error, way) {
+			t.Errorf("TUN without privileges: %v, want it to say %q", err, way)
 		}
 		if s, _ := c.Status(ctx); s.TUN || s.Error != "" {
 			t.Errorf("status after refused TUN: tun %v, error %q", s.TUN, s.Error)

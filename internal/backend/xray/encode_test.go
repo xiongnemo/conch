@@ -5,6 +5,7 @@ import (
 	"math/rand/v2"
 	"os"
 	"os/exec"
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -40,6 +41,12 @@ func TestGoldenAcceptedByXray(t *testing.T) {
 	}
 	for _, f := range backendtest.Configs(t, ".json") {
 		t.Run(f, func(t *testing.T) {
+			// conch makes xray TUN configs for Linux only; elsewhere xray
+			// wants other device names (utunN on macOS).
+			if strings.HasSuffix(f, "tun.golden.json") && runtime.GOOS != "linux" {
+				t.Logf("%s is a Linux config", f)
+				return
+			}
 			cmd := exec.Command(bin, "run", "-test", "-c", f)
 			cmd.Env = append(os.Environ(), "XRAY_LOCATION_ASSET="+assets)
 			out, err := cmd.CombinedOutput()
