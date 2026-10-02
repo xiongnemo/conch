@@ -44,8 +44,8 @@ func (d *Daemon) Run(ctx context.Context) error {
 }
 
 // periodic expires temporary routes and, in the background, refreshes
-// due subscriptions, asking for a reconcile on changes when they got new
-// content: a slow provider must not hold the daemon.
+// due subscriptions and rule lists, asking for a reconcile when they got
+// new content: a slow provider must not hold the daemon.
 func (d *Daemon) periodic(ctx context.Context, changes chan<- struct{}) {
 	d.mu.Lock()
 	_, expired := d.state.prune(time.Now())
@@ -61,13 +61,30 @@ func (d *Daemon) periodic(ctx context.Context, changes chan<- struct{}) {
 	}
 	go func() {
 		defer d.refreshing.Store(false)
-		if d.refreshSubscriptions(ctx, time.Now()) {
+		subs := d.refreshSubscriptions(ctx, time.Now())
+		if lists := d.refreshLists(ctx, time.Now()); subs || lists {
 			select {
 			case changes <- struct{}{}:
 			default:
 			}
 		}
 	}()
+}
+
+// listsMaxAge is how often rule lists are downloaded again. xray and
+// sing-box get them inlined in their config; mihomo downloads its own,
+// and conch's copy only serves explanations.
+const listsMaxAge = 24 * time.Hour
+
+// refreshLists downloads again the rule lists in use that are a day old.
+func (d *Daemon) refreshLists(ctx context.Context, now time.Time) bool {
+	d.mu.Lock()
+	res := d.res
+	d.mu.Unlock()
+	if res == nil {
+		return false
+	}
+	return d.lists.Refresh(ctx, res.Providers, listsMaxAge, now)
 }
 
 // refreshSubscriptions updates the subscriptions that are due: on their

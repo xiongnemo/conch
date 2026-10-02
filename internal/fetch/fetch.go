@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 )
@@ -21,6 +22,14 @@ func patientTransport(header time.Duration) http.RoundTripper {
 	t := http.DefaultTransport.(*http.Transport).Clone()
 	t.ResponseHeaderTimeout = header
 	return t
+}
+
+// Via is a client that goes through an HTTP proxy, such as the running
+// kernel's port, with Client's patience.
+func Via(proxy *url.URL) *http.Client {
+	t := patientTransport(30 * time.Second).(*http.Transport)
+	t.Proxy, t.DisableKeepAlives = http.ProxyURL(proxy), true
+	return &http.Client{Timeout: Client.Timeout, Transport: t}
 }
 
 // Mirrored prefixes a GitHub URL with a mirror such as https://ghfast.top.

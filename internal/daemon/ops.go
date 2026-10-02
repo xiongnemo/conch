@@ -596,6 +596,7 @@ func (d *Daemon) UpdateSubscription(ctx context.Context, name string) error {
 			}
 			d.mu.Lock()
 			d.subInfo[name] = info
+			delete(d.subRetry, name)
 			d.mu.Unlock()
 			return d.Reconcile(ctx)
 		}

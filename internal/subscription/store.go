@@ -10,12 +10,14 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/xiongnemo/conch/internal/fetch"
 	"github.com/xiongnemo/conch/internal/model"
 )
 
@@ -47,6 +49,10 @@ type Store struct {
 	HTTP    *http.Client
 	Offline bool
 	Log     io.Writer
+	// Proxy returns the running kernel's HTTP proxy, which a download that
+	// failed directly tries next; nil, or a nil URL, means no second try.
+	// Directly comes first: providers often refuse their own nodes.
+	Proxy func() *url.URL
 }
 
 // Load returns a subscription from the cache, downloading it if missing.
@@ -125,6 +131,25 @@ func (s *Store) get(ctx context.Context, url, ua string) ([]byte, http.Header, e
 	if client == nil {
 		client = defaultClient
 	}
+	body, header, err := getWith(ctx, client, url, ua)
+	if err == nil || s.Proxy == nil || ctx.Err() != nil {
+		return body, header, err
+	}
+	proxy := s.Proxy()
+	if proxy == nil {
+		return nil, nil, err
+	}
+	if s.Log != nil {
+		fmt.Fprintf(s.Log, "直接下载失败（%v），改为经由内核下载\n", err)
+	}
+	body, header, err2 := getWith(ctx, fetch.Via(proxy), url, ua)
+	if err2 != nil {
+		return nil, nil, fmt.Errorf("%w；经由内核下载也失败：%v", err, err2)
+	}
+	return body, header, nil
+}
+
+func getWith(ctx context.Context, client *http.Client, url, ua string) ([]byte, http.Header, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, nil, err

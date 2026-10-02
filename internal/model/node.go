@@ -1,7 +1,11 @@
 package model
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
+	"slices"
+	"strings"
 
 	"go.yaml.in/yaml/v3"
 
@@ -74,4 +78,25 @@ func NewNode(m *yaml.Node, pos diag.Pos) *Node {
 		View:   viewOf(flat),
 		Pos:    pos,
 	}
+}
+
+// Identity sums up everything about the node but its name and the
+// chaining conch manages: the same server, protocol and credentials give
+// the same identity, so a node a provider renamed is recognised.
+func (n *Node) Identity() string {
+	if n == nil || n.Raw == nil {
+		return ""
+	}
+	var parts []string
+	for i := 0; i+1 < len(n.Raw.Content); i += 2 {
+		k := NormKey(n.Raw.Content[i].Value)
+		if k == "name" || k == "dialer-proxy" {
+			continue
+		}
+		v, _ := yaml.Marshal(n.Raw.Content[i+1])
+		parts = append(parts, k+"="+string(v))
+	}
+	slices.Sort(parts)
+	sum := sha256.Sum256([]byte(strings.Join(parts, "\x00")))
+	return hex.EncodeToString(sum[:])
 }

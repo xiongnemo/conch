@@ -11,10 +11,13 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"net"
+	"net/url"
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -67,7 +70,7 @@ type Daemon struct {
 	tunRouted bool
 	// inbound.system-proxy as last applied, to notice the profile changing it
 	profileSysProxy *bool
-	lanOpen         bool // the proxy listens beyond loopback (noteLAN)
+	lanOpen         bool                // the proxy listens beyond loopback (noteLAN)
 	undos           []routeUndo         // the latest route changes, for UndoRoute
 	refreshing      atomic.Bool         // subscriptions are being refreshed
 	subRetry        map[string]subRetry // failed subscriptions, by name
@@ -130,6 +133,7 @@ func New(opts Options) (*Daemon, error) {
 		subInfo:  map[string]*subscription.Info{},
 		subRetry: map[string]subRetry{},
 	}
+	d.lists.Proxy, d.subs.Proxy = d.kernelProxy, d.kernelProxy
 	// The kernel API is unauthenticated on this socket: keep it in a
 	// directory only this user can enter.
 	runDir := socketDir(opts.DataDir)
@@ -295,6 +299,21 @@ func (d *Daemon) Reconcile(ctx context.Context) error {
 	return err
 }
 
+// kernelProxy is the running kernel's port, for downloads that failed
+// directly; nil while no kernel runs.
+func (d *Daemon) kernelProxy() *url.URL {
+	if d.sup.Status().State != kernel.Running {
+		return nil
+	}
+	d.mu.Lock()
+	port := d.appliedPort
+	d.mu.Unlock()
+	if port == 0 {
+		return nil
+	}
+	return &url.URL{Scheme: "http", Host: net.JoinHostPort("127.0.0.1", strconv.Itoa(port))}
+}
+
 // noteLAN says, when the proxy starts listening beyond this machine, that
 // it does so without a password.
 func (d *Daemon) noteLAN(s compile.Settings) {
@@ -321,8 +340,9 @@ func (d *Daemon) build(ctx context.Context) (*compile.Result, *backend.Artifact,
 		d.state.save(d.statePath())
 	}
 	temp := append([]TempRoute(nil), d.state.Temp...)
-	selections := d.state.Selections
+	selections := maps.Clone(d.state.Selections)
 	mode, tun := d.state.Mode, d.state.TUN
+	prev := d.res
 	d.mu.Unlock()
 
 	merged, err := model.Load(d.opts.ProfilePath) // a copy to merge into
@@ -333,10 +353,15 @@ func (d *Daemon) build(ctx context.Context) (*compile.Result, *backend.Artifact,
 
 	var diags diag.List
 	snaps := map[string]*subscription.Snapshot{}
+	type failed struct {
+		pos diag.Pos
+		err error
+	}
+	var missing []failed // subscriptions with nothing to go on yet
 	for _, sub := range merged.Subscriptions {
 		snap, info, err := d.subs.Load(ctx, sub)
 		if err != nil {
-			diags.Errorf(sub.Pos, "%v", err)
+			missing = append(missing, failed{sub.Pos, err})
 			continue
 		}
 		snaps[sub.Name] = snap
@@ -353,6 +378,27 @@ func (d *Daemon) build(ctx context.Context) (*compile.Result, *backend.Artifact,
 	}
 	res := compile.Compile(merged)
 	diags = append(diags, res.Diags...)
+	// A profile that works without a subscription runs without it until it
+	// downloads, which can then go through the kernel; one that needs it
+	// cannot run.
+	var subDiags diag.List
+	for _, m := range missing {
+		if diags.HasErrors() {
+			subDiags.Errorf(m.pos, "%v", m.err)
+		} else {
+			subDiags.Warnf(m.pos, "%v；先不用这个订阅，之后会自动重试", m.err)
+		}
+	}
+	diags = append(subDiags, diags...)
+	if moved := followRenames(prev, res, selections); len(moved) > 0 {
+		d.mu.Lock()
+		for g, m := range moved {
+			fmt.Fprintf(d.opts.Log, "出口组 %s 里选中的节点 %s 改名成了 %s，继续选它\n", g, selections[g], m)
+			selections[g], d.state.Selections[g] = m, m
+		}
+		d.state.save(d.statePath())
+		d.mu.Unlock()
+	}
 	res.Select(selections)
 	// TUN asked for in the profile gets the check the switch does: a
 	// kernel that cannot create the device would fail where a check of
@@ -389,6 +435,43 @@ func (d *Daemon) build(ctx context.Context) (*compile.Result, *backend.Artifact,
 		return res, nil, diags, nil
 	}
 	return res, art, diags, nil
+}
+
+// followRenames finds the selections a subscription update broke by
+// renaming the selected node: when a select group no longer has the
+// member it had, a member that is the same node under a new name takes
+// its place. It returns the new choices by group.
+func followRenames(prev, res *compile.Result, selections map[string]string) map[string]string {
+	if prev == nil {
+		return nil
+	}
+	moved := map[string]string{}
+	for _, g := range res.Groups {
+		old, ok := selections[g.Name]
+		if !ok || g.Type != "select" || g.Chain != "" || slices.Contains(g.Members, old) {
+			continue
+		}
+		was := nodeNamed(prev, old)
+		if was == nil {
+			continue
+		}
+		for _, m := range g.Members {
+			if n := nodeNamed(res, m); n != nil && n.Identity() == was.Identity() {
+				moved[g.Name] = m
+				break
+			}
+		}
+	}
+	return moved
+}
+
+func nodeNamed(res *compile.Result, name string) *model.Node {
+	for _, p := range res.Proxies {
+		if p.Name == name && p.Kind == compile.ProxyNode {
+			return p.Node
+		}
+	}
+	return nil
 }
 
 // mergeEntries adds daemon-owned nodes, chains and routes to the profile.
