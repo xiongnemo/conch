@@ -38,8 +38,10 @@ func HasGeodata(kernel, dir string) bool {
 }
 
 // FetchGeodata downloads a kernel's geodata into dir, verifying each file
-// against the .sha256sum published next to it.
+// against the .sha256sum published next to it. An empty mirror means
+// $CONCH_MIRROR.
 func FetchGeodata(ctx context.Context, client *http.Client, kernel, mirror, dir string, log io.Writer) error {
+	mirror = mirrorOr(mirror)
 	files, ok := geodataFiles[kernel]
 	if !ok {
 		return fmt.Errorf("不认识的内核 %q", kernel)
@@ -51,7 +53,7 @@ func FetchGeodata(ctx context.Context, client *http.Client, kernel, mirror, dir 
 		url := fetch.Mirrored(mirror, geodataBase+f.remote)
 		var sumFile bytes.Buffer
 		if _, err := fetch.To(ctx, client, url+".sha256sum", &sumFile); err != nil {
-			return err
+			return mirrorHint(err, mirror)
 		}
 		want, _, _ := strings.Cut(strings.TrimSpace(sumFile.String()), " ")
 		if len(want) != 64 {
@@ -65,7 +67,9 @@ func FetchGeodata(ctx context.Context, client *http.Client, kernel, mirror, dir 
 		}
 		got, err := fetch.To(ctx, client, url, tmp)
 		tmp.Close()
-		if err == nil && got != want {
+		if err != nil {
+			err = mirrorHint(err, mirror)
+		} else if got != want {
 			err = fmt.Errorf("%s 校验失败，文件可能不完整", f.remote)
 		}
 		if err == nil {

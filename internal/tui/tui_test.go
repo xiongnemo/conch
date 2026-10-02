@@ -306,8 +306,12 @@ func TestOverview(t *testing.T) {
 	h.keys("m")
 	h.wantCall("mode global")
 	h.keys("s")
+	h.see("开启系统代理？")
+	h.keys("y")
 	h.wantCall("sysproxy true")
 	h.keys("t")
+	h.see("开启 TUN？")
+	h.keys("y")
 	h.wantCall("tun true")
 	h.keys("u") // the subscription is the only item, so the cursor is on it
 	h.wantCall("update airport")

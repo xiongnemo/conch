@@ -173,7 +173,7 @@ func askDaemon(cmd *cobra.Command, offlineFlags ...string) bool {
 }
 
 func daemonClient() *api.Client {
-	settings, _, _ := loadSettings()
+	settings, _, _ := clientSettings()
 	return api.NewClient(settings)
 }
 

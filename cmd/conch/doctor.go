@@ -81,7 +81,7 @@ func newDoctorCmd() *cobra.Command {
 				d.bad("xray 的 geodata 不完整，请运行 conch kernel geodata xray")
 			}
 
-			settings, _, err := loadSettings()
+			settings, _, err := clientSettings()
 			if err != nil {
 				d.bad("%v", err)
 			}
@@ -186,7 +186,7 @@ func (d *doctor) clock(ctx context.Context) {
 
 // proxyPort finds the local proxy port: from the running daemon, else the profile.
 func proxyPort(ctx context.Context) (int, error) {
-	settings, _, err := loadSettings()
+	settings, _, err := clientSettings()
 	if err == nil {
 		if s, err := api.NewClient(settings).Status(ctx); err == nil && s.MixedPort != 0 {
 			return s.MixedPort, nil

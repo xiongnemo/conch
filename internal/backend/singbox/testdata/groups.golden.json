@@ -6,17 +6,11 @@
   "dns": {
     "servers": [
       {
-        "type": "https",
-        "tag": "dns-1",
-        "server": "223.5.5.5"
-      },
-      {
-        "type": "https",
-        "tag": "dns-2",
-        "server": "1.12.12.12"
+        "type": "local",
+        "tag": "local"
       }
     ],
-    "final": "dns-1",
+    "final": "local",
     "strategy": "ipv4_only"
   },
   "inbounds": [
@@ -288,6 +282,6 @@
       }
     ],
     "final": "选择",
-    "default_domain_resolver": "dns-1"
+    "default_domain_resolver": "local"
   }
 }

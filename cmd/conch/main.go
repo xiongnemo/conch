@@ -3,11 +3,16 @@
 package main
 
 import (
+	"cmp"
 	"errors"
 	"fmt"
+	"net/http"
 	"os"
 
 	"github.com/spf13/cobra"
+
+	"github.com/xiongnemo/conch/internal/api"
+	"github.com/xiongnemo/conch/internal/paths"
 )
 
 // version is set at build time with -ldflags "-X main.version=...".
@@ -37,7 +42,23 @@ func main() {
 	if err := root.Execute(); err != nil {
 		if !errors.Is(err, errReported) {
 			fmt.Fprintln(os.Stderr, "错误：", err)
+			if hint := loginHint(err); hint != "" {
+				fmt.Fprintln(os.Stderr, hint)
+			}
 		}
 		os.Exit(1)
 	}
+}
+
+// loginHint says where the daemon's password is when it refused ours.
+func loginHint(err error) string {
+	var apiErr *api.APIError
+	if !errors.As(err, &apiErr) || apiErr.Status != http.StatusUnauthorized {
+		return ""
+	}
+	s, _, _ := clientSettings()
+	if rec, ok := readAPIRecord(); ok && rec.Env != "" && rec.Env != s.PasswordFile {
+		return fmt.Sprintf("提示：daemon 用的是 %s 里的 CONCH_PASSWORD，这里读到的是 %s", rec.Env, cmp.Or(s.PasswordFile, "（没有找到密码）"))
+	}
+	return fmt.Sprintf("提示：密码是 .env 里的 CONCH_PASSWORD，先找当前目录，再找 %s；也可以用环境变量 CONCH_PASSWORD", paths.ConfigDir())
 }

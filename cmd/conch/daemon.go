@@ -1,9 +1,11 @@
 package main
 
 import (
+	"cmp"
 	"context"
 	"crypto/rand"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -45,6 +47,52 @@ func loadSettings() (auth.Settings, string, error) {
 	}
 	s, err := auth.Load(cwd, paths.ConfigDir())
 	return s, cwd, err
+}
+
+// apiRecord is what the running daemon writes about itself, next to its
+// data, so commands run elsewhere find it: where it listens, and which
+// .env holds its password (it may be the one where it was started).
+type apiRecord struct {
+	Listen string `json:"listen"`
+	Env    string `json:"env,omitempty"`
+}
+
+func apiRecordPath() string { return filepath.Join(paths.DataDir(), "api.json") }
+
+func writeAPIRecord(s auth.Settings) {
+	rec := apiRecord{Listen: s.Listen}
+	if s.PasswordFile != "环境变量" {
+		rec.Env = s.PasswordFile
+	}
+	data, _ := json.Marshal(rec)
+	os.MkdirAll(paths.DataDir(), 0o700)
+	os.WriteFile(apiRecordPath(), data, 0o600)
+}
+
+func readAPIRecord() (apiRecord, bool) {
+	var rec apiRecord
+	data, err := os.ReadFile(apiRecordPath())
+	return rec, err == nil && json.Unmarshal(data, &rec) == nil
+}
+
+// clientSettings are loadSettings for commands that talk to the daemon:
+// without a password of their own (another directory than the daemon's
+// .env), they use the daemon's.
+func clientSettings() (auth.Settings, string, error) {
+	s, cwd, err := loadSettings()
+	rec, ok := readAPIRecord()
+	if err != nil || !ok {
+		return s, cwd, err
+	}
+	if s.Listen == "" || s.Listen == auth.DefaultListen {
+		s.Listen = cmp.Or(rec.Listen, s.Listen)
+	}
+	if s.Password == "" && rec.Env != "" {
+		if pw := auth.PasswordIn(rec.Env); pw != "" {
+			s.Password, s.PasswordFile = pw, rec.Env
+		}
+	}
+	return s, cwd, nil
 }
 
 func newDaemonCmd() *cobra.Command {
@@ -101,6 +149,11 @@ func runDaemon(ctx context.Context, out io.Writer, f daemonFlags) error {
 	if err != nil {
 		return err
 	}
+	// The profile first: a start that cannot go on leaves no .env behind.
+	profile, err := resolveProfile(f.profile)
+	if err != nil {
+		return err
+	}
 	if file, err := auth.Ensure(&settings, cwd, paths.ConfigDir()); err != nil {
 		return err
 	} else if file != "" {
@@ -108,11 +161,9 @@ func runDaemon(ctx context.Context, out io.Writer, f daemonFlags) error {
 		if w := auth.GitIgnoreWarning(file); w != "" {
 			fmt.Fprintln(out, "注意：", w)
 		}
+		settings.PasswordFile = file
 	}
-	profile, err := resolveProfile(f.profile)
-	if err != nil {
-		return err
-	}
+	writeAPIRecord(settings)
 	opts := daemon.Options{ProfilePath: profile, DataDir: paths.DataDir(), Backend: f.backend, Offline: f.offline, Log: out, Service: f.service}
 	d, err := newDaemon(ctx, opts, out)
 	if err != nil {
@@ -231,7 +282,7 @@ func newPasswdCmd() *cobra.Command {
 		Short: "修改 Web UI 和 API 的登录密码（不写新密码就随机生成一个）",
 		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			settings, cwd, err := loadSettings()
+			settings, cwd, err := clientSettings()
 			if err != nil {
 				return err
 			}
@@ -265,7 +316,7 @@ func newStatusCmd() *cobra.Command {
 		Short: "查看 daemon 的状态",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			settings, _, err := loadSettings()
+			settings, _, err := clientSettings()
 			if err != nil {
 				return err
 			}
@@ -278,7 +329,10 @@ func newStatusCmd() *cobra.Command {
 			if s.Kernel.Restarts > 0 {
 				fmt.Fprintf(w, "，重启过 %d 次", s.Kernel.Restarts)
 			}
-			fmt.Fprintf(w, "）\n模式：%s\n代理端口：127.0.0.1:%d\nprofile：%s\n", s.Mode, s.MixedPort, s.Profile)
+			onOff := map[bool]string{true: "开", false: "关"}
+			modes := map[string]string{"rule": "分流", "global": "全局", "direct": "直连"}
+			fmt.Fprintf(w, "）\n模式：%s\n代理端口：127.0.0.1:%d（HTTP 和 SOCKS5）\n系统代理：%s\nTUN：%s\nprofile：%s\n",
+				cmp.Or(modes[s.Mode], s.Mode), s.MixedPort, onOff[s.SysProxy], onOff[s.TUN], s.Profile)
 			if s.Error != "" {
 				fmt.Fprintf(w, "配置有问题（内核继续使用上一份可用的配置）：\n%s\n", s.Error)
 			}

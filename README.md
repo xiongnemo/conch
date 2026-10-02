@@ -14,11 +14,11 @@
 
 从 [Releases](https://github.com/xiongnemo/conch/releases) 下载对应系统的压缩包，或者 deb / rpm / apk / Arch 软件包。路由器（OpenWrt 等）用 `conch-lite`，它没有 TUI，内存占用更小。
 
-内核不需要自己装：第一次运行 `conch daemon` 时会自动下载并校验（每个 conch 版本都内置了测试过的内核版本和 sha256）。也可以手动安装：
+内核不需要自己装：第一次运行 `conch daemon` 时会自动下载并校验（每个 conch 版本都内置了测试过的内核版本和 sha256）。连不上 GitHub 的话，把环境变量 `CONCH_MIRROR` 设成下载镜像，例如 `CONCH_MIRROR=https://ghfast.top conch daemon`；自动下载和 `conch kernel` 命令都会用它，从镜像下载的文件同样会校验。也可以手动安装：
 
 ```sh
 conch kernel install mihomo          # 或 xray --geodata、sing-box、trojan-go
-conch kernel install mihomo --mirror https://your-mirror/   # 通过镜像下载，同样会校验
+conch kernel install mihomo --mirror https://your-mirror/   # 只这一次用镜像
 ```
 
 下载的文件可以用 `checksums.txt` 校验；`checksums.txt` 带有发布时由 GitHub Actions 生成的 Sigstore 签名：

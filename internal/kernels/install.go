@@ -3,6 +3,7 @@ package kernels
 import (
 	"archive/tar"
 	"archive/zip"
+	"cmp"
 	"compress/gzip"
 	"context"
 	"encoding/json"
@@ -22,7 +23,7 @@ type InstallOptions struct {
 	Kernel  string
 	Version string // empty = recommended release
 	Asset   string // empty = chosen from Target
-	Mirror  string // URL prefix put in front of github.com download links
+	Mirror  string // URL prefix put in front of github.com download links; empty means $CONCH_MIRROR
 	Dir     string // data directory
 	Target  Target
 	HTTP    *http.Client
@@ -52,6 +53,7 @@ func Install(ctx context.Context, o InstallOptions) (*Installed, error) {
 	if o.Log == nil {
 		o.Log = io.Discard
 	}
+	o.Mirror = mirrorOr(o.Mirror)
 	version := o.Version
 	if version == "" {
 		version = k.Releases[0].Version
@@ -98,7 +100,7 @@ func Install(ctx context.Context, o InstallOptions) (*Installed, error) {
 	fmt.Fprintf(o.Log, "下载 %s\n", url)
 	got, err := fetch.To(ctx, o.HTTP, url, tmp)
 	if err != nil {
-		return nil, err
+		return nil, mirrorHint(err, o.Mirror)
 	}
 	if got != want {
 		return nil, fmt.Errorf("%s 校验失败（期望 sha256 %s，实际 %s），文件可能不完整或被篡改", asset.Name, want, got)
@@ -112,6 +114,20 @@ func Install(ctx context.Context, o InstallOptions) (*Installed, error) {
 		return nil, err
 	}
 	return &Installed{Kernel: o.Kernel, Version: version, Path: filepath.Join(dest, bin)}, nil
+}
+
+// MirrorEnv names the environment variable holding the GitHub mirror
+// downloads use when none is given, e.g. CONCH_MIRROR=https://ghfast.top.
+const MirrorEnv = "CONCH_MIRROR"
+
+func mirrorOr(mirror string) string { return cmp.Or(mirror, os.Getenv(MirrorEnv)) }
+
+// mirrorHint follows a failed download from GitHub with how to use a mirror.
+func mirrorHint(err error, mirror string) error {
+	if mirror != "" {
+		return err
+	}
+	return fmt.Errorf("%w（连不上 GitHub 的话，可以把环境变量 %s 设成下载镜像再试，例如 %s=https://ghfast.top）", err, MirrorEnv, MirrorEnv)
 }
 
 // NotInstalledError means a kernel has never been installed.

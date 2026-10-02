@@ -116,21 +116,20 @@ func (m *Model) overviewKey(key string, item any) tea.Cmd {
 			next = "rule"
 		}
 		return m.do("已切换到"+modeName(next)+"模式", func(ctx context.Context) error { return m.c.SetMode(ctx, next) })
+	// Turning on takes over other programs' traffic: one key press
+	// must not do that by accident. Turning off is undoing.
 	case "s":
-		on := !s.SysProxy
-		ok := "系统代理已关闭，已恢复原来的设置"
-		if on {
-			ok = "系统代理已开启"
+		if s.SysProxy {
+			return m.do("系统代理已关闭，已恢复原来的设置", func(ctx context.Context) error { return m.c.SetSysProxy(ctx, false) })
 		}
-		return m.do(ok, func(ctx context.Context) error { return m.c.SetSysProxy(ctx, on) })
+		m.dialog = &confirmDialog{question: "开启系统代理？浏览器等程序会改走 conch，conch 停止时恢复原来的设置。",
+			yes: m.do("系统代理已开启", func(ctx context.Context) error { return m.c.SetSysProxy(ctx, true) })}
 	case "t":
-		on := !s.TUN
-		ok := "TUN 已关闭"
-		if on {
-			ok = "TUN 已开启"
-			m.note("正在开启 TUN……", false)
+		if s.TUN {
+			return m.do("TUN 已关闭", func(ctx context.Context) error { return m.c.SetTUN(ctx, false) })
 		}
-		return m.do(ok, func(ctx context.Context) error { return m.c.SetTUN(ctx, on) })
+		m.dialog = &confirmDialog{question: "开启 TUN？所有程序的流量都会经过 conch。",
+			yes: m.do("TUN 已开启", func(ctx context.Context) error { return m.c.SetTUN(ctx, true) })}
 	case "u":
 		if sub, ok := item.(subItem); ok {
 			m.note("正在更新订阅 "+sub.name+"……", false)

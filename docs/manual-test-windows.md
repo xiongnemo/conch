@@ -176,10 +176,18 @@ conch compile --backend sing-box > $null
 
 ```powershell
 mkdir C:\conch-test\first-run | Out-Null; cd C:\conch-test\first-run
-$env:CONCH_CONFIG_DIR = "C:\conch-test\first-run"; conch daemon
+$env:CONCH_CONFIG_DIR = "C:\conch-test\first-run"
+conch daemon                                        # 还没有 profile
+Set-Content profile.yaml "inbound: { mixed-port: 17890 }"
+conch daemon
 ```
 
-预期：打印「已生成登录密码，保存在 …\first-run\.env」；因为这里没有 profile，接着报错退出。然后清理：
+预期：
+
+- 第一次运行报错「找不到 profile.yaml」，而且**不**生成 `.env`；
+- 第二次运行打印「已生成登录密码，保存在 …\first-run\.env」，然后正常启动。
+
+确认后按 Ctrl+C 停掉，再清理：
 
 ```powershell
 cd C:\conch-test; Remove-Item Env:CONCH_CONFIG_DIR; Remove-Item -Recurse first-run

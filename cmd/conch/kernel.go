@@ -47,7 +47,7 @@ func newKernelInstallCmd() *cobra.Command {
 	f := cmd.Flags()
 	f.StringVar(&o.Version, "version", "", "版本（默认使用内置清单推荐的版本）")
 	f.StringVar(&o.Asset, "asset", "", "指定安装包文件名，例如 mihomo-linux-amd64-compatible-v1.19.32.gz")
-	f.StringVar(&o.Mirror, "mirror", "", "GitHub 下载镜像前缀，例如 https://ghfast.top")
+	f.StringVar(&o.Mirror, "mirror", "", "GitHub 下载镜像前缀，例如 https://ghfast.top（默认用环境变量 CONCH_MIRROR）")
 	f.BoolVar(&geodata, "geodata", false, "同时下载 geodata")
 	return cmd
 }
@@ -93,7 +93,7 @@ func newKernelGeodataCmd() *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().StringVar(&mirror, "mirror", "", "GitHub 下载镜像前缀，例如 https://ghfast.top")
+	cmd.Flags().StringVar(&mirror, "mirror", "", "GitHub 下载镜像前缀，例如 https://ghfast.top（默认用环境变量 CONCH_MIRROR）")
 	cmd.Flags().StringVar(&dir, "dir", "", "保存目录（默认是内核的工作目录）")
 	return cmd
 }

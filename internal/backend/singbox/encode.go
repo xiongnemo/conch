@@ -485,6 +485,12 @@ func (e *encoder) dns() (*dnsConfig, string) {
 	if s.IPv6 {
 		cfg.Strategy = "prefer_ipv4"
 	}
+	if !s.Enable {
+		// Without DNS settings, resolve the way the system does, like
+		// mihomo and xray: .lan names, the intranet, the OS's own DNS.
+		cfg.Servers, cfg.Final = []dnsServer{{Type: "local", Tag: "local"}}, "local"
+		return cfg, "local"
+	}
 	resolver := ""
 	needLocal := false
 	for i, ns := range s.Nameservers {
