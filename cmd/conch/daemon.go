@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -37,7 +38,7 @@ func resolveProfile(flag string) (string, error) {
 			return filepath.Abs(c)
 		}
 	}
-	return "", fmt.Errorf("找不到 profile.yaml（找过 %v），可以参考 examples/profile.yaml 写一份", candidates)
+	return "", fmt.Errorf("找不到 profile.yaml（找过 %s）。运行 conch init <订阅地址> 生成一份，或者参考 https://github.com/xiongnemo/conch/blob/main/examples/profile.yaml 自己写", strings.Join(candidates, "、"))
 }
 
 func loadSettings() (auth.Settings, string, error) {

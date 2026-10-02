@@ -97,6 +97,18 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /api/v1/subscriptions/{name}/update", func(w http.ResponseWriter, r *http.Request) {
 		s.done(w, s.D.UpdateSubscription(r.Context(), r.PathValue("name")))
 	})
+	// The kernel config as it is applied, to read in a browser tab.
+	mux.HandleFunc("GET /api/v1/compiled", func(w http.ResponseWriter, r *http.Request) {
+		config, file, err := s.D.Compiled()
+		if err != nil {
+			fail(w, err)
+			return
+		}
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		w.Header().Set("Content-Disposition", `inline; filename="`+file+`"`)
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Write(config)
+	})
 	mux.HandleFunc("POST /api/v1/kernel/restart", func(w http.ResponseWriter, r *http.Request) {
 		s.done(w, s.D.Restart(r.Context()))
 	})

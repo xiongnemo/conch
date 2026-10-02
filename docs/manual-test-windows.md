@@ -172,20 +172,23 @@ conch compile --backend sing-box > $null
 
 ## 4. 启动 daemon（mihomo）
 
-**4.1 首次运行生成密码（可选）**
+**4.1 首次运行：conch init 和生成密码（可选）**
 
 ```powershell
 mkdir C:\conch-test\first-run | Out-Null; cd C:\conch-test\first-run
 $env:CONCH_CONFIG_DIR = "C:\conch-test\first-run"
 conch daemon                                        # 还没有 profile
-Set-Content profile.yaml "inbound: { mixed-port: 17890 }"
+conch init "这里填订阅地址"
+conch init "这里填订阅地址"                           # 再来一次
 conch daemon
 ```
 
 预期：
 
-- 第一次运行报错「找不到 profile.yaml」，而且**不**生成 `.env`；
-- 第二次运行打印「已生成登录密码，保存在 …\first-run\.env」，然后正常启动。
+- 第一次运行 daemon 报错「找不到 profile.yaml」，提示可以运行 `conch init`，而且**不**生成 `.env`；
+- 第一次 `conch init` 打印「已生成 C:\conch-test\first-run\profile.yaml，订阅里有 … 个节点，… 个出口组，… 条规则」；第二次报错「已经存在」，提示加 `--force`；
+- `profile.yaml` 里是订阅和 `{ list: "机场" }`，没有别的；
+- 再运行 daemon 打印「已生成登录密码，保存在 …\first-run\.env」，然后正常启动，不再下载订阅（init 已经下载过了）。
 
 确认后按 Ctrl+C 停掉，再清理：
 
@@ -448,6 +451,8 @@ conch sysproxy on
 **10.5 每次启动都是纯代理**
 
 再启动 daemon。虽然上次结束时系统代理是开着的，这次启动后它仍然是关着的：conch 启动后只是 HTTP + SOCKS5 代理，开关只管一次运行。设置页应该和 `proxy-before.txt` 一样。
+
+模式也一样：在 Web UI 里点「全局」，停掉 daemon 再启动，模式回到「分流」（profile 里没写 `mode`）。
 
 **10.6 在 profile 里要求开启**
 

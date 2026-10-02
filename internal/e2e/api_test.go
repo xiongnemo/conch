@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -72,6 +73,19 @@ inbound: { mixed-port: %d }
 	}
 	if resp, err := srv.Client().Get(srv.URL + "/"); err != nil || resp.StatusCode != 200 || !strings.Contains(resp.Header.Get("Content-Security-Policy"), "default-src 'self'") {
 		t.Errorf("web UI: %v %v", resp, err)
+	}
+
+	// The kernel config as applied, for a browser tab.
+	compiled, _ := http.NewRequest(http.MethodGet, srv.URL+"/api/v1/compiled", nil)
+	compiled.Header.Set("Authorization", "Bearer secret")
+	if resp, err := srv.Client().Do(compiled); err != nil || resp.StatusCode != 200 || !strings.HasPrefix(resp.Header.Get("Content-Type"), "text/plain") {
+		t.Errorf("compiled config: %v %v", resp, err)
+	} else {
+		body, _ := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		if !strings.Contains(string(body), "mixed-port:") {
+			t.Errorf("compiled config is not mihomo's:\n%.200s", body)
+		}
 	}
 
 	out, err := c.Outbounds(ctx)

@@ -101,14 +101,18 @@ func TestProfileSystemProxy(t *testing.T) {
 }
 
 // A TUN switch lasts one run too; tun.enable in the profile is for every start.
+// The TUN and mode switches last one run too: a start follows the profile.
 func TestStartResetsTUN(t *testing.T) {
 	swapSysProxy(t)
 	d := testDaemon(t, 7890)
 	on := true
-	d.state.TUN = &on
+	d.state.TUN, d.state.Mode = &on, "global"
 	d.startSession()
 	if d.state.TUN != nil {
 		t.Errorf("TUN switch survived a restart: %v", *d.state.TUN)
+	}
+	if d.state.Mode != "" {
+		t.Errorf("mode switch survived a restart: %q", d.state.Mode)
 	}
 }
 

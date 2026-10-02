@@ -32,10 +32,10 @@ sha256sum --check --ignore-missing checksums.txt
 
 ## 快速开始
 
-1. 参考 [examples/profile.yaml](examples/profile.yaml) 写一份 `profile.yaml`，放在当前目录或 `~/.config/conch/`。
+1. 运行 `conch init <订阅地址>`，生成一份能直接用的 `~/.config/conch/profile.yaml`：订阅自带规则就用机场的规则，只有节点的话国内网站直连、其他走代理。也可以参考 [examples/profile.yaml](examples/profile.yaml) 自己写一份，放在当前目录或 `~/.config/conch/`。
 2. 运行 `conch daemon`。第一次运行会生成登录密码，保存在 `.env` 里并打印出来。
 3. 浏览器打开 <http://127.0.0.1:9277/>，或者在另一个终端运行 `conch tui`。
-4. conch 启动后只是一个 HTTP + SOCKS5 代理（默认端口 7890），不会自己改系统代理，也不会开 TUN。要让整个系统都走它：`conch sysproxy on`（daemon 退出时自动恢复原来的设置），或者开启 TUN：`conch tun on`。这两个开关只管这一次运行；想每次启动都开，就写进 profile：`inbound: { system-proxy: true }`、`tun: { enable: true }`。
+4. conch 启动后只是一个 HTTP + SOCKS5 代理（默认端口 7890），不会自己改系统代理，也不会开 TUN。要让整个系统都走它：`conch sysproxy on`（daemon 退出时自动恢复原来的设置），或者开启 TUN：`conch tun on`。这两个开关和模式开关（规则 / 全局 / 直连）都只管这一次运行；想每次启动都这样，就写进 profile：`inbound: { system-proxy: true }`、`tun: { enable: true }`、`mode: global`。
 
 改了 `profile.yaml` 不需要重启，daemon 会自动应用；配置有错时内核继续使用上一份可用的配置，错误显示在 Web UI 和 `conch status` 里。用 `conch edit` 修改，可以在保存前先检查。
 
@@ -126,6 +126,7 @@ sudo conch service uninstall    # 保留配置和数据
 
 | 命令 | 作用 |
 | --- | --- |
+| `conch init` | 从订阅地址生成 profile.yaml |
 | `conch daemon` | 运行内核和 Web UI |
 | `conch tui` | 终端界面 |
 | `conch status` | 查看状态 |

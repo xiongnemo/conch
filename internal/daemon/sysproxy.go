@@ -128,17 +128,17 @@ func RepairSysProxy(dataDir string) (bool, error) {
 	return true, st.save(path)
 }
 
-// startSession makes every start a plain HTTP and SOCKS5 proxy: the
-// system proxy and TUN switches only last a run. What a crash left set is
-// still repaired, and the profile can ask for both at every start
-// (inbound.system-proxy, tun.enable).
+// startSession makes every start a plain HTTP and SOCKS5 proxy in the
+// profile's mode: the system proxy, TUN and mode switches only last a run.
+// What a crash left set is still repaired, and the profile can ask for
+// each at every start (inbound.system-proxy, tun.enable, mode).
 func (d *Daemon) startSession() {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	if d.state.SysProxy != nil {
 		d.state.SysProxy.Wanted = false
 	}
-	d.state.TUN = nil
+	d.state.TUN, d.state.Mode = nil, ""
 	d.state.Temp = slices.DeleteFunc(d.state.Temp, func(t TempRoute) bool { return t.Run }) // that run is over
 	d.profileSysProxy = nil
 	d.state.save(d.statePath())

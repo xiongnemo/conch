@@ -620,6 +620,17 @@ func (d *Daemon) Result() *compile.Result {
 	return d.res
 }
 
+// Compiled returns the kernel config in use and the name of its file, or
+// ErrNotFound before one was applied.
+func (d *Daemon) Compiled() (config []byte, file string, err error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	if d.art == nil {
+		return nil, "", fmt.Errorf("内核配置 %w：还没有成功生成过", ErrNotFound)
+	}
+	return d.art.Config, d.ctl.ConfigFile(), nil
+}
+
 // Temp returns the active temporary routes.
 func (d *Daemon) Temp() []TempRoute {
 	d.mu.Lock()
