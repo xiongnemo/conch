@@ -10,7 +10,18 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"time"
 )
+
+// Client gives up on servers that stop answering: 30 s for a response to
+// start, 10 minutes in all (kernels and geodata are tens of MB).
+var Client = &http.Client{Timeout: 10 * time.Minute, Transport: patientTransport(30 * time.Second)}
+
+func patientTransport(header time.Duration) http.RoundTripper {
+	t := http.DefaultTransport.(*http.Transport).Clone()
+	t.ResponseHeaderTimeout = header
+	return t
+}
 
 // Mirrored prefixes a GitHub URL with a mirror such as https://ghfast.top.
 func Mirrored(mirror, url string) string {
@@ -25,7 +36,7 @@ func Mirrored(mirror, url string) string {
 // portals return for everything.
 func To(ctx context.Context, client *http.Client, url string, w io.Writer) (string, error) {
 	if client == nil {
-		client = http.DefaultClient
+		client = Client
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {

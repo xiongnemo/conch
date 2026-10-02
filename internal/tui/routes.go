@@ -104,9 +104,12 @@ func (m *Model) routeRows(w int) []row {
 		target := strings.Repeat("  ", e.Depth+1) + e.Target
 		via := "→ " + e.Via + note
 		var src string
-		if e.Expires != nil {
+		switch {
+		case e.ForRun:
+			src = warn.Render("临时，本次运行")
+		case e.Expires != nil:
 			src = warn.Render("临时，到 " + clock(*e.Expires))
-		} else {
+		default:
 			src = muted.Render(shortSource(e.Source))
 		}
 		return row{text: spread(fit(target, col)+via, src, w), item: entryItem{e}}

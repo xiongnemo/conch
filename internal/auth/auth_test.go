@@ -1,6 +1,8 @@
 package auth
 
 import (
+	"crypto/sha256"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -150,5 +152,33 @@ func TestLoginRateLimit(t *testing.T) {
 	}
 	if code := do(h, "POST", "/api/login", nil).Code; code != 429 {
 		t.Errorf("sixth wrong password in a row: %d, want 429", code)
+	}
+}
+
+// Without a password no session is valid: not even one signed with the
+// key an empty password would give.
+func TestNoPasswordNoSessions(t *testing.T) {
+	g := NewGuard(Settings{Auth: true, Listen: DefaultListen})
+	forger := &Guard{}
+	sum := sha256.Sum256([]byte("conch session v1\x00"))
+	forger.key = sum[:]
+	cookie := forger.sign(fmt.Sprint(time.Now().Add(time.Hour).Unix()))
+	if g.sessionOK(cookie, time.Now()) {
+		t.Error("a session forged for an empty password was accepted")
+	}
+	if g.passwordOK("") {
+		t.Error("an empty password was accepted")
+	}
+}
+
+// Failures keep being slowed down however many there were.
+func TestLimiterKeepsLimiting(t *testing.T) {
+	var l limiter
+	now := time.Now()
+	for range 100 {
+		l.fail("192.0.2.1", now)
+	}
+	if w := l.wait("192.0.2.1", now); w <= 0 || w > 15*time.Minute {
+		t.Errorf("wait after 100 failures = %v", w)
 	}
 }

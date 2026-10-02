@@ -110,14 +110,18 @@ func newRouteCmd() *cobra.Command {
 			return nil
 		},
 	}
-	var ttl time.Duration
+	var forText string
 	add := &cobra.Command{
 		Use:   "add <目标> <出口>",
 		Short: "添加条目，例如 conch route add openai.com AI-Exit --for 2h",
 		Args:  cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			target, via := args[0], args[1]
-			err := daemonClient().SetRoute(cmd.Context(), target, via, ttl)
+			ttl, err := parseFor(forText)
+			if err != nil {
+				return err
+			}
+			err = daemonClient().SetRoute(cmd.Context(), target, via, ttl)
 			if errors.Is(err, api.ErrNotRunning) {
 				if ttl > 0 {
 					return errors.New("临时条目需要 conch daemon 正在运行")
@@ -131,7 +135,7 @@ func newRouteCmd() *cobra.Command {
 			return nil
 		},
 	}
-	add.Flags().DurationVar(&ttl, "for", 0, "临时条目的有效时长，例如 30m、2h；到期自动删除")
+	add.Flags().StringVar(&forText, "for", "", "临时条目的有效时长，例如 30m、2h，到期自动删除；run 表示到 conch 停止为止")
 	del := &cobra.Command{
 		Use:   "del <目标>",
 		Short: "删除通过 conch 添加的条目（包括临时条目）",
@@ -289,7 +293,25 @@ func printTable(w io.Writer, t view.Table) {
 	}
 }
 
+// parseFor reads --for: a duration, or run (until conch stops).
+func parseFor(s string) (time.Duration, error) {
+	switch s {
+	case "":
+		return 0, nil
+	case "run":
+		return daemon.ForRun, nil
+	}
+	d, err := time.ParseDuration(s)
+	if err != nil || d <= 0 {
+		return 0, fmt.Errorf("--for 应该写成 30m、2h 这样的时长，或者 run")
+	}
+	return d, nil
+}
+
 func suffix(e view.Entry) string {
+	if e.ForRun {
+		return "（临时，本次运行）"
+	}
 	if e.Expires != nil {
 		return "（临时，到 " + e.Expires.Local().Format("15:04") + "）"
 	}

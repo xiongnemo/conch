@@ -168,7 +168,7 @@ async function showSite(d: Daemon, host: string, into: Element) {
   const box = explanation(host, ex);
   const target = h("select", { id: "target" }, targets.map((t, i) => h("option", { value: t }, i === 0 && targets.length > 1 ? `${t}（包含所有子域名）` : t)));
   const via = h("select", { id: "via" }, outboundOptions(outbounds, ex.target));
-  const ttl = h("select", { id: "ttl" }, h("option", { value: "" }, "永久"), h("option", { value: "1h" }, "1 小时"), h("option", { value: "8h" }, "8 小时"));
+  const ttl = h("select", { id: "ttl" }, h("option", { value: "" }, "永久"), h("option", { value: "1h" }, "1 小时"), h("option", { value: "8h" }, "8 小时"), h("option", { value: "run" }, "本次运行（conch 停止前）"));
   const status = h("p", { class: "small", hidden: true });
   const form = h("form", { class: "route" },
     h("label", {}, "目标", target),
@@ -180,8 +180,9 @@ async function showSite(d: Daemon, host: string, into: Element) {
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
     const [t, v] = [target.value, via.value];
+    let change: { undo: string };
     try {
-      await d.setRoute(t, v, ttl.value);
+      change = await d.setRoute(t, v, ttl.value);
     } catch (err) {
       status.hidden = false;
       status.className = "small error";
@@ -192,7 +193,7 @@ async function showSite(d: Daemon, host: string, into: Element) {
     const undo = h("button", { class: "link", type: "button" }, "撤销");
     undo.addEventListener("click", async () => {
       try {
-        await d.deleteRoute(t);
+        await d.undoRoute(change.undo); // what the change replaced comes back
         await showSite(d, host, into);
       } catch (err) {
         undo.replaceWith(message(err));
@@ -254,6 +255,7 @@ async function showMain(p: Pairing) {
   webUI.addEventListener("click", () => chrome.tabs.create({ url: p.base + "/" }));
   const unpair = h("button", { type: "button", class: "link" }, "取消配对");
   unpair.addEventListener("click", async () => {
+    await d.unpair().catch(() => {}); // also when the daemon is down: forget it here
     await savePairing(null);
     showPairing();
   });

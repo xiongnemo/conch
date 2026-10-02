@@ -109,7 +109,10 @@ func (c *Client) Routes(ctx context.Context) (view.Table, error) {
 
 func (c *Client) SetRoute(ctx context.Context, target, via string, ttl time.Duration) error {
 	body := map[string]string{"target": target, "via": via}
-	if ttl > 0 {
+	switch {
+	case ttl == daemon.ForRun:
+		body["ttl"] = "run"
+	case ttl > 0:
 		body["ttl"] = ttl.String()
 	}
 	return c.do(ctx, http.MethodPut, "/api/v1/routes", body, nil)

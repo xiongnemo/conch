@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/xiongnemo/conch/internal/compile"
 	"path/filepath"
+	"slices"
 
 	"github.com/xiongnemo/conch/internal/platform/sysproxy"
 )
@@ -138,6 +139,7 @@ func (d *Daemon) startSession() {
 		d.state.SysProxy.Wanted = false
 	}
 	d.state.TUN = nil
+	d.state.Temp = slices.DeleteFunc(d.state.Temp, func(t TempRoute) bool { return t.Run }) // that run is over
 	d.profileSysProxy = nil
 	d.state.save(d.statePath())
 }

@@ -3,6 +3,7 @@ package subscription
 import (
 	"context"
 	"encoding/base64"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -165,5 +166,23 @@ func TestStore(t *testing.T) {
 	}
 	if snap, info, err := s.Load(ctx, sub); err != nil || len(snap.Nodes) != 3 || info.Total != 1000 {
 		t.Fatalf("cache was damaged: %v, %+v, %v", snap, info, err)
+	}
+}
+
+// A few hundred bytes of nested aliases stand for millions of nodes: the
+// subscription is refused instead of eating the memory.
+func TestAliasBomb(t *testing.T) {
+	body := "a: &a [x, x, x, x, x, x, x, x, x, x]\n"
+	prev := "a"
+	for _, name := range []string{"b", "c", "d", "e", "f", "g", "h"} {
+		body += fmt.Sprintf("%s: &%s [*%s, *%s, *%s, *%s, *%s, *%s, *%s, *%s, *%s, *%s]\n", name, name, prev, prev, prev, prev, prev, prev, prev, prev, prev, prev)
+		prev = name
+	}
+	body += "proxies:\n  - { name: n, type: socks5, server: 192.0.2.1, port: 1, bomb: *h }\n"
+	if len(body) > 1000 {
+		t.Fatalf("the bomb is %d bytes", len(body))
+	}
+	if _, err := Parse([]byte(body), nil); err == nil || !strings.Contains(err.Error(), "太大") {
+		t.Errorf("Parse = %v, want it refused", err)
 	}
 }

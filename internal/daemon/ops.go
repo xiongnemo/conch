@@ -2,6 +2,8 @@ package daemon
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"net"
@@ -58,7 +60,16 @@ func (d *Daemon) Status() Status {
 }
 
 func (d *Daemon) statusLocked() Status {
-	s := Status{Service: d.opts.Service, Backend: d.backend.Name(), Kernel: d.sup.Status(), Profile: d.opts.ProfilePath, Error: d.lastErr, Subscriptions: d.subInfo, Caps: d.ctl.Caps()}
+	s := Status{Service: d.opts.Service, Backend: d.backend.Name(), Kernel: d.sup.Status(), Profile: d.opts.ProfilePath, Error: d.lastErr, Caps: d.ctl.Caps()}
+	// A copy: callers read it after the lock is released, while
+	// subscription updates write to the daemon's own.
+	for name, info := range d.subInfo {
+		if s.Subscriptions == nil {
+			s.Subscriptions = map[string]*subscription.Info{}
+		}
+		c := *info
+		s.Subscriptions[name] = &c
+	}
 	if d.res != nil {
 		s.Mode, s.MixedPort = d.res.Settings.Mode, d.res.Settings.MixedPort
 	}
@@ -333,56 +344,149 @@ func (d *Daemon) Explain(ctx context.Context, q explain.Query) (*explain.Explana
 	return e.Explain(q), nil
 }
 
-// SetRoute sends a target somewhere. With ttl > 0 the route is temporary
-// and overrides other routes for the target until it expires.
-func (d *Daemon) SetRoute(ctx context.Context, key, via string, ttl time.Duration) error {
+// ForRun is the ttl of a temporary route that lasts until conch stops.
+const ForRun time.Duration = -1
+
+// SetRoute routes key via an outbound: for ttl (or ForRun) as a temporary
+// route, or, with ttl 0, for good in managed.yaml, where it also replaces
+// a temporary route for key. It returns an id UndoRoute takes to put back
+// what the change replaced.
+func (d *Daemon) SetRoute(ctx context.Context, key, via string, ttl time.Duration) (string, error) {
 	if _, _, err := route.ParseTarget(key); err != nil && key != "lan" {
-		return err
+		return "", err
 	}
 	if !d.hasOutbound(via) {
-		return fmt.Errorf("出口 %q %w", via, ErrNotFound)
+		return "", fmt.Errorf("出口 %q %w", via, ErrNotFound)
 	}
 	d.mu.Lock()
 	p := d.profile
+	u := routeUndo{key: key, setTemp: ttl != 0, temp: d.tempFor(key)}
 	d.mu.Unlock()
-	if ttl > 0 {
-		d.mu.Lock()
-		d.state.Temp = slices.DeleteFunc(d.state.Temp, func(t TempRoute) bool { return sameTarget(t.Key, key) })
-		d.state.Temp = append(d.state.Temp, TempRoute{Key: key, Via: via, Expires: time.Now().Add(ttl).Truncate(time.Second)})
-		err := d.state.save(d.statePath())
-		d.mu.Unlock()
-		if err != nil {
-			return err
+	if ttl != 0 {
+		t := TempRoute{Key: key, Via: via, Run: ttl == ForRun}
+		if !t.Run {
+			t.Expires = time.Now().Add(ttl).Truncate(time.Second)
 		}
-		return d.Reconcile(ctx)
+		if err := d.setTemp(key, &t); err != nil {
+			return "", err
+		}
+		return d.remember(u), d.Reconcile(ctx)
 	}
 	if p != nil {
 		if pos, ok := definedIn(p, key); ok {
-			return &ErrUserFile{What: fmt.Sprintf("条目 %q ", key), Where: pos.String()}
+			return "", &ErrUserFile{What: fmt.Sprintf("条目 %q ", key), Where: pos.String()}
 		}
 	}
-	return d.changeManaged(ctx, func(m *managed) error {
+	if m, err := loadManaged(d.managedPath()); err == nil {
+		if prev, ok := m.get(key); ok {
+			u.managed = &prev
+		}
+	}
+	// The latest word wins: a temporary route for key would hide this one.
+	if err := d.setTemp(key, nil); err != nil {
+		return "", err
+	}
+	err := d.changeManaged(ctx, func(m *managed) error {
 		m.set(key, via)
+		return nil
+	})
+	if err != nil {
+		d.setTemp(key, u.temp)
+		return "", err
+	}
+	return d.remember(u), nil
+}
+
+// routeUndo is what a SetRoute replaced.
+type routeUndo struct {
+	id      string
+	key     string
+	setTemp bool       // the change was a temporary route
+	temp    *TempRoute // the temporary route it replaced
+	managed *string    // the managed.yaml route it replaced (permanent changes)
+}
+
+func (d *Daemon) tempFor(key string) *TempRoute {
+	for _, t := range d.state.Temp {
+		if sameTarget(t.Key, key) {
+			return &t
+		}
+	}
+	return nil
+}
+
+// setTemp replaces key's temporary route with t, or removes it (nil).
+func (d *Daemon) setTemp(key string, t *TempRoute) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.state.Temp = slices.DeleteFunc(d.state.Temp, func(t TempRoute) bool { return sameTarget(t.Key, key) })
+	if t != nil && (t.Run || t.Expires.After(time.Now())) {
+		d.state.Temp = append(d.state.Temp, *t)
+	}
+	return d.state.save(d.statePath())
+}
+
+func (d *Daemon) remember(u routeUndo) string {
+	b := make([]byte, 8)
+	rand.Read(b)
+	u.id = hex.EncodeToString(b)
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.undos = append(d.undos, u)
+	if len(d.undos) > 32 {
+		d.undos = d.undos[len(d.undos)-32:]
+	}
+	return u.id
+}
+
+// UndoRoute puts back what the SetRoute that returned id replaced: the
+// temporary route, the managed.yaml route, or nothing.
+func (d *Daemon) UndoRoute(ctx context.Context, id string) error {
+	d.mu.Lock()
+	i := slices.IndexFunc(d.undos, func(u routeUndo) bool { return u.id == id })
+	var u routeUndo
+	if i >= 0 {
+		u = d.undos[i]
+		d.undos = slices.Delete(d.undos, i, i+1)
+	}
+	d.mu.Unlock()
+	if i < 0 {
+		return fmt.Errorf("这次修改已经不能撤销了")
+	}
+	if err := d.setTemp(u.key, u.temp); err != nil {
+		return err
+	}
+	if u.setTemp {
+		return d.Reconcile(ctx)
+	}
+	return d.changeManaged(ctx, func(m *managed) error {
+		if u.managed != nil {
+			m.set(u.key, *u.managed)
+		} else {
+			m.remove(u.key)
+		}
 		return nil
 	})
 }
 
-// DeleteRoute removes a temporary or daemon-managed route.
+// DeleteRoute removes the route for key that is in effect: a temporary
+// one if there is one, which brings back the one it hid, else the one in
+// managed.yaml.
 func (d *Daemon) DeleteRoute(ctx context.Context, key string) error {
 	d.mu.Lock()
-	n := len(d.state.Temp)
-	d.state.Temp = slices.DeleteFunc(d.state.Temp, func(t TempRoute) bool { return sameTarget(t.Key, key) })
-	removedTemp := len(d.state.Temp) != n
-	if removedTemp {
-		d.state.save(d.statePath())
-	}
-	p := d.profile
+	temp, p := d.tempFor(key), d.profile
 	d.mu.Unlock()
+	if temp != nil {
+		if err := d.setTemp(key, nil); err != nil {
+			return err
+		}
+		return d.Reconcile(ctx)
+	}
 	removed := false
 	if err := d.editManaged(func(m *managed) { removed = m.remove(key) }); err != nil {
 		return err
 	}
-	if !removed && !removedTemp {
+	if !removed {
 		if p != nil {
 			if pos, ok := definedIn(p, key); ok {
 				return &ErrUserFile{What: fmt.Sprintf("条目 %q ", key), Where: pos.String()}

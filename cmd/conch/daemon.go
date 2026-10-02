@@ -185,6 +185,7 @@ func newDaemon(ctx context.Context, opts daemon.Options, out io.Writer) (*daemon
 func followSettings(ctx context.Context, guard *auth.Guard, cwd string, out io.Writer) {
 	tick := time.NewTicker(5 * time.Second)
 	defer tick.Stop()
+	warned := false
 	for {
 		select {
 		case <-ctx.Done():
@@ -196,6 +197,15 @@ func followSettings(ctx context.Context, guard *auth.Guard, cwd string, out io.W
 			continue
 		}
 		old := guard.Settings()
+		// A password deleted from .env must not leave the API open.
+		if s.Auth && s.Password == "" {
+			if !warned {
+				fmt.Fprintln(out, "警告： .env 里的登录密码是空的，继续使用原来的密码；要关闭登录请写 CONCH_AUTH=off")
+				warned = true
+			}
+			continue
+		}
+		warned = false
 		if s.Password != old.Password || s.Auth != old.Auth {
 			s.Listen, s.TLSCert, s.TLSKey = old.Listen, old.TLSCert, old.TLSKey // need a restart
 			guard.Update(s)

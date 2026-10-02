@@ -116,6 +116,16 @@ func (m *managed) set(key, via string) {
 	m.Entries = append(m.Entries, managedEntry{Key: key, Via: via})
 }
 
+// get returns the via of key's entry.
+func (m *managed) get(key string) (string, bool) {
+	for _, e := range m.Entries {
+		if sameTarget(e.Key, key) {
+			return e.Via, true
+		}
+	}
+	return "", false
+}
+
 func (m *managed) remove(key string) bool {
 	for i, e := range m.Entries {
 		if sameTarget(e.Key, key) {

@@ -332,8 +332,8 @@ function routeRow(e, extra = "") {
     h("td", { class: "target", style: `padding-left:${8 + (e.depth || 0) * 18}px` }, e.target),
     h("td", {}, e.via, extra),
     h("td", {},
-      e.expires
-        ? h("div", { class: "temp" }, "临时，到 " + timeText(new Date(e.expires)))
+      e.forRun ? h("div", { class: "temp" }, "临时，本次运行")
+        : e.expires ? h("div", { class: "temp" }, "临时，到 " + timeText(new Date(e.expires)))
         : h("div", { class: "src" }, e.source || ""),
       del),
   );

@@ -81,24 +81,48 @@ func parseLinks(body []byte) (*Snapshot, error) {
 	return s, nil
 }
 
+// maxNodes bounds the YAML nodes a subscription may expand to: real ones
+// have tens of thousands, a malicious one could have billions.
+const maxNodes = 1 << 19
+
+// flattener copies a subscription's YAML within one budget for the whole
+// document.
+type flattener struct {
+	left int
+	err  error
+}
+
+func (f *flattener) flat(n *yaml.Node) *yaml.Node {
+	if f.err != nil {
+		return &yaml.Node{Kind: yaml.MappingNode}
+	}
+	out, err := model.FlattenWithin(n, &f.left)
+	if err != nil {
+		f.err = err
+		return &yaml.Node{Kind: yaml.MappingNode}
+	}
+	return out
+}
+
 func parseClash(root *yaml.Node, fetch FetchFunc) (*Snapshot, error) {
 	s := &Snapshot{RuleProviders: map[string]*model.RuleProvider{}, Providers: map[string][]string{}}
+	f := &flattener{left: maxNodes}
 	if n := model.Lookup(root, "proxies"); n != nil && n.Kind == yaml.SequenceNode {
 		for _, p := range n.Content {
 			if p.Kind == yaml.MappingNode {
-				s.Nodes = append(s.Nodes, model.Flatten(p))
+				s.Nodes = append(s.Nodes, f.flat(p))
 			}
 		}
 	}
 	if n := model.Lookup(root, "proxy-providers"); n != nil && n.Kind == yaml.MappingNode {
 		for i := 0; i+1 < len(n.Content); i += 2 {
-			s.addProvider(n.Content[i].Value, model.Flatten(n.Content[i+1]), fetch)
+			s.addProvider(n.Content[i].Value, f.flat(n.Content[i+1]), fetch, f)
 		}
 	}
 	if n := model.Lookup(root, "proxy-groups"); n != nil && n.Kind == yaml.SequenceNode {
 		for _, g := range n.Content {
 			if g.Kind == yaml.MappingNode {
-				s.Groups = append(s.Groups, model.Flatten(g))
+				s.Groups = append(s.Groups, f.flat(g))
 			}
 		}
 	}
@@ -120,6 +144,9 @@ func parseClash(root *yaml.Node, fetch FetchFunc) (*Snapshot, error) {
 			s.RuleProviders[name] = rp
 		}
 	}
+	if f.err != nil {
+		return nil, fmt.Errorf("订阅内容有问题，已拒绝：%w", f.err)
+	}
 	if len(s.Nodes) == 0 {
 		return nil, fmt.Errorf("订阅里没有可用的节点")
 	}
@@ -128,7 +155,7 @@ func parseClash(root *yaml.Node, fetch FetchFunc) (*Snapshot, error) {
 
 // addProvider inlines a proxy-provider: dialer-proxy cannot point at
 // provider nodes, and conch needs to see every node anyway.
-func (s *Snapshot) addProvider(name string, m *yaml.Node, fetch FetchFunc) {
+func (s *Snapshot) addProvider(name string, m *yaml.Node, fetch FetchFunc, f *flattener) {
 	str := func(k string) string { return model.WeakString(model.Lookup(m, k)) }
 	var nodes []*yaml.Node
 	switch typ := strings.ToLower(str("type")); typ {
@@ -152,7 +179,7 @@ func (s *Snapshot) addProvider(name string, m *yaml.Node, fetch FetchFunc) {
 	case "inline":
 		if p := model.Lookup(m, "payload"); p != nil && p.Kind == yaml.SequenceNode {
 			for _, n := range p.Content {
-				nodes = append(nodes, model.Flatten(n))
+				nodes = append(nodes, f.flat(n))
 			}
 		}
 	default:

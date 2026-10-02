@@ -47,7 +47,7 @@ func Install(ctx context.Context, o InstallOptions) (*Installed, error) {
 		return nil, fmt.Errorf("不认识的内核 %q", o.Kernel)
 	}
 	if o.HTTP == nil {
-		o.HTTP = http.DefaultClient
+		o.HTTP = fetch.Client
 	}
 	if o.Log == nil {
 		o.Log = io.Discard

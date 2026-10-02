@@ -25,8 +25,21 @@ type Entry struct {
 	Depth     int        `json:"depth,omitempty"`  // nesting in the domain tree
 	Resolve   bool       `json:"resolve,omitempty"`
 	Expires   *time.Time `json:"expires,omitempty"`
+	ForRun    bool       `json:"forRun,omitempty"`  // temporary until conch stops
 	Managed   bool       `json:"managed,omitempty"` // editable through conch
 	Generated bool       `json:"generated,omitempty"`
+}
+
+// temporary marks a temporary entry: until expires[key], or for the run
+// when that is the zero time.
+func (e *Entry) temporary(expires map[string]time.Time, key string) {
+	if exp, ok := expires[key]; ok {
+		if exp.IsZero() {
+			e.ForRun = true
+		} else {
+			e.Expires = &exp
+		}
+	}
 }
 
 // List is one rule list, or a subscription's own rules.
@@ -64,10 +77,8 @@ func TableOf(res *compile.Result, expires map[string]time.Time, managedFile stri
 			continue
 		}
 		e := Entry{Target: o.Key, Via: r.Target, Source: o.Pos.String(), Resolve: r.Match == route.MatchIPCIDR && !r.NoResolve}
-		if exp, ok := expires[o.Key]; ok {
-			e.Expires = &exp
-		}
-		e.Managed = e.Expires != nil || (managedFile != "" && o.Pos.File == managedFile)
+		e.temporary(expires, o.Key)
+		e.Managed = e.Expires != nil || e.ForRun || (managedFile != "" && o.Pos.File == managedFile)
 		switch o.Tier {
 		case route.TierApp:
 			t.Apps = append(t.Apps, e)
@@ -115,10 +126,8 @@ func domainTree(rules []route.Rule, expires map[string]time.Time, managedFile st
 		}
 		o := n.r.Origin
 		e := Entry{Target: o.Key, Via: n.r.Target, Source: o.Pos.String(), Depth: depth}
-		if exp, ok := expires[o.Key]; ok {
-			e.Expires = &exp
-		}
-		e.Managed = e.Expires != nil || (managedFile != "" && o.Pos.File == managedFile)
+		e.temporary(expires, o.Key)
+		e.Managed = e.Expires != nil || e.ForRun || (managedFile != "" && o.Pos.File == managedFile)
 		out = append(out, e)
 	}
 	return out

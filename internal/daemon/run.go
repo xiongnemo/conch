@@ -38,42 +38,85 @@ func (d *Daemon) Run(ctx context.Context) error {
 			}
 			d.syncSysProxy()
 		case <-tick.C:
-			d.periodic(ctx)
+			d.periodic(ctx, changes)
 		}
 	}
 }
 
-// periodic expires temporary routes and refreshes due subscriptions.
-func (d *Daemon) periodic(ctx context.Context) {
+// periodic expires temporary routes and, in the background, refreshes
+// due subscriptions, asking for a reconcile on changes when they got new
+// content: a slow provider must not hold the daemon.
+func (d *Daemon) periodic(ctx context.Context, changes chan<- struct{}) {
 	d.mu.Lock()
 	_, expired := d.state.prune(time.Now())
 	if expired {
 		d.state.save(d.statePath())
 	}
-	p := d.profile
 	d.mu.Unlock()
-	changed := expired
-	if p != nil && !d.opts.Offline {
-		for _, sub := range p.Subscriptions {
-			d.mu.Lock()
-			info := d.subInfo[sub.Name]
-			d.mu.Unlock()
-			if info == nil || time.Since(info.FetchedAt) < interval(sub.Interval, info.UpdateInterval) {
-				continue
-			}
-			if _, fresh, err := d.subs.Update(ctx, sub); err != nil {
-				fmt.Fprintln(d.opts.Log, "更新订阅失败，继续使用缓存：", err)
-			} else {
-				d.mu.Lock()
-				d.subInfo[sub.Name] = fresh
-				d.mu.Unlock()
-				changed = true
-			}
-		}
-	}
-	if changed {
+	if expired {
 		d.Reconcile(ctx)
 	}
+	if d.opts.Offline || !d.refreshing.CompareAndSwap(false, true) {
+		return
+	}
+	go func() {
+		defer d.refreshing.Store(false)
+		if d.refreshSubscriptions(ctx, time.Now()) {
+			select {
+			case changes <- struct{}{}:
+			default:
+			}
+		}
+	}()
+}
+
+// refreshSubscriptions updates the subscriptions that are due: on their
+// interval, and those that have failed, also never downloaded ones,
+// again after a minute that doubles up to half an hour.
+func (d *Daemon) refreshSubscriptions(ctx context.Context, now time.Time) bool {
+	d.mu.Lock()
+	p := d.profile
+	d.mu.Unlock()
+	if p == nil {
+		return false
+	}
+	changed := false
+	for _, sub := range p.Subscriptions {
+		d.mu.Lock()
+		info, retry := d.subInfo[sub.Name], d.subRetry[sub.Name]
+		d.mu.Unlock()
+		switch {
+		case !retry.next.IsZero():
+			if now.Before(retry.next) {
+				continue
+			}
+		case info == nil:
+			// Never downloaded: build failed on it at the start; try now.
+		case now.Sub(info.FetchedAt) < interval(sub.Interval, info.UpdateInterval):
+			continue
+		}
+		_, fresh, err := d.subs.Update(ctx, sub)
+		d.mu.Lock()
+		if err != nil {
+			retry.wait = min(max(2*retry.wait, time.Minute), 30*time.Minute)
+			retry.next = now.Add(retry.wait)
+			d.subRetry[sub.Name] = retry
+			d.mu.Unlock()
+			fmt.Fprintf(d.opts.Log, "更新订阅失败，%s 后重试：%v\n", retry.wait, err)
+			continue
+		}
+		delete(d.subRetry, sub.Name)
+		d.subInfo[sub.Name] = fresh
+		d.mu.Unlock()
+		changed = true
+	}
+	return changed
+}
+
+// subRetry is when a subscription that failed is tried next.
+type subRetry struct {
+	next time.Time
+	wait time.Duration
 }
 
 // interval is the subscription's refresh period: the profile's setting,

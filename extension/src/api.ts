@@ -114,8 +114,18 @@ export class Daemon {
     return this.req<string[]>("GET", "/suggest?host=" + encodeURIComponent(host));
   }
 
+  // setRoute returns an id undoRoute takes to put back what it replaced.
   setRoute(target: string, via: string, ttl: string) {
-    return this.req<unknown>("PUT", "/routes", { target, via, ttl });
+    return this.req<{ undo: string }>("PUT", "/routes", { target, via, ttl });
+  }
+
+  undoRoute(id: string) {
+    return this.req<unknown>("POST", "/routes/undo", { id });
+  }
+
+  // unpair ends this extension's pairing on the daemon.
+  unpair() {
+    return this.req<unknown>("DELETE", "/pairing");
   }
 
   deleteRoute(target: string) {

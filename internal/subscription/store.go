@@ -19,6 +19,10 @@ import (
 	"github.com/xiongnemo/conch/internal/model"
 )
 
+// defaultClient gives up on a provider that stops answering, so a stalled
+// server cannot hold the daemon.
+var defaultClient = &http.Client{Timeout: time.Minute}
+
 // DefaultUserAgent makes most providers answer with a Clash/mihomo config,
 // which carries more than share links do (groups, rules).
 const DefaultUserAgent = "clash.meta"
@@ -119,7 +123,7 @@ func (s *Store) Update(ctx context.Context, sub *model.Subscription) (*Snapshot,
 func (s *Store) get(ctx context.Context, url, ua string) ([]byte, http.Header, error) {
 	client := s.HTTP
 	if client == nil {
-		client = http.DefaultClient
+		client = defaultClient
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {

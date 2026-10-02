@@ -2,6 +2,7 @@ package auth
 
 import (
 	"crypto/hmac"
+	"crypto/rand"
 	"crypto/sha256"
 	"crypto/subtle"
 	"encoding/base64"
@@ -50,6 +51,9 @@ func NewGuard(s Settings) *Guard {
 // signed with the old password stop working.
 func (g *Guard) Update(s Settings) {
 	sum := sha256.Sum256([]byte("conch session v1\x00" + s.Password))
+	if s.Password == "" {
+		rand.Read(sum[:]) // no password, no sessions: a key nobody can know
+	}
 	g.mu.Lock()
 	g.settings, g.key = s, sum[:]
 	g.mu.Unlock()
@@ -261,7 +265,7 @@ func (l *limiter) wait(ip string, now time.Time) time.Duration {
 	if a == nil || a.n < 5 {
 		return 0
 	}
-	delay := min(time.Second<<(a.n-5), 15*time.Minute)
+	delay := min(time.Second<<min(a.n-5, 10), 15*time.Minute) // 2^10 s is past the cap; more would overflow
 	return max(0, a.last.Add(delay).Sub(now))
 }
 

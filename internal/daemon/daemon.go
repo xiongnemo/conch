@@ -65,6 +65,9 @@ type Daemon struct {
 	tunRouted bool
 	// inbound.system-proxy as last applied, to notice the profile changing it
 	profileSysProxy *bool
+	undos           []routeUndo         // the latest route changes, for UndoRoute
+	refreshing      atomic.Bool         // subscriptions are being refreshed
+	subRetry        map[string]subRetry // failed subscriptions, by name
 	backend         backend.Router
 	bin             string
 	home            string
@@ -114,14 +117,15 @@ func New(opts Options) (*Daemon, error) {
 	}
 	st.Backend = name
 	d := &Daemon{
-		opts:    opts,
-		backend: b,
-		state:   st,
-		sup:     kernel.NewSupervisor(),
-		home:    filepath.Join(opts.DataDir, "home", name),
-		lists:   &lists.Store{Dir: filepath.Join(opts.DataDir, "lists"), Offline: opts.Offline, Log: opts.Log},
-		subs:    &subscription.Store{Dir: filepath.Join(opts.DataDir, "subscriptions"), Offline: opts.Offline, Log: opts.Log},
-		subInfo: map[string]*subscription.Info{},
+		opts:     opts,
+		backend:  b,
+		state:    st,
+		sup:      kernel.NewSupervisor(),
+		home:     filepath.Join(opts.DataDir, "home", name),
+		lists:    &lists.Store{Dir: filepath.Join(opts.DataDir, "lists"), Offline: opts.Offline, Log: opts.Log},
+		subs:     &subscription.Store{Dir: filepath.Join(opts.DataDir, "subscriptions"), Offline: opts.Offline, Log: opts.Log},
+		subInfo:  map[string]*subscription.Info{},
+		subRetry: map[string]subRetry{},
 	}
 	// The kernel API is unauthenticated on this socket: keep it in a
 	// directory only this user can enter.
@@ -263,6 +267,11 @@ func (d *Daemon) Reconcile(ctx context.Context) error {
 	if err == nil {
 		err = d.apply(ctx, res, art)
 	}
+	if err == nil {
+		// Also when the kernel's config stays the same: the setting
+		// is conch's own.
+		d.followProfileSysProxy(res)
+	}
 	d.mu.Lock()
 	d.diags = diags
 	d.lastErr = ""
@@ -375,7 +384,11 @@ func mergeEntries(p *model.Profile, m *managed, temp []TempRoute, managedPath st
 	}
 	for _, t := range temp {
 		drop(t.Key)
-		add(t.Key, t.Via, diag.Pos{File: "临时条目，到 " + t.Expires.Local().Format("15:04")})
+		if t.Run {
+			add(t.Key, t.Via, diag.Pos{File: "临时条目，本次运行"})
+		} else {
+			add(t.Key, t.Via, diag.Pos{File: "临时条目，到 " + t.Expires.Local().Format("15:04")})
+		}
 	}
 }
 
@@ -449,7 +462,6 @@ func (d *Daemon) apply(ctx context.Context, res *compile.Result, art *backend.Ar
 	d.mu.Lock()
 	d.res, d.art, d.applied, d.appliedPort = res, art, art.Config, res.Settings.MixedPort
 	d.mu.Unlock()
-	d.followProfileSysProxy(res)
 	d.logLevel.Store(res.Settings.LogLevel)
 	if err := d.startSidecars(); err != nil {
 		return err

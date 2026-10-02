@@ -1,6 +1,7 @@
 package model
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 	"slices"
@@ -14,32 +15,73 @@ import (
 // applied, so later stages never have to deal with YAML indirection.
 // Comments are dropped: the copy is meant for machine output.
 func Flatten(n *yaml.Node) *yaml.Node {
+	f := flattener{left: -1}
+	return f.flatten(n)
+}
+
+// ErrTooLarge is FlattenWithin running out of nodes.
+var ErrTooLarge = errors.New("YAML 里的别名（& 和 *）展开以后太大")
+
+// FlattenWithin is Flatten for YAML from elsewhere: it makes at most *left
+// nodes, counting down, and fails past that. Aliases nested in aliases
+// expand exponentially: a few hundred bytes can stand for millions of nodes.
+func FlattenWithin(n *yaml.Node, left *int) (*yaml.Node, error) {
+	f := flattener{left: *left}
+	out := f.flatten(n)
+	*left = f.left
+	if f.over {
+		return nil, ErrTooLarge
+	}
+	return out, nil
+}
+
+// flattener counts the nodes it makes down from left; -1 is no limit.
+type flattener struct {
+	left int
+	over bool
+}
+
+func (f *flattener) node(n *yaml.Node) *yaml.Node {
+	if f.left > 0 {
+		f.left--
+	} else if f.left == 0 {
+		f.over = true
+	}
+	return &yaml.Node{Kind: n.Kind, Tag: n.Tag, Value: n.Value, Style: n.Style, Line: n.Line, Column: n.Column}
+}
+
+func (f *flattener) flatten(n *yaml.Node) *yaml.Node {
 	if n == nil {
 		return nil
 	}
+	if f.over {
+		return &yaml.Node{Kind: yaml.ScalarNode} // stop copying
+	}
 	switch n.Kind {
 	case yaml.AliasNode:
-		return Flatten(n.Alias)
+		return f.flatten(n.Alias)
 	case yaml.MappingNode:
-		return flattenMapping(n)
+		return f.flattenMapping(n)
 	case yaml.DocumentNode, yaml.SequenceNode:
-		out := &yaml.Node{Kind: n.Kind, Tag: n.Tag, Style: n.Style, Line: n.Line, Column: n.Column}
+		out := f.node(n)
+		out.Value = ""
 		for _, c := range n.Content {
-			out.Content = append(out.Content, Flatten(c))
+			out.Content = append(out.Content, f.flatten(c))
 		}
 		return out
 	default:
-		return &yaml.Node{Kind: n.Kind, Tag: n.Tag, Value: n.Value, Style: n.Style, Line: n.Line, Column: n.Column}
+		return f.node(n)
 	}
 }
 
-func flattenMapping(n *yaml.Node) *yaml.Node {
-	out := &yaml.Node{Kind: yaml.MappingNode, Tag: n.Tag, Style: n.Style, Line: n.Line, Column: n.Column}
+func (f *flattener) flattenMapping(n *yaml.Node) *yaml.Node {
+	out := f.node(n)
+	out.Value = ""
 	var merged []*yaml.Node
 	for i := 0; i+1 < len(n.Content); i += 2 {
 		k, v := n.Content[i], n.Content[i+1]
 		if k.Kind == yaml.ScalarNode && k.Tag == "!!merge" {
-			src := Flatten(v)
+			src := f.flatten(v)
 			sources := []*yaml.Node{src}
 			if src.Kind == yaml.SequenceNode {
 				sources = src.Content
@@ -57,7 +99,7 @@ func flattenMapping(n *yaml.Node) *yaml.Node {
 			}
 			continue
 		}
-		out.Content = append(out.Content, Flatten(k), Flatten(v))
+		out.Content = append(out.Content, f.flatten(k), f.flatten(v))
 	}
 	// Explicit keys override merged ones.
 	for j := 0; j+1 < len(merged); j += 2 {

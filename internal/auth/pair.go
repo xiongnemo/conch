@@ -168,6 +168,16 @@ func (p *Pairings) List() []Pairing {
 }
 
 // Revoke forgets a pairing; its token stops working at once.
+// RevokeToken ends the pairing a token belongs to: an extension unpairing
+// itself.
+func (p *Pairings) RevokeToken(token string) (bool, error) {
+	pairing, ok := p.Lookup(token)
+	if !ok {
+		return false, nil
+	}
+	return p.Revoke(pairing.ID)
+}
+
 func (p *Pairings) Revoke(id string) (bool, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -207,6 +217,8 @@ var extensionScope = map[string]bool{
 	"GET /api/v1/status":        true,
 	"GET /api/v1/routes":        true,
 	"PUT /api/v1/routes":        true,
+	"POST /api/v1/routes/undo":  true,
+	"DELETE /api/v1/pairing":    true, // the extension unpairing itself
 	"DELETE /api/v1/routes":     true,
 	"GET /api/v1/route/explain": true,
 	"GET /api/v1/outbounds":     true,

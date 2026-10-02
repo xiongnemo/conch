@@ -142,7 +142,7 @@ inbound: { mixed-port: %d }
 	waitFor(t, "A to forward to B and B to reach echo2.test", func() bool {
 		return strings.Contains(hopA.out.String(), fmt.Sprintf("--> 127.0.0.1:%d", portB)) && strings.Contains(hopB.out.String(), fmt.Sprintf("echo2.test:%d", echoPort))
 	})
-	if err := d.SetRoute(ctx, "echo.test", "A", time.Hour); err != nil {
+	if _, err := d.SetRoute(ctx, "echo.test", "A", time.Hour); err != nil {
 		t.Fatal(err)
 	}
 	if got := via("temporary route"); got != "A" {
@@ -153,6 +153,31 @@ inbound: { mixed-port: %d }
 	}
 	if got := via("route deleted"); got != "B" {
 		t.Fatalf("after deleting the temporary route (selection B), traffic goes via %s", got)
+	}
+	// Undo puts back what a change replaced: undoing a temporary route
+	// over a permanent one keeps the permanent one.
+	permanent, err := d.SetRoute(ctx, "echo.test", "A", 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	temporary, err := d.SetRoute(ctx, "echo.test", "B", daemon.ForRun)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := via("temporary over permanent"); got != "B" {
+		t.Fatalf("a temporary route to B over a permanent one to A goes via %s", got)
+	}
+	if err := d.UndoRoute(ctx, temporary); err != nil {
+		t.Fatal(err)
+	}
+	if got := via("temporary undone"); got != "A" {
+		t.Fatalf("after undoing the temporary route, traffic goes via %s, want the permanent A", got)
+	}
+	if err := d.UndoRoute(ctx, permanent); err != nil {
+		t.Fatal(err)
+	}
+	if got := via("permanent undone"); got != "B" {
+		t.Fatalf("after undoing the permanent route (selection B), traffic goes via %s", got)
 	}
 
 	// A broken edit must keep the last good config running.

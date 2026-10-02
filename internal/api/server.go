@@ -73,6 +73,8 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /api/v1/delay", s.delay)
 	mux.HandleFunc("GET /api/v1/routes", s.routes)
 	mux.HandleFunc("PUT /api/v1/routes", s.setRoute)
+	mux.HandleFunc("POST /api/v1/routes/undo", s.undoRoute)
+	mux.HandleFunc("DELETE /api/v1/pairing", s.unpairSelf)
 	mux.HandleFunc("DELETE /api/v1/routes", s.deleteRoute)
 	mux.HandleFunc("GET /api/v1/route/explain", s.explain)
 	mux.HandleFunc("PUT /api/v1/mode", s.setMode)
@@ -217,20 +219,55 @@ func (s *Server) setRoute(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		Target string `json:"target"`
 		Via    string `json:"via"`
-		TTL    string `json:"ttl"` // e.g. "2h"; empty for a permanent route
+		TTL    string `json:"ttl"` // e.g. "2h"; "run" until conch stops; empty for a permanent route
 	}
 	if !decode(w, r, &body) {
 		return
 	}
 	var ttl time.Duration
-	if body.TTL != "" {
+	switch body.TTL {
+	case "":
+	case "run":
+		ttl = daemon.ForRun
+	default:
 		var err error
 		if ttl, err = time.ParseDuration(body.TTL); err != nil || ttl <= 0 {
-			fail(w, fmt.Errorf("ttl 应该写成 30m、2h 这样的时长"))
+			fail(w, fmt.Errorf("ttl 应该写成 30m、2h 这样的时长，或者 run（到 conch 停止为止）"))
 			return
 		}
 	}
-	s.done(w, s.D.SetRoute(r.Context(), strings.TrimSpace(body.Target), body.Via, ttl))
+	undo, err := s.D.SetRoute(r.Context(), strings.TrimSpace(body.Target), body.Via, ttl)
+	if err != nil {
+		fail(w, err)
+		return
+	}
+	writeJSON(w, map[string]string{"undo": undo})
+}
+
+// unpairSelf ends the pairing of the extension asking, so unpairing in the
+// extension also locks its token out.
+func (s *Server) unpairSelf(w http.ResponseWriter, r *http.Request) {
+	token, ok := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer ")
+	if !ok || s.Guard.Pairings == nil {
+		fail(w, errors.New("只有配对过的浏览器扩展可以这样取消配对"))
+		return
+	}
+	if _, err := s.Guard.Pairings.RevokeToken(token); err != nil {
+		fail(w, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// undoRoute puts back what a route change replaced.
+func (s *Server) undoRoute(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		ID string `json:"id"`
+	}
+	if !decode(w, r, &body) {
+		return
+	}
+	s.done(w, s.D.UndoRoute(r.Context(), body.ID))
 }
 
 func (s *Server) deleteRoute(w http.ResponseWriter, r *http.Request) {

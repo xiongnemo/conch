@@ -32,11 +32,13 @@ type DNSState struct {
 	Previous string `json:"previous,omitempty"`
 }
 
-// TempRoute is a manual route that expires, e.g. "this site via X for 2h".
+// TempRoute is a manual route that expires, e.g. "this site via X for 2h",
+// or lasts until conch stops (Run).
 type TempRoute struct {
 	Key     string    `json:"key"`
 	Via     string    `json:"via"`
-	Expires time.Time `json:"expires"`
+	Expires time.Time `json:"expires,omitzero"`
+	Run     bool      `json:"run,omitempty"`
 }
 
 // SysProxyState remembers whether the user wants the system proxy and
@@ -85,7 +87,9 @@ func (s *State) save(path string) error {
 func (s *State) prune(now time.Time) (next time.Time, changed bool) {
 	kept := s.Temp[:0]
 	for _, t := range s.Temp {
-		if t.Expires.After(now) {
+		if t.Run {
+			kept = append(kept, t)
+		} else if t.Expires.After(now) {
 			kept = append(kept, t)
 			if next.IsZero() || t.Expires.Before(next) {
 				next = t.Expires

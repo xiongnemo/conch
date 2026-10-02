@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"runtime"
+	"strings"
 	"sync"
 	"time"
 )
@@ -227,11 +228,23 @@ func (s *Supervisor) Status() Status {
 	return s.status
 }
 
+// pump passes the kernel's lines on, cutting lines longer than 64 KiB to
+// their start: it must keep reading, or the kernel blocks writing its log
+// and never exits.
 func (s *Supervisor) pump(r io.Reader) {
-	sc := bufio.NewScanner(r)
-	sc.Buffer(make([]byte, 64*1024), 1024*1024)
-	for sc.Scan() {
-		s.line(sc.Text())
+	br := bufio.NewReaderSize(r, 64*1024)
+	for {
+		chunk, err := br.ReadSlice('\n')
+		line := strings.TrimRight(string(chunk), "\r\n")
+		for err == bufio.ErrBufferFull {
+			_, err = br.ReadSlice('\n') // the rest of a long line
+		}
+		if line != "" || err == nil {
+			s.line(line)
+		}
+		if err != nil {
+			return
+		}
 	}
 }
 

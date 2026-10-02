@@ -144,3 +144,30 @@ func TestOnRestart(t *testing.T) {
 		t.Errorf("restarts = %d", n)
 	}
 }
+
+// A line too long to keep is cut, and the lines after it still arrive:
+// the kernel never blocks on its log.
+func TestLongLogLine(t *testing.T) {
+	s := NewSupervisor()
+	script := `head -c 2097152 /dev/zero | tr '\0' x; echo; echo after; exec sleep 30`
+	if err := s.Start(Spec{Path: "/bin/sh", Args: []string{"-c", script}}); err != nil {
+		t.Fatal(err)
+	}
+	deadline := time.Now().Add(5 * time.Second)
+	for !slices.Contains(s.Logs.Lines(), "after") {
+		if time.Now().After(deadline) {
+			t.Fatalf("the line after a 2 MiB one never arrived")
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	if lines := s.Logs.Lines(); len(lines[0]) != 64*1024-1 && len(lines[0]) != 64*1024 {
+		t.Errorf("long line kept as %d bytes", len(lines[0]))
+	}
+	stopped := make(chan struct{})
+	go func() { s.Stop(); close(stopped) }()
+	select {
+	case <-stopped:
+	case <-time.After(10 * time.Second):
+		t.Fatal("Stop hung")
+	}
+}

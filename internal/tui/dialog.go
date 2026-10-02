@@ -50,7 +50,7 @@ func (d *confirmDialog) hints() string { return "y 确定 · n 取消" }
 var ttls = []struct {
 	label string
 	d     time.Duration
-}{{"永久", 0}, {"30 分钟", 30 * time.Minute}, {"1 小时", time.Hour}, {"8 小时", 8 * time.Hour}}
+}{{"永久", 0}, {"30 分钟", 30 * time.Minute}, {"1 小时", time.Hour}, {"8 小时", 8 * time.Hour}, {"本次运行", daemon.ForRun}}
 
 // routeDialog sends a target to an outbound: the "指哪打哪" form behind
 // adding entries, editing them and routing a site from a connection.
@@ -212,7 +212,10 @@ func (d *routeDialog) submit(m *Model) tea.Cmd {
 	via, ttl := vias[min(d.via, len(vias)-1)].Name, ttls[d.ttl]
 	m.dialog = nil
 	ok := fmt.Sprintf("已添加条目 %s → %s", target, via)
-	if ttl.d > 0 {
+	switch {
+	case ttl.d == daemon.ForRun:
+		ok += "（conch 停止时删除）"
+	case ttl.d > 0:
 		ok += "（" + ttl.label + "后自动删除）"
 	}
 	return m.do(ok, func(ctx context.Context) error { return m.c.SetRoute(ctx, target, via, ttl.d) })

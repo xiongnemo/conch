@@ -140,6 +140,18 @@ inbound: { mixed-port: %d }
 	guard.Pairings.Revoke(guard.Pairings.List()[0].ID)
 	popup.eval(t, `location.reload()`)
 	popup.waitText(t, "form.pair", "配对已失效")
+
+	// Unpairing in the extension ends the pairing on the daemon too.
+	code, _ = guard.Pairings.NewCode(time.Now())
+	popup.eval(t, fmt.Sprintf(`document.querySelector("#base").value = %q; document.querySelector("#code").value = %q;
+		document.querySelector("form.pair").requestSubmit()`, srv.URL, code))
+	popup.waitText(t, "header .pill", "mihomo")
+	if n := len(guard.Pairings.List()); n != 1 {
+		t.Fatalf("%d pairings after pairing again", n)
+	}
+	popup.eval(t, `[...document.querySelectorAll("footer button")].find((b) => b.textContent === "取消配对").click()`)
+	popup.waitText(t, "form.pair", "conch pair")
+	waitFor(t, "the daemon to forget the pairing", func() bool { return len(guard.Pairings.List()) == 0 })
 }
 
 // grantAllSites copies the extension, asking for every site up front: a
