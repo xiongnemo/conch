@@ -204,6 +204,13 @@
     },
     {
       "index": 27,
+      "rule": "DST-PORT,80/443,DIRECT",
+      "tier": "list",
+      "key": "rules-b",
+      "source": "../testdata/runs.profile.yaml:12"
+    },
+    {
+      "index": 28,
       "rule": "MATCH,代理",
       "tier": "default",
       "key": "default",

@@ -4,6 +4,7 @@ package daemon
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -32,6 +33,7 @@ import (
 	"github.com/xiongnemo/conch/internal/lists"
 	"github.com/xiongnemo/conch/internal/model"
 	"github.com/xiongnemo/conch/internal/platform/firewall"
+	"github.com/xiongnemo/conch/internal/platform/privilege"
 	"github.com/xiongnemo/conch/internal/platform/tunroute"
 	"github.com/xiongnemo/conch/internal/route"
 	"github.com/xiongnemo/conch/internal/subscription"
@@ -134,6 +136,13 @@ func New(opts Options) (*Daemon, error) {
 		return nil, err
 	}
 	os.Chmod(runDir, 0o700)
+	// A daemon that died may have left its kernel running, on the ports
+	// this one needs; also another kernel, from before a switch.
+	for _, k := range []string{"mihomo", "xray", "sing-box"} {
+		if kernel.KillOrphan(filepath.Join(runDir, k+".pid")) {
+			fmt.Fprintf(opts.Log, "已结束上次没有退出的 %s 内核\n", k)
+		}
+	}
 	d.socket = filepath.Join(runDir, name+".sock")
 	if err := os.MkdirAll(d.home, 0o755); err != nil {
 		return nil, err
@@ -333,6 +342,18 @@ func (d *Daemon) build(ctx context.Context) (*compile.Result, *backend.Artifact,
 	res := compile.Compile(merged)
 	diags = append(diags, res.Diags...)
 	res.Select(selections)
+	// TUN asked for in the profile gets the check the switch does: a
+	// kernel that cannot create the device would fail where a check of
+	// its config cannot tell (mihomo even reloads without a word).
+	if res.Settings.TUN.Enable && d.backend.Capabilities().TUN {
+		if err := privilege.TUNError(d.bin); err != nil {
+			diags.Errorf(diag.Pos{}, "%v", err)
+		} else if d.backend.Name() == "xray" {
+			if err := privilege.RoutesError(); err != nil {
+				diags.Errorf(diag.Pos{}, "%v", err)
+			}
+		}
+	}
 	if diags.HasErrors() {
 		return res, nil, diags, nil
 	}
@@ -411,6 +432,14 @@ func (d *Daemon) apply(ctx context.Context, res *compile.Result, art *backend.Ar
 		return d.startSidecars()
 	}
 
+	// A port someone else holds: mihomo would reload without a word and
+	// listen nowhere, the others fail to start.
+	if !running || oldPort != res.Settings.MixedPort {
+		if err := portFree(res.Settings); err != nil {
+			return err
+		}
+	}
+
 	final := filepath.Join(d.home, d.ctl.ConfigFile())
 	// xray picks the format from the extension, so keep it last.
 	next := filepath.Join(d.home, "next."+d.ctl.ConfigFile())
@@ -440,24 +469,15 @@ func (d *Daemon) apply(ctx context.Context, res *compile.Result, art *backend.Ar
 		if errors.Is(err, control.ErrRestart) {
 			restarted = true
 		} else if err != nil {
+			d.rollback(ctx, final)
 			return fmt.Errorf("重载内核配置：%w", err)
 		}
 	}
 	if restarted {
-		spec := d.ctl.Spec(d.bin, d.home, final)
-		for _, s := range append([]string{d.socket}, d.probes...) {
-			spec.Clean = append(spec.Clean, s, s+".lock") // xray locks its sockets
-		}
-		if err := d.sup.Start(spec); err != nil {
+		if err := d.start(ctx, final, res); err != nil {
+			d.rollback(ctx, final)
 			return err
 		}
-		if err := d.waitReady(ctx, res.Settings.MixedPort); err != nil {
-			return err
-		}
-		if err := d.routeTUN(res); err != nil {
-			return err
-		}
-		d.startTraffic()
 	}
 	d.mu.Lock()
 	d.res, d.art, d.applied, d.appliedPort = res, art, art.Config, res.Settings.MixedPort
@@ -470,6 +490,64 @@ func (d *Daemon) apply(ctx context.Context, res *compile.Result, art *backend.Ar
 		d.restoreSelections(ctx, res)
 	}
 	return nil
+}
+
+// portFree reports a mixed port another program listens on.
+func portFree(s compile.Settings) error {
+	host := "127.0.0.1"
+	if s.AllowLAN {
+		host = cmp.Or(s.BindAddress, "0.0.0.0")
+	}
+	ln, err := net.Listen("tcp", net.JoinHostPort(host, strconv.Itoa(s.MixedPort)))
+	if err != nil {
+		return fmt.Errorf("代理端口 %d 已经被别的程序占用了：可以退出那个程序，或者在 profile 里改 inbound.mixed-port", s.MixedPort)
+	}
+	ln.Close()
+	return nil
+}
+
+// start (re)starts the kernel on its config file and waits until it works.
+func (d *Daemon) start(ctx context.Context, final string, res *compile.Result) error {
+	spec := d.ctl.Spec(d.bin, d.home, final)
+	spec.PidFile = filepath.Join(filepath.Dir(d.socket), d.backend.Name()+".pid")
+	for _, s := range append([]string{d.socket}, d.probes...) {
+		spec.Clean = append(spec.Clean, s, s+".lock") // xray locks its sockets
+	}
+	if err := d.sup.Start(spec); err != nil {
+		return err
+	}
+	if err := d.waitReady(ctx, res.Settings.MixedPort); err != nil {
+		return err
+	}
+	if err := d.routeTUN(res); err != nil {
+		return err
+	}
+	d.startTraffic()
+	return nil
+}
+
+// rollback puts the last config that worked back after a new one made
+// the kernel fail where checking it could not tell (a port taken, TUN
+// without the rights), so a bad change never leaves the user without a
+// proxy. With no config that worked yet, the supervisor keeps retrying.
+func (d *Daemon) rollback(ctx context.Context, final string) {
+	d.mu.Lock()
+	prev, res := d.applied, d.res
+	d.mu.Unlock()
+	if prev == nil || res == nil {
+		return
+	}
+	fmt.Fprintln(d.opts.Log, "新配置让内核出错，已换回上一份可用的配置")
+	if err := os.WriteFile(final, prev, 0o600); err != nil {
+		fmt.Fprintln(d.opts.Log, "警告：", err)
+		return
+	}
+	if err := d.ctl.Reload(ctx, prev, true); err == nil && d.sup.Status().State == kernel.Running {
+		return
+	}
+	if err := d.start(ctx, final, res); err != nil {
+		fmt.Fprintln(d.opts.Log, "警告：上一份配置也没能启动内核：", err)
+	}
 }
 
 // waitReady waits until the kernel API answers and the proxy port accepts.

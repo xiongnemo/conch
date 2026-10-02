@@ -143,9 +143,6 @@
         "action": "sniff"
       },
       {
-        "action": "resolve"
-      },
-      {
         "process_name": [
           "Telegram"
         ],
@@ -228,6 +225,9 @@
         ],
         "action": "route",
         "outbound": "DIRECT"
+      },
+      {
+        "action": "resolve"
       },
       {
         "ip_cidr": [

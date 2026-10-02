@@ -88,6 +88,14 @@
       "tier": "list",
       "key": "rules-b",
       "source": "../testdata/runs.profile.yaml:12"
+    },
+    {
+      "index": 27,
+      "rule": "{\"port\":\"80,443\",\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#27 rules-b\"}",
+      "tag": "#27 rules-b",
+      "tier": "list",
+      "key": "rules-b",
+      "source": "../testdata/runs.profile.yaml:12"
     }
   ],
   "tags": {

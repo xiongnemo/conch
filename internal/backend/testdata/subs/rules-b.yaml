@@ -14,4 +14,5 @@ rules:
   - IP-CIDR,198.51.100.0/24,DIRECT,no-resolve
   - DOMAIN-SUFFIX,e.example,DIRECT
   - DOMAIN-SUFFIX,f.example,代理
+  - DST-PORT,80/443,DIRECT
   - MATCH,代理

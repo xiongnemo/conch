@@ -88,6 +88,7 @@ func (Backend) Encode(r *compile.Result, opts backend.Options) (*backend.Artifac
 	for _, g := range r.Groups {
 		cfg.Outbounds = append(cfg.Outbounds, e.group(g))
 	}
+	final := e.final() // before the block outbound: a final REJECT needs it
 	if e.needsReject {
 		cfg.Outbounds = append(cfg.Outbounds, outbound{Type: "block", Tag: "REJECT"})
 	}
@@ -95,7 +96,7 @@ func (Backend) Encode(r *compile.Result, opts backend.Options) (*backend.Artifac
 	cfg.Inbounds = e.inbounds()
 	cfg.Route.Rules = e.rules()
 	cfg.Route.RuleSet = e.ruleSets
-	cfg.Route.Final = e.final()
+	cfg.Route.Final = final
 	// Binding outbounds to the default interface keeps TUN's own traffic
 	// out of TUN; a plain proxy leaves routing to the system (loopback,
 	// the LAN, VPNs), as mihomo's config does.
@@ -164,9 +165,14 @@ func (e *encoder) final() string {
 		return "DIRECT"
 	}
 	for _, r := range e.r.Rules {
-		if r.Match == route.MatchFinal && r.Target != "REJECT" && r.Target != "REJECT-DROP" {
-			return r.Target
+		if r.Match != route.MatchFinal {
+			continue
 		}
+		if r.Target == "REJECT" || r.Target == "REJECT-DROP" {
+			e.needsReject = true // only the block outbound can be the final one
+			return "REJECT"
+		}
+		return r.Target
 	}
 	return "DIRECT"
 }
@@ -228,15 +234,21 @@ func (e *encoder) rules() []rule {
 		case route.MatchIPCIDR:
 			xs = []rule{{IPCIDR: []string{r.Value}}}
 			if !r.NoResolve && !resolved {
-				// From here on, IP rules also see the domain's addresses.
-				out = append(out, rule{Action: "resolve"})
+				// From here on, IP rules also see the domain's addresses;
+				// the rules before still match by name.
+				user = append(user, emitted{-1, rule{Action: "resolve"}})
 				resolved = true
 				e.d.Warnf(r.Origin.Pos, "sing-box：从 IP 条目 %s（resolve: true）开始，之后匹配的连接会先在本机解析域名，并用解析出的 IP 连接出口", r.Origin.Key)
 			}
 		case route.MatchRuleSet:
 			xs = e.listRules(r)
 		case route.MatchDstPort:
-			xs = []rule{portRule(r.Value)}
+			pr, ok := portRule(r.Value)
+			if !ok {
+				e.d.Warnf(r.Origin.Pos, "端口规则 %q 看不懂，已跳过", r.Value)
+				continue
+			}
+			xs = []rule{pr}
 		case route.MatchNetwork:
 			xs = []rule{{Network: strings.Split(strings.ToLower(r.Value), ",")}}
 		case route.MatchRaw:
@@ -263,6 +275,9 @@ func (e *encoder) rules() []rule {
 	}
 	for _, u := range user {
 		out = append(out, u.rule)
+		if u.index < 0 {
+			continue // the resolve action
+		}
 		data, _ := json.Marshal(u.rule)
 		r := e.r.Rules[u.index]
 		mr := backend.ManifestRule{Index: u.index, Rule: string(data), Tier: r.Origin.Tier.String(), Key: r.Origin.Key, Source: r.Origin.Pos.String(), Builtin: r.Origin.Builtin}
@@ -285,17 +300,23 @@ func setTarget(r *rule, target string) {
 	}
 }
 
-func portRule(value string) rule {
+// portRule reads ports as mihomo writes them ("443", "80,443", "80/443",
+// "1000-2000"). It reports false when nothing in value is a port: a rule
+// without conditions would match everything.
+func portRule(value string) (rule, bool) {
 	var r rule
-	for _, p := range strings.Split(value, ",") {
-		p = strings.TrimSpace(p)
+	for _, p := range strings.FieldsFunc(value, func(c rune) bool { return c == ',' || c == '/' || c == ' ' }) {
 		if lo, hi, ok := strings.Cut(p, "-"); ok {
-			r.PortRange = append(r.PortRange, lo+":"+hi)
-		} else if n, err := strconv.Atoi(p); err == nil {
+			l, err1 := strconv.Atoi(lo)
+			h, err2 := strconv.Atoi(hi)
+			if err1 == nil && err2 == nil && 0 < l && l <= h && h <= 65535 {
+				r.PortRange = append(r.PortRange, fmt.Sprintf("%d:%d", l, h))
+			}
+		} else if n, err := strconv.Atoi(p); err == nil && 0 < n && n <= 65535 {
 			r.Port = append(r.Port, n)
 		}
 	}
-	return r
+	return r, len(r.Port)+len(r.PortRange) > 0
 }
 
 // listRules turns a rule list into sing-box rules: geosite/geoip
@@ -392,8 +413,9 @@ func entryRules(e *encoder, entries []lists.Entry) []rule {
 		case lists.ProcessPath:
 			procs.ProcessPath = append(procs.ProcessPath, en.Value)
 		case lists.DstPort:
-			p := portRule(en.Value)
-			ports.Port, ports.PortRange = append(ports.Port, p.Port...), append(ports.PortRange, p.PortRange...)
+			if p, ok := portRule(en.Value); ok {
+				ports.Port, ports.PortRange = append(ports.Port, p.Port...), append(ports.PortRange, p.PortRange...)
+			}
 		case lists.Network:
 			networks.Network = append(networks.Network, strings.ToLower(en.Value))
 		}

@@ -9,6 +9,7 @@ import (
 
 	"go.yaml.in/yaml/v3"
 
+	"github.com/xiongnemo/conch/internal/compile"
 	"github.com/xiongnemo/conch/internal/diag"
 	"github.com/xiongnemo/conch/internal/model"
 	"github.com/xiongnemo/conch/internal/route"
@@ -83,13 +84,35 @@ func (m *merger) nodes() {
 		if (keep != nil && !keep.MatchString(n.Name)) || (drop != nil && drop.MatchString(n.Name)) {
 			continue
 		}
-		n.Name = m.claim(n.Name)
+		// A broken node is left out, not allowed to break the profile.
+		orig := n.Name
+		if strings.TrimSpace(orig) == "" {
+			m.d.Warnf(m.sub.Pos, "订阅 %q 里有一个节点没有名字，已跳过", m.sub.Name)
+			continue
+		}
+		if n.View.Type == "" {
+			m.d.Warnf(m.sub.Pos, "订阅 %q 的节点 %q 没有写 type，已跳过", m.sub.Name, orig)
+			continue
+		}
+		// Claimed as the compiler will spell it, so two names that only
+		// differ in what it cleans up ("a", "a ") cannot collide later.
+		n.Name = m.claim(compile.Sanitize(orig))
+		m.names[orig] = n.Name
 		model.SetKey(n.Raw, "name", model.Str(n.Name))
 		m.p.Nodes = append(m.p.Nodes, n)
 		kept++
 	}
 	if kept == 0 {
 		m.d.Warnf(m.sub.Pos, "订阅 %q 过滤后没有剩下任何节点", m.sub.Name)
+	}
+	// A node that dials through another follows that node's new name.
+	for _, n := range m.p.Nodes[len(m.p.Nodes)-kept:] {
+		if via := n.View.DialerProxy; via != "" {
+			if renamed, ok := m.names[via]; ok && renamed != via {
+				model.SetKey(n.Raw, "dialer-proxy", model.Str(renamed))
+				n.View.DialerProxy = renamed
+			}
+		}
 	}
 }
 

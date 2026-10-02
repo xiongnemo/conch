@@ -227,6 +227,14 @@
       "tier": "list",
       "key": "rules-b",
       "source": "../testdata/runs.profile.yaml:12"
+    },
+    {
+      "index": 27,
+      "rule": "{\"port\":[80,443],\"action\":\"route\",\"outbound\":\"DIRECT\"}",
+      "tag": "port=[80 443]",
+      "tier": "list",
+      "key": "rules-b",
+      "source": "../testdata/runs.profile.yaml:12"
     }
   ]
 }

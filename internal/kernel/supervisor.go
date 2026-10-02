@@ -26,6 +26,9 @@ type Spec struct {
 	// the next one, removed before every start: on Windows, a unix
 	// socket's file outlives the process, and listening on it fails.
 	Clean []string
+	// PidFile records the running process, for KillOrphan after the
+	// daemon died without stopping it.
+	PidFile string
 }
 
 type State string
@@ -127,10 +130,16 @@ func (s *Supervisor) launch(gen int) error {
 			return
 		}
 		afterStart(cmd)
+		if spec.PidFile != "" {
+			os.WriteFile(spec.PidFile, fmt.Appendf(nil, "%d\n%s\n", cmd.Process.Pid, spec.Path), 0o600)
+		}
 		go s.pump(pr)
 		started <- result{cmd: cmd}
 		<-registered
 		err := cmd.Wait()
+		if spec.PidFile != "" {
+			os.Remove(spec.PidFile)
+		}
 		pw.Close()
 		close(exited)
 		s.exitedWith(gen, err)

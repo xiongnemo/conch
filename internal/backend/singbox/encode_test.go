@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -70,5 +71,44 @@ func TestControllerOptions(t *testing.T) {
 	}
 	if !strings.Contains(string(art.Config), `"action": "sniff"`) {
 		t.Error("connections must be sniffed so domain rules apply to clients that connect by IP")
+	}
+}
+
+// Ports as mihomo writes them; nothing readable is no rule at all, as a
+// rule without conditions would match every connection.
+func TestPortRule(t *testing.T) {
+	for in, want := range map[string]string{
+		"443":       `{"port":[443]}`,
+		"80/443":    `{"port":[80,443]}`,
+		"80,443":    `{"port":[80,443]}`,
+		"1000-2000": `{"port_range":["1000:2000"]}`,
+		"abc":       "",
+		"0/70000":   "",
+	} {
+		r, ok := portRule(in)
+		got := ""
+		if ok {
+			data, _ := json.Marshal(r)
+			got = string(data)
+		}
+		if got != want {
+			t.Errorf("portRule(%q) = %s, want %s", in, got, want)
+		}
+	}
+}
+
+// default: REJECT stays a refusal, not DIRECT.
+func TestFinalReject(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "profile.yaml")
+	os.WriteFile(path, []byte("routes:\n  default: REJECT\n"), 0o644)
+	art, d := backendtest.Build(t, Backend{}, path, backend.Options{})
+	if art == nil {
+		t.Fatal(d)
+	}
+	var cfg config
+	json.Unmarshal(art.Config, &cfg)
+	blocks := slices.ContainsFunc(cfg.Outbounds, func(o outbound) bool { return o.Tag == "REJECT" && o.Type == "block" })
+	if cfg.Route.Final != "REJECT" || !blocks {
+		t.Errorf("final = %q, block outbound %v", cfg.Route.Final, blocks)
 	}
 }

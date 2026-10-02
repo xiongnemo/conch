@@ -195,6 +195,10 @@ func (r *Result) FollowingMember(copy *Group, member string) string {
 
 // sanitize makes a name safe for every backend: Clash rule lines split on
 // commas and trim spaces, and HopSep and TagEnd are reserved.
+// Sanitize is the name a node, group or chain gets: without the commas
+// that split Clash rule lines and the separators conch reserves.
+func Sanitize(name string) string { return sanitize(name) }
+
 func sanitize(name string) string {
 	name = strings.TrimSpace(name)
 	name = strings.ReplaceAll(name, ",", "，")

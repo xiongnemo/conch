@@ -161,6 +161,11 @@
         ],
         "balancerTag": "代理",
         "ruleTag": "#26 rules-b"
+      },
+      {
+        "port": "80,443",
+        "outboundTag": "DIRECT",
+        "ruleTag": "#27 rules-b"
       }
     ],
     "balancers": [

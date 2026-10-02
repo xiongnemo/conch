@@ -330,7 +330,8 @@ func (e *encoder) rules() []rule {
 		case route.MatchRuleSet:
 			xs = e.listRules(r)
 		case route.MatchDstPort:
-			xs = []rule{{Port: r.Value}}
+			// xray lists ports with commas; mihomo also with "/".
+			xs = []rule{{Port: strings.ReplaceAll(r.Value, "/", ",")}}
 		case route.MatchNetwork:
 			xs = []rule{{Network: r.Value}}
 		case route.MatchRaw:

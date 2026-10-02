@@ -194,6 +194,22 @@ inbound: { mixed-port: %d }
 		t.Fatalf("after adding echo.test: A, traffic goes via %s", got)
 	}
 
+	// A config that checks out but fails in the kernel (its port is
+	// taken) is rolled back: the old one keeps the proxy working.
+	taken, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer taken.Close()
+	src, _ := os.ReadFile(profile)
+	os.WriteFile(profile, []byte(strings.Replace(string(src), fmt.Sprintf("mixed-port: %d", mixed), fmt.Sprintf("mixed-port: %d", taken.Addr().(*net.TCPAddr).Port), 1)), 0o644)
+	waitFor(t, "the failed config to be reported", func() bool { return d.Status().Error != "" })
+	if got := via("rolled back"); got != "A" {
+		t.Fatalf("after a config the kernel could not run, traffic goes via %s on the old port", got)
+	}
+	os.WriteFile(profile, src, 0o644)
+	waitFor(t, "the profile to work again", func() bool { return d.Status().Error == "" })
+
 	// UIs show which member a group uses, as the kernel reports it.
 	for _, o := range d.Outbounds(ctx) {
 		if o.Name == "选择" && o.Now != "B" {

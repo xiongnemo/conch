@@ -258,6 +258,14 @@
         ],
         "action": "route",
         "outbound": "代理"
+      },
+      {
+        "port": [
+          80,
+          443
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
       }
     ],
     "final": "代理",

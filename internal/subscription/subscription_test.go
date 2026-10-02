@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"github.com/xiongnemo/conch/internal/compile"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -184,5 +185,63 @@ func TestAliasBomb(t *testing.T) {
 	}
 	if _, err := Parse([]byte(body), nil); err == nil || !strings.Contains(err.Error(), "太大") {
 		t.Errorf("Parse = %v, want it refused", err)
+	}
+}
+
+// Nodes a provider got wrong are left out with a warning; the rest of
+// the subscription, and the profile, keep working.
+func TestBrokenNodesAreSkipped(t *testing.T) {
+	snap, err := Parse([]byte(`proxies:
+  - { name: good, type: socks5, server: 192.0.2.1, port: 1 }
+  - { type: socks5, server: 192.0.2.2, port: 1 }
+  - { name: typeless, server: 192.0.2.3, port: 1 }
+  - { name: "good ", type: socks5, server: 192.0.2.4, port: 1 }
+proxy-groups:
+  - { name: G, type: select, proxies: [good, "good "] }
+`), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	p, err := model.Parse([]byte("subscriptions:\n  - { name: s, url: https://example.com/s, import: [nodes, groups] }\nroutes:\n  default: G\n"), "profile.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var d diag.List
+	Apply(p, map[string]*Snapshot{"s": snap}, &d)
+	res := compile.Compile(p)
+	if res.Diags.HasErrors() || d.HasErrors() {
+		t.Fatalf("compile: %v %v", d, res.Diags)
+	}
+	if n := len(p.Nodes); n != 2 {
+		t.Errorf("%d nodes kept, want good and a renamed second good", n)
+	}
+	if !strings.Contains(fmt.Sprint(d), "没有名字") || !strings.Contains(fmt.Sprint(d), "没有写 type") {
+		t.Errorf("warnings: %v", d)
+	}
+}
+
+// A node dialing through another keeps doing so when that one is renamed
+// for clashing with the profile.
+func TestDialerProxyFollowsRename(t *testing.T) {
+	snap, err := Parse([]byte(`proxies:
+  - { name: hop, type: socks5, server: 192.0.2.1, port: 1 }
+  - { name: exit, type: socks5, server: 192.0.2.2, port: 1, dialer-proxy: hop }
+`), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	p, err := model.Parse([]byte("subscriptions:\n  - { name: s, url: https://example.com/s }\nnodes:\n  - { name: hop, type: socks5, server: 198.51.100.1, port: 1 }\nroutes:\n  default: DIRECT\n"), "profile.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var d diag.List
+	Apply(p, map[string]*Snapshot{"s": snap}, &d)
+	for _, n := range p.Nodes {
+		if n.Name == "exit" && n.View.DialerProxy != "s/hop" {
+			t.Errorf("exit dials through %q, want the renamed s/hop", n.View.DialerProxy)
+		}
+	}
+	if res := compile.Compile(p); res.Diags.HasErrors() {
+		t.Error(res.Diags)
 	}
 }

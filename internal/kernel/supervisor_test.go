@@ -5,6 +5,7 @@ package kernel
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -169,5 +170,52 @@ func TestLongLogLine(t *testing.T) {
 	case <-stopped:
 	case <-time.After(10 * time.Second):
 		t.Fatal("Stop hung")
+	}
+}
+
+// A kernel a dead daemon left running is ended; a process that only has
+// its pid now is not.
+func TestKillOrphan(t *testing.T) {
+	sleep, err := exec.LookPath("sleep")
+	if err != nil {
+		t.Skip(err)
+	}
+	orphan := exec.Command(sleep, "60")
+	if err := orphan.Start(); err != nil {
+		t.Fatal(err)
+	}
+	exited := make(chan struct{})
+	go func() { orphan.Wait(); close(exited) }()
+	dir := t.TempDir()
+	pidFile := filepath.Join(dir, "k.pid")
+	os.WriteFile(pidFile, fmt.Appendf(nil, "%d\n%s\n", orphan.Process.Pid, sleep), 0o600)
+	if !KillOrphan(pidFile) {
+		t.Fatal("the orphan was not ended")
+	}
+	select {
+	case <-exited:
+	case <-time.After(5 * time.Second):
+		t.Fatal("the orphan still runs")
+	}
+	// Another binary under the recorded pid: this test itself.
+	os.WriteFile(pidFile, fmt.Appendf(nil, "%d\n%s\n", os.Getpid(), sleep), 0o600)
+	if KillOrphan(pidFile) {
+		t.Error("ended a process that is not the recorded kernel")
+	}
+}
+
+// The supervisor records the running process and forgets it when it ends.
+func TestPidFile(t *testing.T) {
+	pidFile := filepath.Join(t.TempDir(), "k.pid")
+	s := NewSupervisor()
+	if err := s.Start(Spec{Path: "/bin/sh", Args: []string{"-c", "sleep 30"}, PidFile: pidFile}); err != nil {
+		t.Fatal(err)
+	}
+	if pid, _, ok := readPidFile(pidFile); !ok || pid != s.Status().PID {
+		t.Fatalf("pid file says %d, the kernel is %d", pid, s.Status().PID)
+	}
+	s.Stop()
+	if _, err := os.Stat(pidFile); err == nil {
+		t.Error("the pid file stayed after Stop")
 	}
 }
