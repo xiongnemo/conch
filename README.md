@@ -77,7 +77,7 @@ chains:
   经家里: [home, 香港自动]          # 出口组也可以放在后面的跳
 ```
 
-第一跳可以是节点、出口组或另一条链；后面的跳可以是节点或只含节点的出口组。对链测速会给出每一跳的延迟，连不通时能看出断在哪一跳。也可以在界面里用分享链接添加节点、拼出新的链（`conch node add`、`conch chain add`），这些都写在 `managed.yaml`。
+第一跳可以是节点、出口组或另一条链；后面的跳可以是节点或只含节点的出口组。对链测速会给出每一跳的延迟，连不通时能看出断在哪一跳。也可以在界面里用分享链接添加节点、新建出口组、拼出新的链（`conch node add`、`conch group add`、`conch chain add`），这些都写在 `managed.yaml`。
 
 ## 订阅
 
@@ -131,7 +131,7 @@ sudo conch service uninstall    # 保留配置和数据
 | `conch tui` | 终端界面 |
 | `conch status` | 查看状态 |
 | `conch route get/add/del/list` | 查看和修改路由 |
-| `conch node add/del`、`conch chain add/del` | 添加节点、拼链 |
+| `conch node add/del`、`conch group add/del`、`conch chain add/del` | 添加节点、出口组，拼链 |
 | `conch sub update`、`conch import` | 更新订阅；把分享链接或 Clash 配置里的节点转换成 profile 的写法 |
 | `conch compile` | 查看生成的内核配置 |
 | `conch sysproxy on/off`、`conch tun on/off` | 系统代理、TUN |

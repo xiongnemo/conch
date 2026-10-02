@@ -241,7 +241,7 @@ function hopLabel(name) {
 function removeButton(kind, name) {
   return h("button", { class: "link remove", title: "删除", onclick: (e) => {
     e.stopPropagation();
-    if (!confirm(`删除${kind === "chains" ? "链" : "节点"} ${name}？`)) return;
+    if (!confirm(`删除${{ chains: "链", nodes: "节点", groups: "出口组" }[kind]} ${name}？`)) return;
     api("DELETE", `/${kind}/${encodeURIComponent(name)}`).then(loadOutbounds).catch(showError);
   } }, "×");
 }
@@ -287,6 +287,36 @@ $("#chain-form").addEventListener("submit", async (e) => {
   }
 });
 
+// renderMembers lists what a new group can hold, keeping what is ticked
+// (in the order it was ticked) across refreshes.
+let groupPicks = [];
+function renderMembers(list) {
+  const usable = list.filter((o) => o.name !== "GLOBAL");
+  fill($("#group-members"), ...usable.map((o) => {
+    const box = h("input", { type: "checkbox", value: o.name });
+    box.checked = groupPicks.includes(o.name);
+    box.addEventListener("change", () => {
+      groupPicks = box.checked ? [...groupPicks, o.name] : groupPicks.filter((n) => n !== o.name);
+    });
+    const kind = { group: "（出口组）", chain: "（链）", builtin: o.name === "DIRECT" ? "（直连）" : "（屏蔽）" }[o.kind] || "";
+    return h("label", {}, box, " ", o.name + kind);
+  }));
+}
+
+$("#group-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const name = $("#group-name").value.trim();
+  try {
+    await api("POST", "/groups", { name, type: $("#group-type").value, members: groupPicks });
+    $("#group-name").value = "";
+    $("#group-type").value = "select";
+    groupPicks = [];
+    loadOutbounds();
+  } catch (err) {
+    showError(err);
+  }
+});
+
 $("#node-form").addEventListener("submit", async (e) => {
   e.preventDefault();
   try {
@@ -304,7 +334,8 @@ function renderOutbounds(list) {
   const groups = list.filter((o) => o.kind === "group");
   fill($("#groups"), ...groups.map((g) => h("div", { class: "card group" },
     h("h3", {}, g.name, h("span", { class: "kind" }, kindNames[g.type] || g.type),
-      g.type !== "select" && g.now ? h("span", { class: "kind" }, "当前 " + g.now) : null),
+      g.type !== "select" && g.now ? h("span", { class: "kind" }, "当前 " + g.now) : null,
+      g.managed ? removeButton("groups", g.name) : null),
     h("div", { class: "chips" }, g.members.map((m) => {
       const chip = h("span", { class: "chip" + ((g.now || g.selected) === m ? " selected" : ""), title: g.type === "select" ? "点击选择" : "" }, m, delayButton(m));
       if (g.type === "select") {
@@ -319,6 +350,7 @@ function renderOutbounds(list) {
   const nodes = list.filter((o) => o.kind === "node");
   fill($("#nodes"), h("div", { class: "chips" }, nodes.map((n) => h("span", { class: "chip", title: `${n.type} ${n.server}${n.udp ? "，支持 UDP" : ""}` }, n.name, delayButton(n.name), n.managed ? removeButton("nodes", n.name) : null))));
   if (!document.querySelector("#chain-hops select")) resetChainForm();
+  renderMembers(list);
   fill($("#add-via"), ...list.map((o) => h("option", { value: o.name }, o.kind === "builtin" ? { DIRECT: "直连", REJECT: "屏蔽" }[o.name] : o.name)));
 }
 

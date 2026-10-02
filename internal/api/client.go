@@ -158,6 +158,16 @@ func (c *Client) DeleteChain(ctx context.Context, name string) error {
 	return c.do(ctx, http.MethodDelete, "/api/v1/chains/"+url.PathEscape(name), nil, nil)
 }
 
+// SetGroup adds or changes a group added from the UIs.
+func (c *Client) SetGroup(ctx context.Context, name, typ string, members []string) error {
+	body := map[string]any{"name": name, "type": typ, "members": members}
+	return c.do(ctx, http.MethodPost, "/api/v1/groups", body, nil)
+}
+
+func (c *Client) DeleteGroup(ctx context.Context, name string) error {
+	return c.do(ctx, http.MethodDelete, "/api/v1/groups/"+url.PathEscape(name), nil, nil)
+}
+
 // AddNode adds a node from a share link and returns its name.
 func (c *Client) AddNode(ctx context.Context, link string) (string, error) {
 	var v struct {

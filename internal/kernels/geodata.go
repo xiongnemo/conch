@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/xiongnemo/conch/internal/fetch"
 )
@@ -35,6 +36,19 @@ func HasGeodata(kernel, dir string) bool {
 		}
 	}
 	return true
+}
+
+// GeodataAge is how long ago dir's geodata for a kernel was downloaded:
+// that of its oldest file. ok is false when a file is missing.
+func GeodataAge(kernel, dir string, now time.Time) (age time.Duration, ok bool) {
+	for _, f := range geodataFiles[kernel] {
+		fi, err := os.Stat(filepath.Join(dir, f.local))
+		if err != nil {
+			return 0, false
+		}
+		age = max(age, now.Sub(fi.ModTime()))
+	}
+	return age, len(geodataFiles[kernel]) > 0
 }
 
 // FetchGeodata downloads a kernel's geodata into dir, verifying each file

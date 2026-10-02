@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 
 	"go.yaml.in/yaml/v3"
@@ -16,7 +17,7 @@ import (
 	"github.com/xiongnemo/conch/internal/route"
 )
 
-const managedHeader = "# 由 conch 维护：通过 Web UI、TUI、浏览器扩展或 conch 命令添加的节点、链和条目。\n" +
+const managedHeader = "# 由 conch 维护：通过 Web UI、TUI、浏览器扩展或 conch 命令添加的节点、出口组、链和条目。\n" +
 	"# 可以手动修改；写法和 profile.yaml 一样。\n"
 
 // ManagedPath is managed.yaml next to the profile.
@@ -24,10 +25,11 @@ func ManagedPath(profile string) string {
 	return filepath.Join(filepath.Dir(profile), "managed.yaml")
 }
 
-// managed is the daemon-owned file: nodes, chains and route entries added
-// from the UIs, kept in the order they were added.
+// managed is the daemon-owned file: nodes, groups, chains and route
+// entries added from the UIs, kept in the order they were added.
 type managed struct {
 	Nodes   []*model.Node
+	Groups  []*model.Group
 	Chains  []*model.Chain
 	Entries []managedEntry
 }
@@ -56,7 +58,7 @@ func loadManaged(path string) (*managed, error) {
 		}
 		m.Entries = append(m.Entries, managedEntry{e.Key, e.Via.Name, e.Pos})
 	}
-	m.Nodes, m.Chains = p.Nodes, p.Chains
+	m.Nodes, m.Groups, m.Chains = p.Nodes, p.Groups, p.Chains
 	return m, nil
 }
 
@@ -70,6 +72,13 @@ func (m *managed) save(path string) error {
 			nodes.Content = append(nodes.Content, &raw)
 		}
 		doc.Content = append(doc.Content, model.Str("nodes"), nodes)
+	}
+	if len(m.Groups) > 0 {
+		groups := &yaml.Node{Kind: yaml.SequenceNode}
+		for _, g := range m.Groups {
+			groups.Content = append(groups.Content, groupNode(g))
+		}
+		doc.Content = append(doc.Content, model.Str("groups"), groups)
 	}
 	if len(m.Chains) > 0 {
 		chains := &yaml.Node{Kind: yaml.MappingNode}
@@ -102,6 +111,55 @@ func (m *managed) save(path string) error {
 		return err
 	}
 	return os.Rename(tmp, path)
+}
+
+// groupNode writes a group on one line, with the fields it sets.
+func groupNode(g *model.Group) *yaml.Node {
+	n := &yaml.Node{Kind: yaml.MappingNode, Style: yaml.FlowStyle}
+	add := func(k string, v *yaml.Node) { n.Content = append(n.Content, model.Str(k), v) }
+	add("name", model.Str(g.Name))
+	add("type", model.Str(g.Type))
+	if len(g.Members) > 0 {
+		members := &yaml.Node{Kind: yaml.SequenceNode, Style: yaml.FlowStyle}
+		for _, m := range g.Members {
+			members.Content = append(members.Content, model.Str(m))
+		}
+		add("members", members)
+	}
+	for _, f := range []struct{ k, v string }{{"filter", g.Filter}, {"url", g.URL}, {"strategy", g.Strategy}} {
+		if f.v != "" {
+			add(f.k, model.Str(f.v))
+		}
+	}
+	for _, f := range []struct {
+		k string
+		v int
+	}{{"interval", g.Interval}, {"tolerance", g.Tolerance}} {
+		if f.v != 0 {
+			add(f.k, &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!int", Value: strconv.Itoa(f.v)})
+		}
+	}
+	if g.Lazy != nil {
+		add("lazy", &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!bool", Value: strconv.FormatBool(*g.Lazy)})
+	}
+	return n
+}
+
+// setGroup adds or replaces a group.
+func (m *managed) setGroup(g *model.Group) {
+	for i, old := range m.Groups {
+		if old.Name == g.Name {
+			m.Groups[i] = g
+			return
+		}
+	}
+	m.Groups = append(m.Groups, g)
+}
+
+func (m *managed) removeGroup(name string) bool {
+	n := len(m.Groups)
+	m.Groups = slices.DeleteFunc(m.Groups, func(g *model.Group) bool { return g.Name == name })
+	return len(m.Groups) != n
 }
 
 // set adds or replaces the entry for key's target, matching targets the

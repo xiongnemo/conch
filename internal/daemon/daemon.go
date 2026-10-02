@@ -73,6 +73,7 @@ type Daemon struct {
 	lanOpen         bool                // the proxy listens beyond loopback (noteLAN)
 	undos           []routeUndo         // the latest route changes, for UndoRoute
 	refreshing      atomic.Bool         // subscriptions are being refreshed
+	geodataTried    time.Time           // xray's geodata was last downloaded (refreshGeodata)
 	subRetry        map[string]subRetry // failed subscriptions, by name
 	backend         backend.Router
 	bin             string
@@ -474,10 +475,12 @@ func nodeNamed(res *compile.Result, name string) *model.Node {
 	return nil
 }
 
-// mergeEntries adds daemon-owned nodes, chains and routes to the profile.
+// mergeEntries adds daemon-owned nodes, groups, chains and routes to the
+// profile.
 // Temporary routes override other routes for the same target while they last.
 func mergeEntries(p *model.Profile, m *managed, temp []TempRoute, managedPath string) {
 	p.Nodes = append(p.Nodes, m.Nodes...)
+	p.Groups = append(p.Groups, m.Groups...)
 	p.Chains = append(p.Chains, m.Chains...)
 	add := func(key, via string, pos diag.Pos) {
 		p.Routes.Entries = append(p.Routes.Entries, &model.Entry{Key: key, Via: model.Via{Name: via}, Pos: pos})

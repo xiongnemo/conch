@@ -113,3 +113,27 @@ func TestSubscriptionRetry(t *testing.T) {
 		t.Error("the retry was not forgotten after success")
 	}
 }
+
+// Groups added from the UIs keep every field through a save, and a hand
+// edit's fields too.
+func TestManagedGroupsRoundTrip(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "managed.yaml")
+	lazy := false
+	m := &managed{}
+	m.setGroup(&model.Group{Name: "美国", Type: "url-test", Members: []string{"US 1", "US 2"}, Interval: 120, Lazy: &lazy})
+	m.setGroup(&model.Group{Name: "AI", Type: "select", Members: []string{"美国"}, Filter: "JP"})
+	m.setGroup(&model.Group{Name: "美国", Type: "fallback", Members: []string{"US 2", "US 1"}}) // replaces
+	if err := m.save(path); err != nil {
+		t.Fatal(err)
+	}
+	got, err := loadManaged(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got.Groups) != 2 || got.Groups[0].Type != "fallback" || !slices.Equal(got.Groups[0].Members, []string{"US 2", "US 1"}) || got.Groups[1].Filter != "JP" {
+		t.Fatalf("groups after a round trip: %+v %+v", got.Groups[0], got.Groups[1])
+	}
+	if !got.removeGroup("AI") || got.removeGroup("AI") || len(got.Groups) != 1 {
+		t.Errorf("removeGroup: %+v", got.Groups)
+	}
+}

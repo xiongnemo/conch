@@ -71,9 +71,38 @@ inbound: { mixed-port: %d }
 		t.Fatal(err)
 	}
 
+	// Groups: written to managed.yaml, usable at once, and a chain can start
+	// with one.
+	var apiErr *api.APIError
+	if err := c.SetGroup(ctx, "香港", "url-test", []string{"HK 01", "HK 01 (2)"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := c.SetChain(ctx, "经香港", []string{"香港", "home"}); err != nil {
+		t.Fatal(err)
+	}
+	out, _ = c.Outbounds(ctx)
+	g := slices.IndexFunc(out, func(o daemon.Outbound) bool { return o.Name == "香港" })
+	if g < 0 || !out[g].Managed || out[g].Type != "url-test" || !slices.Equal(out[g].Members, []string{"HK 01", "HK 01 (2)"}) {
+		t.Fatalf("the new group: %+v", out)
+	}
+	if err := c.SetGroup(ctx, "坏组", "select", []string{"nowhere"}); !errors.As(err, &apiErr) || apiErr.Status != http.StatusUnprocessableEntity {
+		t.Errorf("a group with an unknown member: %v", err)
+	}
+	if err := c.SetGroup(ctx, "home", "select", []string{"HK 01"}); !errors.As(err, &apiErr) || apiErr.Status != http.StatusConflict {
+		t.Errorf("a group named like a profile node: %v", err)
+	}
+	if err := c.DeleteGroup(ctx, "香港"); err == nil {
+		t.Error("deleting a group a chain uses must fail")
+	}
+	if err := c.DeleteChain(ctx, "经香港"); err != nil {
+		t.Fatal(err)
+	}
+	if err := c.DeleteGroup(ctx, "香港"); err != nil {
+		t.Fatal(err)
+	}
+
 	// Breaking changes are refused and leave everything as it was.
 	before, _ := os.ReadFile(filepath.Join(dir, "managed.yaml"))
-	var apiErr *api.APIError
 	if err := c.SetChain(ctx, "bad", []string{"HK 01", "nowhere"}); !errors.As(err, &apiErr) || apiErr.Status != http.StatusUnprocessableEntity {
 		t.Errorf("chain through an unknown node: %v", err)
 	}

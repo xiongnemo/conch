@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"github.com/fsnotify/fsnotify"
+
+	"github.com/xiongnemo/conch/internal/kernels"
 )
 
 // Run applies the profile and keeps it applied until ctx is done: it
@@ -62,6 +64,7 @@ func (d *Daemon) periodic(ctx context.Context, changes chan<- struct{}) {
 	go func() {
 		defer d.refreshing.Store(false)
 		subs := d.refreshSubscriptions(ctx, time.Now())
+		d.refreshGeodata(ctx, time.Now())
 		if lists := d.refreshLists(ctx, time.Now()); subs || lists {
 			select {
 			case changes <- struct{}{}:
@@ -75,6 +78,26 @@ func (d *Daemon) periodic(ctx context.Context, changes chan<- struct{}) {
 // sing-box get them inlined in their config; mihomo downloads its own,
 // and conch's copy only serves explanations.
 const listsMaxAge = 24 * time.Hour
+
+// geodataMaxAge is how often xray's geosite and geoip files are
+// downloaded again. mihomo and sing-box update their rule sets themselves.
+const geodataMaxAge = 7 * 24 * time.Hour
+
+// refreshGeodata downloads xray's geodata again when it is a week old, at
+// most once a day. xray reads the files when it starts: the new ones take
+// effect at its next restart, which every change of its config is.
+func (d *Daemon) refreshGeodata(ctx context.Context, now time.Time) {
+	if d.backend.Name() != "xray" || now.Sub(d.geodataTried) < 24*time.Hour {
+		return
+	}
+	if age, ok := kernels.GeodataAge("xray", d.home, now); !ok || age < geodataMaxAge {
+		return // missing files are the kernel install's business
+	}
+	d.geodataTried = now
+	if err := kernels.FetchGeodata(ctx, nil, "xray", "", d.home, d.opts.Log); err != nil {
+		fmt.Fprintln(d.opts.Log, "更新 xray 的 geodata 失败，明天再试：", err)
+	}
+}
 
 // refreshLists downloads again the rule lists in use that are a day old.
 func (d *Daemon) refreshLists(ctx context.Context, now time.Time) bool {

@@ -94,3 +94,5 @@ td .actions { display: flex; gap: 6px; flex-wrap: wrap; }
 .chip .remove:hover { color: var(--bad); }
 .small { font-size: 12px; }
 #chain-hops select { width: auto; }
+.members { display: flex; flex-wrap: wrap; gap: 4px 14px; max-height: 12em; overflow: auto; margin-top: 8px; }
+.members label { white-space: nowrap; }

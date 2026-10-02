@@ -186,6 +186,48 @@ jobs:
           # debugging pipe on Windows.
           if grep -- '--- SKIP' e2e.log | grep -v TestExtension; then exit 1; fi
 
+  # The daemon on macOS: no death signal reaches the kernel (pid files
+  # instead), unix socket paths are short, the kernels' darwin builds.
+  e2e-macos:
+    name: e2e (macos, real kernels and Chrome)
+    runs-on: macos-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: extension/package-lock.json
+      - name: Build the browser extension
+        working-directory: extension
+        run: |
+          npm ci
+          npm run build
+      - name: Install mihomo, xray, sing-box and trojan-go
+        run: |
+          go build -o /tmp/conch ./cmd/conch
+          export CONCH_DATA_DIR="$RUNNER_TEMP/conch-data"
+          for k in mihomo sing-box trojan-go; do /tmp/conch kernel install $k; done
+          /tmp/conch kernel install xray --geodata
+          {
+            echo "CONCH_MIHOMO=$(/tmp/conch kernel path mihomo)"
+            echo "CONCH_XRAY=$(/tmp/conch kernel path xray)"
+            echo "CONCH_XRAY_ASSETS=$CONCH_DATA_DIR/home/xray"
+            echo "CONCH_SING_BOX=$(/tmp/conch kernel path sing-box)"
+            echo "CONCH_TROJAN_GO=$(/tmp/conch kernel path trojan-go)"
+            echo "CONCH_CHROME=/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+            echo "CONCH_EXTENSION=$PWD/extension/dist/chrome"
+          } >> "$GITHUB_ENV"
+      - name: Kernels accept every golden config; daemon, API, sidecars and extension work end to end
+        shell: bash
+        run: |
+          go test -race -count=1 -v ./internal/backend/... ./internal/e2e ./internal/sidecar | tee e2e.log
+          if grep -- '--- SKIP' e2e.log | grep -v TestTUN; then exit 1; fi
+
   extension:
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -203,6 +245,10 @@ jobs:
           npm run check
           npm test
           npm run build
+      # Mozilla's linter checks the Firefox build the way addons.mozilla.org does.
+      - name: Lint the Firefox build
+        working-directory: extension
+        run: npx --yes web-ext@8 lint --source-dir dist/firefox --self-hosted --warnings-as-errors
       # Unzip and load chrome/ (Chrome, Edge) or firefox/ as an unpacked extension.
       - uses: actions/upload-artifact@v7
         with:

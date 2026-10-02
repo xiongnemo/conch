@@ -22,7 +22,8 @@ const browsers = {
   firefox: {
     ...base,
     background: { scripts: ["background.js"] },
-    browser_specific_settings: { gecko: { id: "conch@conch.invalid", strict_min_version: "128.0" } },
+    // It talks to the local daemon only: nothing is collected.
+    browser_specific_settings: { gecko: { id: "conch@conch.invalid", strict_min_version: "128.0", data_collection_permissions: { required: ["none"] } } },
   },
 };
 

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"slices"
 	"strings"
 
 	"github.com/xiongnemo/conch/internal/diag"
@@ -95,10 +96,50 @@ func (d *Daemon) SetChain(ctx context.Context, name string, hops []string) error
 		return &ErrUserFile{What: fmt.Sprintf("出口 %q ", name), Where: pos.String()}
 	}
 	return d.changeManaged(ctx, func(m *managed) error {
-		if managedNode(m, name) != nil {
-			return fmt.Errorf("已经有叫 %q 的节点了，换一个名字吧", name)
+		if managedNode(m, name) != nil || managedGroup(m, name) {
+			return fmt.Errorf("已经有叫 %q 的出口了，换一个名字吧", name)
 		}
 		m.setChain(name, hops)
+		return nil
+	})
+}
+
+// GroupTypes are the kinds of group, as the profile writes them.
+var GroupTypes = []string{"select", "url-test", "fallback", "load-balance"}
+
+// SetGroup adds or changes a group of outbounds.
+func (d *Daemon) SetGroup(ctx context.Context, name, typ string, members []string) error {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return errors.New("出口组需要一个名字")
+	}
+	if !slices.Contains(GroupTypes, typ) {
+		return errors.New("出口组的类型应该是 select（手动选择）、url-test（自动最快）、fallback（故障转移）或 load-balance（负载均衡）")
+	}
+	if len(members) == 0 {
+		return errors.New("出口组至少要有一个成员")
+	}
+	if pos, ok := definedName(d.loadedProfile(), name); ok {
+		return &ErrUserFile{What: fmt.Sprintf("出口 %q ", name), Where: pos.String()}
+	}
+	return d.changeManaged(ctx, func(m *managed) error {
+		if managedNode(m, name) != nil || managedChain(m, name) {
+			return fmt.Errorf("已经有叫 %q 的出口了，换一个名字吧", name)
+		}
+		m.setGroup(&model.Group{Name: name, Type: typ, Members: members})
+		return nil
+	})
+}
+
+// DeleteGroup removes a group added from the UIs.
+func (d *Daemon) DeleteGroup(ctx context.Context, name string) error {
+	if pos, ok := definedName(d.loadedProfile(), name); ok {
+		return &ErrUserFile{What: fmt.Sprintf("出口组 %q ", name), Where: pos.String()}
+	}
+	return d.changeManaged(ctx, func(m *managed) error {
+		if !m.removeGroup(name) {
+			return fmt.Errorf("出口组 %q %w", name, ErrNotFound)
+		}
 		return nil
 	})
 }
@@ -136,7 +177,7 @@ func (d *Daemon) AddNode(ctx context.Context, link string) (string, error) {
 		unique = fmt.Sprintf("%s (%d)", name, i)
 	}
 	err = d.changeManaged(ctx, func(m *managed) error {
-		if managedNode(m, unique) != nil || managedChain(m, unique) {
+		if managedNode(m, unique) != nil || managedChain(m, unique) || managedGroup(m, unique) {
 			return fmt.Errorf("已经有叫 %q 的出口了", unique)
 		}
 		m.Nodes = append(m.Nodes, model.NewNode(proto.ToClash(unique, spec), diag.Pos{}))
@@ -165,6 +206,10 @@ func managedNode(m *managed, name string) *model.Node {
 		}
 	}
 	return nil
+}
+
+func managedGroup(m *managed, name string) bool {
+	return slices.ContainsFunc(m.Groups, func(g *model.Group) bool { return g.Name == name })
 }
 
 func managedChain(m *managed, name string) bool {

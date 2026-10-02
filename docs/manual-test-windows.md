@@ -390,10 +390,14 @@ conch route del api.ipify.org                 # 预期报错：条目写在 prof
 ```powershell
 conch node add (Get-Content links.txt -TotalCount 1)    # 打印「已添加节点 <名字>」，记下名字
 conch chain add 测试链 C <上一步的名字>
-conch route add example.org 测试链 --for 5m
+conch route add example.org via 测试链 --for 5m
 curl.exe -s -x http://127.0.0.1:7890 -o NUL -w "%{http_code}`n" https://example.org/   # 200
 conch node del <名字>       # 预期失败：它还在 测试链 里
 conch route del example.org; conch chain del 测试链; conch node del <名字>
+conch group add 测试组 故障转移 C A                        # 打印「已保存出口组 测试组」
+conch route add example.org via 测试组 --for 5m
+curl.exe -s -x http://127.0.0.1:7890 -o NUL -w "%{http_code}`n" https://example.org/   # 200
+conch route del example.org; conch group del 测试组
 conch sub update            # 打印「更新订阅 订阅（通过 daemon）」和新的更新时间
 conch run -- curl.exe -s https://api.ipify.org; ""     # 只有这一条命令走代理：默认出口的 IP
 conch env --shell powershell                            # 打印 $env:HTTP_PROXY=… 等几行

@@ -72,6 +72,23 @@
       <section data-page="outbounds" hidden>
         <div id="groups"></div>
         <div class="card">
+          <h2>新建出口组</h2>
+          <form id="group-form">
+            <div class="row">
+              <input id="group-name" placeholder="新出口组的名字" required>
+              <select id="group-type">
+                <option value="select">手动选择</option>
+                <option value="url-test">自动最快</option>
+                <option value="fallback">故障转移</option>
+                <option value="load-balance">负载均衡</option>
+              </select>
+              <button type="submit">保存出口组</button>
+            </div>
+            <div id="group-members" class="members"></div>
+          </form>
+          <p class="muted small">勾选成员：节点、别的出口组或链都可以。自动最快会定时测速，用延迟最低的成员；故障转移按勾选的顺序，用第一个能用的。</p>
+        </div>
+        <div class="card">
           <h2>链</h2>
           <div id="chains" class="muted">没有链</div>
           <form id="chain-form" class="row">

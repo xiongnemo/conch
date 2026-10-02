@@ -42,6 +42,19 @@ func (s *Server) Handler() http.Handler {
 		writeJSON(w, s.D.Outbounds(r.Context()))
 	})
 	mux.HandleFunc("PUT /api/v1/groups/{name}", s.selectGroup)
+	mux.HandleFunc("POST /api/v1/groups", func(w http.ResponseWriter, r *http.Request) {
+		var body struct {
+			Name    string   `json:"name"`
+			Type    string   `json:"type"` // select | url-test | fallback | load-balance
+			Members []string `json:"members"`
+		}
+		if decode(w, r, &body) {
+			s.done(w, s.D.SetGroup(r.Context(), body.Name, body.Type, body.Members))
+		}
+	})
+	mux.HandleFunc("DELETE /api/v1/groups/{name}", func(w http.ResponseWriter, r *http.Request) {
+		s.done(w, s.D.DeleteGroup(r.Context(), r.PathValue("name")))
+	})
 	mux.HandleFunc("PUT /api/v1/chains/{name}", func(w http.ResponseWriter, r *http.Request) {
 		var body struct {
 			Hops []string `json:"hops"`

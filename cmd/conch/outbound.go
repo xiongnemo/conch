@@ -36,6 +36,38 @@ func newNodeCmd() *cobra.Command {
 	return cmd
 }
 
+func newGroupCmd() *cobra.Command {
+	cmd := &cobra.Command{Use: "group", Short: "添加、修改或删除出口组（需要 daemon 在运行，写在 managed.yaml）"}
+	types := map[string]string{"手动选择": "select", "自动最快": "url-test", "故障转移": "fallback", "负载均衡": "load-balance"}
+	cmd.AddCommand(&cobra.Command{
+		Use:   "add <组名> <类型> <成员> [更多成员……]",
+		Short: "添加或修改一个出口组；类型是 select（手动选择）、url-test（自动最快）、fallback（故障转移）或 load-balance（负载均衡）",
+		Example: "  conch group add 美国 url-test US-01 US-02 US-03\n" +
+			"  conch group add AI 手动选择 美国 日本 DIRECT",
+		Args: cobra.MinimumNArgs(3),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			typ := cmpOr(types[args[1]], args[1])
+			if err := daemonClient().SetGroup(cmd.Context(), args[0], typ, args[2:]); err != nil {
+				return err
+			}
+			fmt.Fprintf(cmd.OutOrStdout(), "已保存出口组 %s\n", args[0])
+			return nil
+		},
+	}, &cobra.Command{
+		Use:   "del <组名>",
+		Short: "删除用 conch 添加的出口组",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := daemonClient().DeleteGroup(cmd.Context(), args[0]); err != nil {
+				return err
+			}
+			fmt.Fprintf(cmd.OutOrStdout(), "已删除出口组 %s\n", args[0])
+			return nil
+		},
+	})
+	return cmd
+}
+
 func newChainCmd() *cobra.Command {
 	cmd := &cobra.Command{Use: "chain", Short: "添加、修改或删除链（需要 daemon 在运行，写在 managed.yaml）"}
 	cmd.AddCommand(&cobra.Command{
