@@ -7,7 +7,8 @@ const pkg = JSON.parse(readFileSync("package.json", "utf8"));
 const base = {
   manifest_version: 3,
   name: "Conch",
-  version: pkg.version,
+  // Releases pass conch's MAJOR.MINOR.PATCH: stores want plain numbers.
+  version: process.env.CONCH_EXT_VERSION || pkg.version,
   description: "看当前网站经由 conch 走哪个出口、为什么，一键改走别的出口；记录网页加载失败的网站。",
   icons: { 16: "icons/16.png", 32: "icons/32.png", 48: "icons/48.png", 128: "icons/128.png" },
   action: { default_popup: "popup.html", default_icon: { 16: "icons/16.png", 32: "icons/32.png" } },

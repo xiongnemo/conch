@@ -1,20 +1,47 @@
 name: release
 
+# Versions follow docs/versioning.md:
+#
+#   - Every commit on main that passes CI is published as a prerelease,
+#     vX.Y.Z-main-<commit12>, where Z is the last vX.Y.Z tag's patch plus
+#     the commits since it. Its tag is created here.
+#   - Pushing an exact tag vX.Y.Z by hand publishes that version: a release
+#     when Z is 0 (a minor or major bump), else a prerelease too.
+#
+# A manual run builds the current commit as it would be published, and
+# publishes nothing.
+
 on:
+  workflow_run:
+    workflows: [ci]
+    types: [completed]
+    branches: [main]
   push:
-    tags: ["v*"]
+    tags: ["v[0-9]+.[0-9]+.[0-9]+"]
+  workflow_dispatch:
 
 permissions:
-  contents: write # upload the release
+  contents: write # tags and releases
   id-token: write # keyless signing with cosign
+
+# Prereleases one at a time, in order (a waiting one gives way to a newer
+# one); a tag's run never waits for them, nor gives way.
+concurrency:
+  group: release-${{ github.event_name == 'push' && github.ref || 'main' }}
+  cancel-in-progress: false
 
 jobs:
   release:
+    # After CI: only commits it passed, and only pushes (not pull requests).
+    if: github.event_name != 'workflow_run' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 40
     steps:
+      # The commit CI tested, not whatever main is now. fetch-depth: 0
+      # because the version comes from the tags.
       - uses: actions/checkout@v7
         with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
           fetch-depth: 0
       # No caches here: what other runs cached cannot end up in a release.
       - uses: actions/setup-go@v7
@@ -24,10 +51,116 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: 22
+
+      - name: Work out the version
+        id: meta
+        shell: bash
+        env:
+          CONCH_BRANCH: ${{ github.event.workflow_run.head_branch }}
+        run: |
+          set -euo pipefail
+          version=$(scripts/version.sh)
+          ldflags=$(scripts/version.sh --ldflags)
+          publish=false
+          if [ "$GITHUB_EVENT_NAME" = push ]; then
+            # A tag run is the release of that tag, and only if the tag is
+            # what this commit computes; otherwise one build would carry two
+            # versions.
+            if [ "$version" != "$GITHUB_REF_NAME" ]; then
+              echo "::error::tag $GITHUB_REF_NAME is not the version this commit computes, $version"
+              exit 1
+            fi
+            publish=true
+          elif [ "$GITHUB_EVENT_NAME" = workflow_run ]; then
+            if ! git describe --tags --abbrev=0 --match='v[0-9]*' --exclude='*-*' >/dev/null 2>&1; then
+              echo "No vX.Y.Z tag yet, so no version line to count from: nothing to publish."
+            else
+              case "$version" in
+                *-dirty) echo "::error::the checkout is dirty"; exit 1 ;;
+                *-*) publish=true ;;
+                # Exactly a tag: that tag's own run publishes it.
+                *) echo "$version is a tag; its own run publishes it." ;;
+              esac
+            fi
+            if [ "$publish" = true ] && git rev-parse -q --verify "refs/tags/$version" >/dev/null; then
+              echo "$version is published already."
+              publish=false
+            fi
+          fi
+          # Patches are prereleases; X.Y.0 is a release.
+          base=${version%%-*}
+          prerelease=true
+          if [ "$version" = "$base" ] && [ "${base##*.}" = 0 ]; then
+            prerelease=false
+          fi
+          {
+            echo "version=$version"
+            echo "ldflags=$ldflags"
+            echo "publish=$publish"
+            echo "prerelease=$prerelease"
+          } >> "$GITHUB_OUTPUT"
+          echo "$version (publish $publish, prerelease $prerelease)"
+
+      - name: Tests
+        if: github.event_name != 'workflow_run' # CI ran them on this commit
+        run: go test ./...
+
+      # goreleaser builds the version of the tag at HEAD. A prerelease's tag
+      # is made here; a release's was pushed.
+      - name: Tag the commit
+        if: github.event_name != 'push'
+        run: git tag "${{ steps.meta.outputs.version }}"
+
+      # A copy outside the checkout, which goreleaser wants clean.
+      - name: Configure goreleaser
+        run: |
+          cp .goreleaser.yaml "$RUNNER_TEMP/goreleaser.yaml"
+          case "${{ steps.meta.outputs.version }}" in
+            *-*) sed -i 's/^    formats: \[deb, rpm, apk, archlinux\]$/&\n    prerelease: pre/' "$RUNNER_TEMP/goreleaser.yaml"
+                 grep -q '^    prerelease: pre$' "$RUNNER_TEMP/goreleaser.yaml" ;;
+          esac
+
       - uses: sigstore/cosign-installer@v4
       - uses: goreleaser/goreleaser-action@v7
         with:
           version: "~> v2"
-          args: release --clean
+          args: >-
+            release --clean --config ${{ runner.temp }}/goreleaser.yaml
+            ${{ steps.meta.outputs.publish != 'true' && '--skip=publish,sign' || '' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GORELEASER_CURRENT_TAG: ${{ steps.meta.outputs.version }}
+          CONCH_LDFLAGS: ${{ steps.meta.outputs.ldflags }}
+
+      - name: The binary says the version it was built as
+        run: |
+          got=$(dist/conch_linux_amd64_v1/conch version | cut -d' ' -f2)
+          test "$got" = "${{ steps.meta.outputs.version }}" || { echo "built $got, want ${{ steps.meta.outputs.version }}"; exit 1; }
+
+      # goreleaser left a draft on the commit; publishing it creates the tag
+      # of a prerelease.
+      - name: Publish
+        if: steps.meta.outputs.publish == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.meta.outputs.version }}
+        run: |
+          set -euo pipefail
+          if [ "${{ steps.meta.outputs.prerelease }}" = true ]; then
+            gh release edit "$VERSION" --draft=false --prerelease --latest=false --title "conch $VERSION"
+          else
+            gh release edit "$VERSION" --draft=false --prerelease=false --latest --title "conch $VERSION"
+          fi
+
+      - uses: actions/upload-artifact@v7
+        if: steps.meta.outputs.publish != 'true'
+        with:
+          name: conch-${{ steps.meta.outputs.version }}
+          path: |
+            dist/*.tar.gz
+            dist/*.zip
+            dist/*.deb
+            dist/*.rpm
+            dist/*.apk
+            dist-extension/*.zip
+          retention-days: 7

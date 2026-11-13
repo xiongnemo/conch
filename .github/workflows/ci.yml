@@ -304,6 +304,8 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # the version comes from the tags
       - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
@@ -318,7 +320,7 @@ jobs:
         run: |
           name=conch${TAGS:+-$TAGS}_${GOOS}_${GOARCH}
           if [ "$GOOS" = windows ]; then name=$name.exe; fi
-          go build -trimpath -tags "$TAGS" -ldflags "-s -w -X main.version=dev-${GITHUB_SHA::7}" -o "out/$name" ./cmd/conch
+          go build -trimpath -tags "$TAGS" -ldflags "-s -w $(scripts/version.sh --ldflags)" -o "out/$name" ./cmd/conch
           echo "file=out/$name" >> "$GITHUB_OUTPUT"
       - uses: actions/upload-artifact@v7
         with:
@@ -326,8 +328,8 @@ jobs:
           archive: false
           retention-days: 14
 
-  # What the release workflow does on a tag, without signing or publishing:
-  # every target, the lite builds, packages and the extension zips.
+  # What the release workflow does, without signing or publishing: every
+  # target, the lite builds, packages and the extension zips.
   release:
     name: release dry run
     runs-on: ubuntu-latest

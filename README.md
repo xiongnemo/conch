@@ -12,7 +12,7 @@
 
 ## 安装
 
-从 [Releases](https://github.com/xiongnemo/conch/releases) 下载对应系统的压缩包，或者 deb / rpm / apk / Arch 软件包。路由器（OpenWrt 等）用 `conch-lite`，它没有 TUI，内存占用更小。
+从 [Releases](https://github.com/xiongnemo/conch/releases) 下载对应系统的压缩包，或者 deb / rpm / apk / Arch 软件包。路由器（OpenWrt 等）用 `conch-lite`，它没有 TUI，内存占用更小。标着 Latest 的是正式版本（`v0.1.0` 这样补丁号为 0 的）；main 上每个通过 CI 的提交也会发布成预发布版本（Pre-release），版本号的规则见 [docs/versioning.md](docs/versioning.md)。
 
 内核不需要自己装：第一次运行 `conch daemon` 时会自动下载并校验（每个 conch 版本都内置了测试过的内核版本和 sha256）。连不上 GitHub 的话，把环境变量 `CONCH_MIRROR` 设成下载镜像，例如 `CONCH_MIRROR=https://ghfast.top conch daemon`；自动下载和 `conch kernel` 命令都会用它，从镜像下载的文件同样会校验。也可以手动安装：
 
@@ -25,7 +25,7 @@ conch kernel install mihomo --mirror https://your-mirror/   # 只这一次用镜
 
 ```sh
 cosign verify-blob --bundle checksums.txt.sigstore.json \
-  --certificate-identity-regexp '^https://github\.com/xiongnemo/conch/\.github/workflows/release\.yml@refs/tags/v' \
+  --certificate-identity-regexp '^https://github\.com/xiongnemo/conch/\.github/workflows/release\.yml@refs/(tags/v|heads/main$)' \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com checksums.txt
 sha256sum --check --ignore-missing checksums.txt
 ```

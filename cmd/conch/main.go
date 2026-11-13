@@ -13,10 +13,8 @@ import (
 
 	"github.com/xiongnemo/conch/internal/api"
 	"github.com/xiongnemo/conch/internal/paths"
+	"github.com/xiongnemo/conch/internal/version"
 )
-
-// version is set at build time with -ldflags "-X main.version=...".
-var version = "dev"
 
 // errReported means the details were already printed for the user.
 var errReported = errors.New("reported")
@@ -37,8 +35,10 @@ func main() {
 	root.AddCommand(newInitCmd(), newDaemonCmd(), newTUICmd(), newPairCmd(), newEditCmd(), newServiceCmd(), newAgentCmd(), newStatusCmd(), newRouteCmd(), newNodeCmd(), newGroupCmd(), newChainCmd(), newSubCmd(), newImportCmd(), newCompileCmd(), newKernelCmd(), newPasswdCmd(), newSysProxyCmd(), newTUNCmd(), newDoctorCmd(), newEnvCmd(), newRunCmd(), &cobra.Command{
 		Use:   "version",
 		Short: "显示版本",
-		Run:   func(cmd *cobra.Command, _ []string) { fmt.Fprintln(cmd.OutOrStdout(), version) },
+		Run:   func(cmd *cobra.Command, _ []string) { fmt.Fprintln(cmd.OutOrStdout(), version.Describe()) },
 	})
+	root.Version = version.Current().String()
+	root.SetVersionTemplate(version.Describe() + "\n")
 	localize(root)
 	if cmd, err := root.ExecuteC(); err != nil {
 		if !errors.Is(err, errReported) {

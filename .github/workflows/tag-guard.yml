@@ -1,0 +1,34 @@
+name: tag guard
+
+# Two tag shapes exist (docs/versioning.md), and the dash between them is
+# the mechanism: scripts/version.sh counts from the nearest tag without one.
+#
+#   vMAJOR.MINOR.PATCH               a base, pushed by hand: moves the version line
+#   vX.Y.Z-branch-commit12[-dirty]   a prerelease's marker, made by the release workflow
+#
+# Anything else is reported here. (Only a repository ruleset on refs/tags
+# could refuse it outright.)
+
+on:
+  push:
+    tags: ["**"]
+
+permissions:
+  contents: read
+
+jobs:
+  shape:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check the tag
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          if [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "$TAG is a base: the next commit is its patch + 1."
+          elif [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-[A-Za-z0-9._-]+-[0-9a-f]{7,40}(-dirty)?$ ]]; then
+            echo "$TAG is a prerelease's marker, never a base."
+          else
+            echo "::error title=Unknown tag shape::$TAG is neither vMAJOR.MINOR.PATCH nor vX.Y.Z-branch-commit12"
+            exit 1
+          fi

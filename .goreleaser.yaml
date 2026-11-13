@@ -1,5 +1,6 @@
-# Release builds. CI runs `goreleaser release --clean` on version tags;
-# try it locally with `goreleaser release --snapshot --clean --skip=sign`.
+# Release builds, run by .github/workflows/release.yml with the version tag
+# (docs/versioning.md) checked out. Try it locally with
+# `goreleaser release --snapshot --clean --skip=sign`.
 version: 2
 project_name: conch
 
@@ -7,7 +8,7 @@ before:
   hooks:
     - go mod download
     # The browser extension, zipped for the Chrome Web Store and AMO.
-    - sh -c "cd extension && npm ci --no-audit --no-fund && npm run build"
+    - sh -c "cd extension && npm ci --no-audit --no-fund && CONCH_EXT_VERSION={{ .Major }}.{{ .Minor }}.{{ .Patch }} npm run build"
     - sh -c "rm -rf dist-extension && mkdir dist-extension && cd extension/dist/chrome && zip -qr ../../../dist-extension/conch-extension-chrome-{{ .Version }}.zip . && cd ../firefox && zip -qr ../../../dist-extension/conch-extension-firefox-{{ .Version }}.zip ."
 
 builds:
@@ -16,7 +17,8 @@ builds:
     binary: conch
     env: [CGO_ENABLED=0]
     flags: [-trimpath]
-    ldflags: ["-s -w -X main.version={{ .Version }}"]
+    # scripts/version.sh --ldflags, set by the release workflow
+    ldflags: ["-s -w {{ index .Env \"CONCH_LDFLAGS\" }}"]
     targets:
       - linux_amd64_v1
       - linux_arm64
@@ -38,7 +40,8 @@ builds:
     env: [CGO_ENABLED=0]
     flags: [-trimpath]
     tags: [lite]
-    ldflags: ["-s -w -X main.version={{ .Version }}"]
+    # scripts/version.sh --ldflags, set by the release workflow
+    ldflags: ["-s -w {{ index .Env \"CONCH_LDFLAGS\" }}"]
     targets:
       - linux_arm64
       - linux_arm_7
@@ -73,6 +76,9 @@ nfpms:
     homepage: https://github.com/xiongnemo/conch
     description: Routing-table proxy shell with multi-hop chains, for the mihomo, xray and sing-box kernels.
     formats: [deb, rpm, apk, archlinux]
+    # For a prerelease the release workflow adds `prerelease: pre` here (it
+    # is not a template), packaging it as 0.0.5~pre (apk: 0.0.5_pre), below
+    # the release 0.0.5: apk-tools calls 0.0.5_main-<commit> invalid.
     bindir: /usr/bin
     contents:
       - src: examples/profile.yaml
@@ -86,8 +92,11 @@ signs:
     args: ["sign-blob", "--bundle=${signature}", "${artifact}", "--yes"]
     artifacts: checksum
 
+# Created as a draft on the commit built; the workflow then publishes it as
+# a release or a prerelease (docs/versioning.md).
 release:
   draft: true
+  target_commitish: "{{ .FullCommit }}"
   extra_files:
     - glob: ./dist-extension/*.zip
 

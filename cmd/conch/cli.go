@@ -64,6 +64,9 @@ func localize(root *cobra.Command) {
 		if c.Flags().Lookup("help") == nil {
 			c.Flags().BoolP("help", "h", false, "显示帮助")
 		}
+		if c == root && c.Version != "" && c.Flags().Lookup("version") == nil {
+			c.Flags().BoolP("version", "v", false, "显示版本")
+		}
 		for _, sub := range c.Commands() {
 			walk(sub)
 		}
