@@ -137,6 +137,52 @@ jobs:
           got=$(dist/conch_linux_amd64_v1/conch version | cut -d' ' -f2)
           test "$got" = "${{ steps.meta.outputs.version }}" || { echo "built $got, want ${{ steps.meta.outputs.version }}"; exit 1; }
 
+      - uses: docker/setup-qemu-action@v4
+
+      # Each package installs with the distribution's own tool and its conch
+      # says the version, on the architectures QEMU can run (no MIPS images
+      # exist). apk-tools 2 (Alpine 3.21) and 3 (3.24) parse versions
+      # differently, so both read the apk's.
+      - name: Smoke-install the packages
+        env:
+          WANT: ${{ steps.meta.outputs.version }}
+        run: |
+          set -euo pipefail
+          run() {
+            local platform=$1 image=$2 format=$3 label=$4
+            local pkg=(dist/conch_*_linux_"${label}.${format}")
+            [ "${#pkg[@]}" = 1 ] && [ -f "${pkg[0]}" ] || { echo "want one ${label} ${format}, got: ${pkg[*]}"; exit 1; }
+            echo "== ${pkg[0]##*/} on ${image} (${platform})"
+            docker run --rm --platform "$platform" -e FORMAT="$format" -e WANT="$WANT" \
+              -v "$PWD/${pkg[0]}:/pkg.${format}:ro" "$image" sh -euc '
+                case "$FORMAT" in
+                  deb) apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq /pkg.deb ;;
+                  rpm) dnf install -y -q /pkg.rpm ;;
+                  apk)
+                    apk add --no-cache --allow-untrusted /pkg.apk
+                    version=$(awk "/^P:conch\$/ { found = 1 } found && /^V:/ { print substr(\$0, 3); exit }" /lib/apk/db/installed)
+                    invalid=$(apk version -c "$version")
+                    [ -z "$invalid" ] || { echo "apk calls $version invalid"; exit 1; }
+                    ;;
+                esac
+                got=$(conch version | cut -d" " -f2)
+                echo "conch version: $got"
+                [ "$got" = "$WANT" ]
+              '
+          }
+          run linux/amd64 debian:stable deb amd64
+          run linux/amd64 ubuntu:24.04 deb amd64
+          run linux/amd64 fedora:latest rpm amd64
+          run linux/amd64 rockylinux:9 rpm amd64
+          run linux/amd64 alpine:3.21 apk amd64
+          run linux/amd64 alpine:3.24 apk amd64
+          run linux/arm64 debian:stable deb arm64
+          run linux/arm64 alpine:3.24 apk arm64
+          run linux/arm/v7 debian:stable deb armv7
+          run linux/arm/v7 alpine:3.24 apk armv7
+          run linux/386 alpine:3.24 apk 386
+          run linux/riscv64 alpine:3.24 apk riscv64
+
       # goreleaser left a draft on the commit; publishing it creates the tag
       # of a prerelease.
       - name: Publish
@@ -151,6 +197,31 @@ jobs:
           else
             gh release edit "$VERSION" --draft=false --prerelease=false --latest --title "conch $VERSION"
           fi
+
+      # Nemo's Packages (package.anzupop.com) fetches the release by tag and
+      # hashes the assets itself, so all this sends is which release to look
+      # at; it also passes the release on to the Scoop bucket. Without the
+      # token the release still ships, and the repository's sweep finds it.
+      - name: Tell the package repository
+        if: steps.meta.outputs.publish == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.PACKAGES_DISPATCH_TOKEN }}
+          PACKAGES_REPO: ${{ vars.PACKAGES_REPO || 'xiongnemo/packages' }}
+          VERSION: ${{ steps.meta.outputs.version }}
+          CHANNEL: ${{ steps.meta.outputs.prerelease == 'true' && 'nightly' || 'stable' }}
+        run: |
+          set -euo pipefail
+          if [ -z "${GH_TOKEN:-}" ]; then
+            echo "PACKAGES_DISPATCH_TOKEN is not set; ${PACKAGES_REPO} will pick this up on its own schedule."
+            exit 0
+          fi
+          gh api "repos/${PACKAGES_REPO}/dispatches" \
+            -f event_type=release-published \
+            -f "client_payload[repository]=${GITHUB_REPOSITORY}" \
+            -f "client_payload[tag]=${VERSION}" \
+            -f "client_payload[channel]=${CHANNEL}" \
+            -f "client_payload[sha]=$(git rev-parse HEAD)" \
+            || echo "::warning title=Package repository not notified::dispatch to ${PACKAGES_REPO} failed; its scheduled sweep is the backstop."
 
       - uses: actions/upload-artifact@v7
         if: steps.meta.outputs.publish != 'true'

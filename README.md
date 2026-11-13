@@ -14,6 +14,21 @@
 
 从 [Releases](https://github.com/xiongnemo/conch/releases) 下载对应系统的压缩包，或者 deb / rpm / apk / Arch 软件包。路由器（OpenWrt 等）用 `conch-lite`，它没有 TUI，内存占用更小。标着 Latest 的是正式版本（`v0.1.0` 这样补丁号为 0 的）；main 上每个通过 CI 的提交也会发布成预发布版本（Pre-release），版本号的规则见 [docs/versioning.md](docs/versioning.md)。
 
+Linux 和 macOS 也可以从 [package.anzupop.com](https://package.anzupop.com) 用 apt / dnf / apk / MacPorts 安装，以后跟着系统一起更新（每种的用法见那个页面）。那里的 `stable` 是正式版本，`nightly` 是预发布版本；conch 现在还只有预发布版本，所以先用 `nightly`：
+
+```sh
+sudo curl -fsSLo /usr/share/keyrings/nemo.gpg https://package.anzupop.com/keys/nemo-packages.gpg
+echo "deb [signed-by=/usr/share/keyrings/nemo.gpg] https://package.anzupop.com/apt nightly main" | sudo tee /etc/apt/sources.list.d/nemo-nightly.list
+sudo apt update && sudo apt install conch
+```
+
+Windows 可以用 Scoop：
+
+```powershell
+scoop bucket add nemo https://github.com/xiongnemo/windows-binaries-scoop-bucket
+scoop install nemo/conch-nightly   # 预发布版本
+```
+
 内核不需要自己装：第一次运行 `conch daemon` 时会自动下载并校验（每个 conch 版本都内置了测试过的内核版本和 sha256）。连不上 GitHub 的话，把环境变量 `CONCH_MIRROR` 设成下载镜像，例如 `CONCH_MIRROR=https://ghfast.top conch daemon`；自动下载和 `conch kernel` 命令都会用它，从镜像下载的文件同样会校验。也可以手动安装：
 
 ```sh

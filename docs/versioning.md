@@ -34,3 +34,5 @@ v{主版本}.{次版本}.{补丁}-{分支}-{提交前 12 位}[-dirty]
 
 - 软件包里的版本：正式发布是 `0.1.0`；预发布是 `0.0.5~pre`（apk 是 `0.0.5_pre`），排在 `0.0.5` 之前。浏览器扩展的版本只用 `主.次.补丁`。
 - 手动运行这个流程只构建、不发布，产物放在 Actions 的 artifacts 里。
+- 发布之前，deb / rpm / apk 先在 Debian、Ubuntu、Fedora、Rocky、Alpine 的容器里装一遍（arm64、armv7、386、riscv64 用 QEMU），装好的 `conch version` 必须是这个版本。
+- 发布之后通知 [package.anzupop.com](https://package.anzupop.com)（需要 `PACKAGES_DISPATCH_TOKEN` 密钥）：正式发布进 `stable`，预发布进 `nightly`；它再转告 Scoop bucket。没有这个密钥也照常发布，那边定时扫描时会收录。
