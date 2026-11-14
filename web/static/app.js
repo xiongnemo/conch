@@ -237,6 +237,12 @@ function hopLabel(name) {
   return g && g.now ? `${name}[${g.now}]` : name;
 }
 
+// nameSpan holds an outbound's name, cut short with "…" when it does not
+// fit; the whole name is in its tooltip.
+function nameSpan(name, title = name) {
+  return h("span", { class: "name", title }, name);
+}
+
 // removeButton deletes an outbound added from the UIs.
 function removeButton(kind, name) {
   return h("button", { class: "link remove", title: "删除", onclick: (e) => {
@@ -249,7 +255,7 @@ function removeButton(kind, name) {
 function chainRow(c) {
   const hopDelays = c.hops.map(() => h("span", { class: "hop-delay" }));
   const hops = c.hops.flatMap((hop, i) => [i ? " → " : null, hopLabel(hop), hopDelays[i]]);
-  return h("p", {}, h("b", {}, c.name), "：", hops, " ",
+  return h("p", { class: "chain" }, h("b", {}, c.name), "：", hops, " ",
     c.udp ? h("span", { class: "badge", title: "UDP 流量（例如 QUIC、游戏、语音）也能经由这条链" }, "UDP") : null, " ",
     h("span", { class: "chip static" }, delayButton(c.name, (results) => results.forEach((r, i) => {
       if (!hopDelays[i]) return;
@@ -320,12 +326,23 @@ $("#group-form").addEventListener("submit", async (e) => {
 $("#node-form").addEventListener("submit", async (e) => {
   e.preventDefault();
   try {
-    const { name } = await api("POST", "/nodes", { link: $("#node-link").value.trim() });
+    const added = await api("POST", "/nodes", { link: $("#node-link").value.trim() });
     $("#node-link").value = "";
     await loadOutbounds();
-    alert(`已添加节点 ${name}`);
+    const names = added.names || [added.name];
+    const lines = [names.length > 1 ? `已添加 ${names.length} 个节点：` + names.join("、") : `已添加节点 ${names[0]}`];
+    if (added.skipped?.length) lines.push("", `${added.skipped.length} 条无法识别，已跳过：`, ...added.skipped);
+    alert(lines.join("\n"));
   } catch (err) {
     showError(err);
+  }
+});
+
+// Ctrl+Enter (⌘+Enter) adds; Enter alone is a new line, for pasting many.
+$("#node-link").addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+    e.preventDefault();
+    $("#node-form").requestSubmit();
   }
 });
 
@@ -333,11 +350,11 @@ function renderOutbounds(list) {
   outbounds = list;
   const groups = list.filter((o) => o.kind === "group");
   fill($("#groups"), ...groups.map((g) => h("div", { class: "card group" },
-    h("h3", {}, g.name, h("span", { class: "kind" }, kindNames[g.type] || g.type),
+    h("h3", {}, nameSpan(g.name), h("span", { class: "kind" }, kindNames[g.type] || g.type),
       g.type !== "select" && g.now ? h("span", { class: "kind" }, "当前 " + g.now) : null,
       g.managed ? removeButton("groups", g.name) : null),
     h("div", { class: "chips" }, g.members.map((m) => {
-      const chip = h("span", { class: "chip" + ((g.now || g.selected) === m ? " selected" : ""), title: g.type === "select" ? "点击选择" : "" }, m, delayButton(m));
+      const chip = h("span", { class: "chip" + ((g.now || g.selected) === m ? " selected" : ""), title: g.type === "select" ? "点击选择" : "" }, nameSpan(m), delayButton(m));
       if (g.type === "select") {
         chip.style.cursor = "pointer";
         chip.addEventListener("click", () => api("PUT", `/groups/${encodeURIComponent(g.name)}`, { selected: m }).then(loadOutbounds).catch(showError));
@@ -348,7 +365,7 @@ function renderOutbounds(list) {
   const chains = list.filter((o) => o.kind === "chain");
   fill($("#chains"), ...(chains.length ? chains.map(chainRow) : ["没有链"]));
   const nodes = list.filter((o) => o.kind === "node");
-  fill($("#nodes"), h("div", { class: "chips" }, nodes.map((n) => h("span", { class: "chip", title: `${n.type} ${n.server}${n.udp ? "，支持 UDP" : ""}` }, n.name, delayButton(n.name), n.managed ? removeButton("nodes", n.name) : null))));
+  fill($("#nodes"), h("div", { class: "chips" }, nodes.map((n) => h("span", { class: "chip" }, nameSpan(n.name, `${n.name}\n${n.type} ${n.server}${n.udp ? "，支持 UDP" : ""}`), delayButton(n.name), n.managed ? removeButton("nodes", n.name) : null))));
   if (!document.querySelector("#chain-hops select")) resetChainForm();
   renderMembers(list);
   fill($("#add-via"), ...list.map((o) => h("option", { value: o.name }, o.kind === "builtin" ? { DIRECT: "直连", REJECT: "屏蔽" }[o.name] : o.name)));

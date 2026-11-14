@@ -115,9 +115,9 @@ func (f *fake) DeleteChain(_ context.Context, name string) error {
 	return nil
 }
 
-func (f *fake) AddNode(_ context.Context, link string) (string, error) {
-	f.record("add node %s", link)
-	return "JP 02", nil
+func (f *fake) AddNodes(_ context.Context, text string) (daemon.AddedNodes, error) {
+	f.record("add node %s", text)
+	return daemon.AddedNodes{Names: []string{"JP 02"}}, nil
 }
 
 func (f *fake) DeleteNode(_ context.Context, name string) error {

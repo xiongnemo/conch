@@ -68,17 +68,19 @@ func (s *Server) Handler() http.Handler {
 	})
 	mux.HandleFunc("POST /api/v1/nodes", func(w http.ResponseWriter, r *http.Request) {
 		var body struct {
-			Link string `json:"link"` // a share link: vmess://, vless://, ss://, trojan://, …
+			// Share links: vmess://, vless://, ss://, trojan://, …, one or
+			// many, one per line.
+			Link string `json:"link"`
 		}
 		if !decode(w, r, &body) {
 			return
 		}
-		name, err := s.D.AddNode(r.Context(), body.Link)
+		added, err := s.D.AddNodes(r.Context(), body.Link)
 		if err != nil {
 			fail(w, err)
 			return
 		}
-		writeJSON(w, map[string]string{"name": name})
+		writeJSON(w, map[string]any{"name": added.Names[0], "names": added.Names, "skipped": added.Skipped})
 	})
 	mux.HandleFunc("DELETE /api/v1/nodes/{name}", func(w http.ResponseWriter, r *http.Request) {
 		s.done(w, s.D.DeleteNode(r.Context(), r.PathValue("name")))

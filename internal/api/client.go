@@ -170,11 +170,18 @@ func (c *Client) DeleteGroup(ctx context.Context, name string) error {
 
 // AddNode adds a node from a share link and returns its name.
 func (c *Client) AddNode(ctx context.Context, link string) (string, error) {
-	var v struct {
-		Name string `json:"name"`
+	added, err := c.AddNodes(ctx, link)
+	if err != nil {
+		return "", err
 	}
-	err := c.do(ctx, http.MethodPost, "/api/v1/nodes", map[string]string{"link": link}, &v)
-	return v.Name, err
+	return added.Names[0], nil
+}
+
+// AddNodes adds the nodes of every share link in text, one per line.
+func (c *Client) AddNodes(ctx context.Context, text string) (daemon.AddedNodes, error) {
+	var v daemon.AddedNodes
+	err := c.do(ctx, http.MethodPost, "/api/v1/nodes", map[string]string{"link": text}, &v)
+	return v, err
 }
 
 func (c *Client) DeleteNode(ctx context.Context, name string) error {

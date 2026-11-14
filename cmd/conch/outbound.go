@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"io"
+	"strings"
 
 	"github.com/spf13/cobra"
 )
@@ -9,16 +11,28 @@ import (
 func newNodeCmd() *cobra.Command {
 	cmd := &cobra.Command{Use: "node", Short: "添加或删除节点（需要 daemon 在运行，写在 managed.yaml）"}
 	cmd.AddCommand(&cobra.Command{
-		Use:     "add <分享链接>",
-		Short:   "用分享链接添加节点（vmess://、vless://、ss://、trojan://、hysteria2://、socks://……）",
-		Example: "  conch node add 'vless://uuid@example.com:443?security=reality&…#HK 01'",
-		Args:    cobra.ExactArgs(1),
+		Use:   "add <分享链接>...",
+		Short: "用分享链接添加节点（vmess://、vless://、ss://、trojan://、hysteria2://、socks://……），可以一次添加多条",
+		Example: "  conch node add 'vless://uuid@example.com:443?security=reality&…#HK 01'\n" +
+			"  conch node add - < links.txt    # 从标准输入读，一行一条",
+		Args: cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			name, err := daemonClient().AddNode(cmd.Context(), args[0])
+			text := strings.Join(args, "\n")
+			if len(args) == 1 && args[0] == "-" {
+				data, err := io.ReadAll(cmd.InOrStdin())
+				if err != nil {
+					return err
+				}
+				text = string(data)
+			}
+			added, err := daemonClient().AddNodes(cmd.Context(), text)
 			if err != nil {
 				return err
 			}
-			fmt.Fprintf(cmd.OutOrStdout(), "已添加节点 %s\n", name)
+			fmt.Fprintln(cmd.OutOrStdout(), "已添加节点 "+strings.Join(added.Names, "、"))
+			for _, s := range added.Skipped {
+				fmt.Fprintln(cmd.ErrOrStderr(), "已跳过："+s)
+			}
 			return nil
 		},
 	}, &cobra.Command{

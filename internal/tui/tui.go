@@ -30,7 +30,7 @@ type Client interface {
 	Select(ctx context.Context, group, member string) error
 	SetChain(ctx context.Context, name string, hops []string) error
 	DeleteChain(ctx context.Context, name string) error
-	AddNode(ctx context.Context, link string) (string, error)
+	AddNodes(ctx context.Context, text string) (daemon.AddedNodes, error)
 	DeleteNode(ctx context.Context, name string) error
 	Delay(ctx context.Context, name string) (api.Delay, error)
 	SetMode(ctx context.Context, mode string) error

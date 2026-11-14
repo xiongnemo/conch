@@ -13,7 +13,8 @@ import (
 	"github.com/xiongnemo/conch/internal/daemon"
 )
 
-// linkDialog adds a node from a share link.
+// linkDialog adds nodes from share links. Pasted lines arrive joined by
+// spaces, which the daemon splits again.
 type linkDialog struct {
 	input textinput.Model
 }
@@ -37,8 +38,8 @@ func (d *linkDialog) key(m *Model, k tea.KeyPressMsg) tea.Cmd {
 		}
 		m.dialog = nil
 		return m.call(func(ctx context.Context) tea.Msg {
-			name, err := m.c.AddNode(ctx, link)
-			return doneMsg{ok: "已添加节点 " + name, err: err}
+			added, err := m.c.AddNodes(ctx, link)
+			return doneMsg{ok: added.Summary(), err: err}
 		})
 	}
 	var cmd tea.Cmd
@@ -50,7 +51,7 @@ func (d *linkDialog) view(_ *Model, w, h int) string {
 	inner := max(30, min(76, w-6))
 	return centered(strings.Join([]string{
 		bold.Render("添加节点"), "",
-		inputView(&d.input, "粘贴分享链接：vmess://、vless://、ss://、trojan://、hysteria2://……", inner),
+		inputView(&d.input, "粘贴分享链接，可以一次粘贴多条：vmess://、vless://、ss://、trojan://……", inner),
 		"", muted.Render(d.hints()),
 	}, "\n"), w, h)
 }
