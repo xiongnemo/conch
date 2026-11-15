@@ -144,6 +144,11 @@ func (e *encoder) nodeOutbound(p *compile.Proxy) (outbound, []string, error) {
 	case "reject":
 		o.Protocol = "blackhole"
 		return o, nil, nil
+	case "snell":
+		if s.Snell.Version != 4 {
+			return o, nil, fmt.Errorf("xray 没有 snell 协议，换用 mihomo 内核（sing-box 只有第 4 版）")
+		}
+		return o, nil, fmt.Errorf("xray 没有 snell 协议，换用 mihomo 或 sing-box 内核")
 	case "hysteria", "tuic", "anytls", "ssh":
 		return o, nil, fmt.Errorf("xray 没有 %s 协议，换用 mihomo 或 sing-box 内核", s.Type)
 	case "wireguard":

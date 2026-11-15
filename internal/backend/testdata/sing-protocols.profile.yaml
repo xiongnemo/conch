@@ -5,6 +5,10 @@ nodes:
   - { name: hysteria, type: hysteria, server: 192.0.2.51, port: 443, auth-str: a, obfs: o, up: "30 Mbps", down: 200, sni: h.example.com, ports: "20000-30000" }
   - { name: anytls, type: anytls, server: 192.0.2.52, port: 443, password: p, sni: a.example.com, client-fingerprint: chrome, idle-session-timeout: 60 }
   - { name: ssh, type: ssh, server: 192.0.2.53, port: 22, username: u, password: p }
+  # snell：sing-box 只有第 4 版（mihomo 把第 5 版当第 4 版）
+  - { name: snell, type: snell, server: 192.0.2.54, port: 443, psk: k, version: 4, reuse: true, udp: true, obfs-opts: { mode: http } }
+  - { name: snell-shadow-tls, type: snell, server: 192.0.2.55, port: 443, psk: k, version: 5,
+      obfs-opts: { mode: shadow-tls, host: cloud.example.com, password: st, version: 3 } }
 
 routes:
   default: tuic
@@ -12,3 +16,5 @@ routes:
     a.example: hysteria
     b.example: anytls
     c.example: ssh
+    d.example: snell
+    e.example: snell-shadow-tls

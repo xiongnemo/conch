@@ -33,6 +33,10 @@ func TestNodeTranslations(t *testing.T) {
 		{node: `{ name: c, type: trojan, server: 192.0.2.1, port: 443, password: p, certificate: /etc/conch/c.pem, private-key: /etc/conch/k.pem }`, config: `"client_key_path": "/etc/conch/k.pem"`},
 		{node: `{ name: c, type: trojan, server: 192.0.2.1, port: 443, password: p, certificate: "-----BEGIN CERTIFICATE-----\nMIIB\n-----END CERTIFICATE-----", private-key: /k.pem }`, config: `"MIIB"`},
 		{node: `{ name: u, type: ss, server: 192.0.2.1, port: 1, cipher: aes-128-gcm, password: p, udp-over-tcp: true }`, config: `"version": 1`},
+		// mihomo's snell is version 1 unless written; sing-box only has 4.
+		{node: `{ name: n, type: snell, server: 192.0.2.1, port: 443, psk: k }`, err: true, said: "sing-box 只有 snell 第 4 版，这个节点是第 1 版"},
+		{node: `{ name: n, type: snell, server: 192.0.2.1, port: 443, psk: k, version: 4, obfs-opts: { mode: tls } }`, config: `"obfs_host": "bing.com"`},
+		{node: `{ name: n, type: snell, server: 192.0.2.1, port: 443, psk: k, version: 4, obfs-opts: { mode: restls, host: r.example.com } }`, err: true, said: "snell 没有 restls 混淆"},
 	} {
 		art, said := backendtest.BuildNode(t, Backend{}, c.node)
 		switch {

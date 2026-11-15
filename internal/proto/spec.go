@@ -42,6 +42,7 @@ type Spec struct {
 	AnyTLS    *AnyTLS
 	SSH       *SSH
 	Masque    *Masque
+	Snell     *Snell // with Plugin for its obfs-opts
 	WireGuard *WireGuard
 	TrojanGo  *TrojanGo
 	Sockopt   Sockopt
@@ -190,6 +191,13 @@ type Masque struct {
 	URI, Network          string
 	DNS                   []string
 	RemoteDNS             bool
+}
+
+// Snell: the version (mihomo has 1 to 4, and reads 5 as 4) and whether
+// connections are reused. Password is the PSK.
+type Snell struct {
+	Version int
+	Reuse   bool
 }
 
 // TUIC v5 (UUID and Password), or v4 with a token.

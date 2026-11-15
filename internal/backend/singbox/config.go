@@ -62,7 +62,7 @@ type outbound struct {
 	Server     string `json:"server,omitempty"`
 	ServerPort int    `json:"server_port,omitempty"`
 
-	Version        any               `json:"version,omitempty"` // socks: "5"; shadowtls: 1, 2 or 3
+	Version        any               `json:"version,omitempty"` // socks: "5"; shadowtls: 1, 2 or 3; snell: 4
 	Plugin         string            `json:"plugin,omitempty"`  // shadowsocks: SIP003
 	PluginOpts     string            `json:"plugin_opts,omitempty"`
 	Method         string            `json:"method,omitempty"` // shadowsocks
@@ -106,6 +106,10 @@ type outbound struct {
 	KeyPassphrase  string   `json:"private_key_passphrase,omitempty"`
 	HostKey        []string `json:"host_key,omitempty"`
 	HostKeyAlgos   []string `json:"host_key_algorithms,omitempty"`
+	PSK            string   `json:"psk,omitempty"` // snell
+	Reuse          bool     `json:"reuse,omitempty"`
+	ObfsMode       string   `json:"obfs_mode,omitempty"`
+	ObfsHost       string   `json:"obfs_host,omitempty"`
 
 	Outbounds   []string `json:"outbounds,omitempty"` // selector, urltest
 	Default     string   `json:"default,omitempty"`

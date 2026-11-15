@@ -2,3 +2,5 @@
 错误 ../testdata/sing-protocols.profile.yaml:5：节点 "hysteria"：xray 没有 hysteria 协议，换用 mihomo 或 sing-box 内核
 错误 ../testdata/sing-protocols.profile.yaml:6：节点 "anytls"：xray 没有 anytls 协议，换用 mihomo 或 sing-box 内核
 错误 ../testdata/sing-protocols.profile.yaml:7：节点 "ssh"：xray 没有 ssh 协议，换用 mihomo 或 sing-box 内核
+错误 ../testdata/sing-protocols.profile.yaml:9：节点 "snell"：xray 没有 snell 协议，换用 mihomo 或 sing-box 内核
+错误 ../testdata/sing-protocols.profile.yaml:10：节点 "snell-shadow-tls"：xray 没有 snell 协议，换用 mihomo 或 sing-box 内核

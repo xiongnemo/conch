@@ -212,6 +212,21 @@ func ToClash(name string, s *Spec) *yaml.Node {
 				m.strs("host-key-algorithms", x.HostKeyAlgorithms)
 			}
 		}
+	case "snell":
+		m.str("psk", s.Password)
+		if sn := s.Snell; sn != nil {
+			m.int("version", sn.Version)
+			if sn.Reuse {
+				m.bool("reuse", true)
+			}
+		}
+		if p := s.Plugin; p != nil {
+			o := pluginOpts(m, p)
+			if p.Name != "obfs" {
+				o.str("mode", p.Name)
+			}
+			m.node("obfs-opts", o.n)
+		}
 	case "masque":
 		if mq := s.Masque; mq != nil {
 			m.str("private-key", mq.PrivateKey)
@@ -547,6 +562,12 @@ func pluginClash(m *mapping, p *Plugin) {
 		return
 	}
 	m.str("plugin", p.Name)
+	m.node("plugin-opts", pluginOpts(m, p).n)
+}
+
+// pluginOpts writes a plugin's options; shadow-tls's uTLS fingerprint
+// goes on the node m.
+func pluginOpts(m *mapping, p *Plugin) *mapping {
 	o := &mapping{n: &yaml.Node{Kind: yaml.MappingNode}}
 	o.str("mode", p.Mode)
 	o.str("host", p.Host)
@@ -588,7 +609,7 @@ func pluginClash(m *mapping, p *Plugin) {
 			m.str("client-fingerprint", t.Fingerprint)
 		}
 	}
-	m.node("plugin-opts", o.n)
+	return o
 }
 
 // rawClash writes keys kept as written, in order.

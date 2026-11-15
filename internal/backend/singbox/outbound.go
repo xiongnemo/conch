@@ -190,6 +190,26 @@ func (e *encoder) nodeOutbound(p *compile.Proxy) (*outbound, *endpoint, []string
 				o.PrivateKeyPath = x.PrivateKey
 			}
 		}
+	case "snell":
+		sn := s.Snell
+		if sn.Version != 4 {
+			return nil, nil, nil, fmt.Errorf("sing-box 只有 snell 第 4 版，这个节点是第 %d 版，换用 mihomo 内核", sn.Version)
+		}
+		o.Type, o.Version, o.PSK, o.Reuse = "snell", 4, s.Password, sn.Reuse
+		if pl := s.Plugin; pl != nil {
+			switch pl.Name {
+			case "obfs":
+				o.ObfsMode, o.ObfsHost = pl.Mode, pl.Host
+			case "shadow-tls":
+				w, err := e.plugin(o, p, s)
+				if err != nil {
+					return nil, nil, nil, err
+				}
+				warns = append(warns, w...)
+			default:
+				return nil, nil, nil, fmt.Errorf("sing-box 的 snell 没有 %s 混淆", pl.Name)
+			}
+		}
 	case "masque":
 		return nil, nil, nil, fmt.Errorf("sing-box 没有 MASQUE，换用 mihomo 或 xray 内核")
 	case "direct":

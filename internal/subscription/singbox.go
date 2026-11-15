@@ -94,8 +94,8 @@ func parseSingBox(doc obj) (*Snapshot, error) {
 			}
 		}
 	}
-	// shadow-tls is an outbound shadowsocks dials through; in mihomo's
-	// terms, a plugin of the shadowsocks node.
+	// shadow-tls is an outbound shadowsocks or snell dials through; in
+	// mihomo's terms, a plugin of the node.
 	shadowTLS := map[string]obj{}
 	for _, o := range items {
 		if o.str("type") == "shadowtls" {
@@ -104,7 +104,7 @@ func parseSingBox(doc obj) (*Snapshot, error) {
 	}
 	for _, o := range items {
 		tag, typ := o.str("tag"), o.str("type")
-		if st, ok := shadowTLS[o.str("detour")]; ok && typ == "shadowsocks" {
+		if st, ok := shadowTLS[o.str("detour")]; ok && (typ == "shadowsocks" || typ == "snell") {
 			o = maps.Clone(o)
 			delete(o, "detour")
 			o["server"], o["server_port"] = st["server"], st["server_port"]
@@ -184,13 +184,19 @@ func singBoxSpec(o obj) (*proto.Spec, []string, error) {
 				return nil, nil, fmt.Errorf("conch 不认识 %s 插件", p)
 			}
 		}
-		if st := o.sub("shadow-tls"); st != nil {
-			tls, w := singBoxTLS(st.sub("tls"))
-			warns = append(warns, w...)
-			s.Plugin = &proto.Plugin{Name: "shadow-tls", Host: tls.SNI, Password: st.str("password"), Version: st.num("version"), TLS: tls}
-			if s.Plugin.Version == 0 {
-				s.Plugin.Version = 1 // sing-box's default
-			}
+	case "snell":
+		s.Type, s.Password = "snell", o.str("psk")
+		if v := o.num("version"); v != 4 {
+			return nil, nil, fmt.Errorf("mihomo 只有 snell 第 1 到 4 版，没有第 %d 版", v)
+		}
+		if o.str("userkey") != "" {
+			return nil, nil, fmt.Errorf("mihomo 的 snell 没有 userkey")
+		}
+		s.Snell = &proto.Snell{Version: 4, Reuse: o.flag("reuse")}
+		switch mode := o.str("obfs_mode"); mode {
+		case "http", "tls":
+			// sing-box's default hosts, which mihomo's (bing.com) are not.
+			s.Plugin = &proto.Plugin{Name: "obfs", Mode: mode, Host: cmpOr(o.str("obfs_host"), map[string]string{"http": "bing.com", "tls": "cloudfront.net"}[mode])}
 		}
 	case "vmess":
 		s.Type, s.UUID, s.Cipher, s.AlterID = "vmess", o.str("uuid"), o.str("security"), o.num("alter_id")
@@ -287,6 +293,14 @@ func singBoxSpec(o obj) (*proto.Spec, []string, error) {
 		s.WireGuard = wg
 	default:
 		return nil, nil, fmt.Errorf("conch 不认识 sing-box 的 %s 出站", typ)
+	}
+	if st := o.sub("shadow-tls"); st != nil {
+		tls, w := singBoxTLS(st.sub("tls"))
+		warns = append(warns, w...)
+		s.Plugin = &proto.Plugin{Name: "shadow-tls", Host: tls.SNI, Password: st.str("password"), Version: st.num("version"), TLS: tls}
+		if s.Plugin.Version == 0 {
+			s.Plugin.Version = 1 // sing-box's default
+		}
 	}
 	if t := o.sub("tls"); t != nil && t.flag("enabled") {
 		var w []string

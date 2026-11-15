@@ -90,6 +90,42 @@
       "user": "u"
     },
     {
+      "type": "snell",
+      "tag": "snell",
+      "server": "192.0.2.54",
+      "server_port": 443,
+      "version": 4,
+      "psk": "k",
+      "reuse": true,
+      "obfs_mode": "http",
+      "obfs_host": "bing.com"
+    },
+    {
+      "type": "snell",
+      "tag": "snell-shadow-tls",
+      "server": "192.0.2.55",
+      "server_port": 443,
+      "version": 4,
+      "psk": "k",
+      "detour": "snell-shadow-tls›shadow-tls"
+    },
+    {
+      "type": "shadowtls",
+      "tag": "snell-shadow-tls›shadow-tls",
+      "server": "192.0.2.55",
+      "server_port": 443,
+      "version": 3,
+      "password": "st",
+      "tls": {
+        "enabled": true,
+        "server_name": "cloud.example.com",
+        "alpn": [
+          "h2",
+          "http/1.1"
+        ]
+      }
+    },
+    {
       "type": "selector",
       "tag": "GLOBAL",
       "outbounds": [
@@ -97,6 +133,8 @@
         "hysteria",
         "anytls",
         "ssh",
+        "snell",
+        "snell-shadow-tls",
         "DIRECT"
       ]
     }
@@ -126,6 +164,20 @@
         ],
         "action": "route",
         "outbound": "ssh"
+      },
+      {
+        "domain_suffix": [
+          "d.example"
+        ],
+        "action": "route",
+        "outbound": "snell"
+      },
+      {
+        "domain_suffix": [
+          "e.example"
+        ],
+        "action": "route",
+        "outbound": "snell-shadow-tls"
       },
       {
         "domain_suffix": [

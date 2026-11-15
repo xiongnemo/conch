@@ -167,6 +167,25 @@ func FromClash(m *yaml.Node) *Spec {
 		}
 		s.Masque = mq
 		s.TLS = &TLS{SNI: r.str("sni"), Insecure: r.bool("skip-cert-verify")}
+	case "snell":
+		s.Password = r.str("psk")
+		s.Snell = &Snell{Version: cmpInt(r.int("version"), 1), Reuse: r.bool("reuse")} // mihomo's default version is 1
+		if s.Snell.Version == 5 {
+			s.Snell.Version = 4 // as mihomo does
+		}
+		if o := r.sub("obfs-opts"); o != nil {
+			// mihomo's simple-obfs modes, or a plugin by name.
+			switch mode := o.str("mode"); mode {
+			case "":
+				o.ignoreAll()
+			case "http", "tls":
+				s.Plugin = pluginOf(r, o, "obfs")
+			default:
+				s.Plugin = pluginOf(r, o, mode)
+				s.Plugin.Mode = ""
+			}
+		}
+		r.ignore("client-fingerprint")
 	case "direct", "reject":
 	case "wireguard":
 		s.UDP = true
@@ -593,6 +612,12 @@ func readPlugin(r *reader, s *Spec) *Plugin {
 	if o == nil {
 		o = newReader(&yaml.Node{Kind: yaml.MappingNode}, "plugin-opts.")
 	}
+	return pluginOf(r, o, name)
+}
+
+// pluginOf reads the options o of the named plugin on node r, whose
+// client-fingerprint shadow-tls takes.
+func pluginOf(r, o *reader, name string) *Plugin {
 	p := &Plugin{Name: name, Mode: o.str("mode"), Host: cmp.Or(o.str("host"), "bing.com")}
 	tlsOf := func() *TLS {
 		return &TLS{SNI: p.Host, Insecure: o.bool("skip-cert-verify"), PinSHA256: o.str("fingerprint"), VerifyName: o.str("name-cert-verify"),

@@ -41,6 +41,27 @@ proxies:
     port: 22
     username: u
     password: p
+  - name: snell
+    type: snell
+    server: 192.0.2.54
+    port: 443
+    psk: k
+    version: 4
+    reuse: true
+    udp: true
+    obfs-opts:
+      mode: http
+  - name: snell-shadow-tls
+    type: snell
+    server: 192.0.2.55
+    port: 443
+    psk: k
+    version: 5
+    obfs-opts:
+      mode: shadow-tls
+      host: cloud.example.com
+      password: st
+      version: 3
 proxy-groups:
   - name: GLOBAL
     type: select
@@ -49,11 +70,15 @@ proxy-groups:
       - hysteria
       - anytls
       - ssh
+      - snell
+      - snell-shadow-tls
       - DIRECT
 rules:
   - DOMAIN-SUFFIX,a.example,hysteria
   - DOMAIN-SUFFIX,b.example,anytls
   - DOMAIN-SUFFIX,c.example,ssh
+  - DOMAIN-SUFFIX,d.example,snell
+  - DOMAIN-SUFFIX,e.example,snell-shadow-tls
   - DOMAIN-SUFFIX,home.arpa,DIRECT
   - DOMAIN-SUFFIX,lan,DIRECT
   - DOMAIN-SUFFIX,local,DIRECT
