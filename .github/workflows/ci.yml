@@ -261,6 +261,7 @@ jobs:
           # Tests use more loopback addresses, which macOS only has once added.
           sudo ifconfig lo0 alias 127.0.0.2 up
           sudo ifconfig lo0 alias 127.0.0.3 up
+          sudo ifconfig lo0 alias 127.0.0.4 up
           go test -race -count=1 -v ./internal/backend/... ./internal/e2e ./internal/sidecar ./cmd/conch | tee e2e.log
           if grep -- '--- SKIP' e2e.log | grep -v TestTUN; then exit 1; fi
       - name: System proxy (networksetup) and system service (launchd)
