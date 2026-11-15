@@ -121,7 +121,7 @@ func TestParse(t *testing.T) {
 
 func TestParseErrors(t *testing.T) {
 	for _, link := range []string{
-		"https://example.com", "mieru://u:p@h:443", "vmess://not-base64!", "vless://u@h:notaport", "ss://bm9jb2xvbg@h:1",
+		"https://example.com", "mieru://u:p@h:443", "vless://u@h.example.com:443?type=kcp&security=tls", "vmess://not-base64!", "vless://u@h:notaport", "ss://bm9jb2xvbg@h:1",
 	} {
 		if _, _, err := Parse(link); err == nil {
 			t.Errorf("Parse(%q) succeeded, want error", link)

@@ -149,6 +149,8 @@ sudo conch service uninstall    # 保留配置和数据
 
 `.env` 先读环境变量，再读当前目录，最后读 `~/.config/conch/.env`。
 
+节点用 mihomo 的写法；每一项设置在 mihomo、xray、sing-box 和 trojan-go 边车里怎么翻译、哪些内核做不到，见 [docs/node-translation.md](docs/node-translation.md)。
+
 节点上的证书指纹（`fingerprint`，分享链接里的 `pinSHA256`）是证书的 SHA256。mihomo 和 xray 直接按它校验；sing-box 和 trojan-go 不支持这种写法，conch 会先连一次服务器取到证书，确认和指纹一致后，换算成它们能用的写法（证书公钥的 SHA256，或只信任这一张证书），记在 `certs.json` 里。还没取到时按常规校验证书，不会因此跳过校验；节点写了指纹时，`skip-cert-verify` 不起作用。
 
 ## 常用命令

@@ -146,7 +146,9 @@ func vmess(link string) (string, *proto.Spec, error) {
 	q.Set("type", str("net"))
 	q.Set("headerType", str("type"))
 	q.Set("security", str("tls"))
-	applyQuery(s, q, true)
+	if err := applyQuery(s, q, true); err != nil {
+		return "", nil, err
+	}
 	if q.Get("type") == "grpc" && s.Transport.ServiceName == "" {
 		s.Transport.ServiceName = str("path")
 	}
@@ -176,7 +178,9 @@ func vlessTrojan(link string) (string, *proto.Spec, error) {
 			q.Set("security", "tls") // trojan is always TLS
 		}
 	}
-	applyQuery(s, q, true)
+	if err := applyQuery(s, q, true); err != nil {
+		return "", nil, err
+	}
 	return fragment(u), s, nil
 }
 
@@ -304,7 +308,9 @@ func hysteria2(link string) (string, *proto.Spec, error) {
 		q.Set("pcs", pin)
 		q.Del("pinSHA256")
 	}
-	applyQuery(s, q, true)
+	if err := applyQuery(s, q, true); err != nil {
+		return "", nil, err
+	}
 	return fragment(u), s, nil
 }
 
@@ -373,7 +379,7 @@ func wireguard(link string) (string, *proto.Spec, error) {
 
 // applyQuery reads the TLS and transport parameters shared by v2rayN-style
 // links. Parameters it does not know are recorded as unknown.
-func applyQuery(s *proto.Spec, q url.Values, report bool) {
+func applyQuery(s *proto.Spec, q url.Values, report bool) error {
 	known := map[string]bool{}
 	get := func(keys ...string) string {
 		for _, k := range keys {
@@ -453,6 +459,9 @@ func applyQuery(s *proto.Spec, q url.Values, report bool) {
 		}
 	case "h2", "http":
 		tr.Network, tr.Host, tr.Path = "h2", host, path
+	default:
+		// mKCP, QUIC…: the node would dial plain TCP in mihomo.
+		return fmt.Errorf("conch 不支持 %s 传输", tr.Network)
 	}
 	s.Transport = tr
 	s.PacketEncoding = get("packetEncoding")
@@ -467,6 +476,7 @@ func applyQuery(s *proto.Spec, q url.Values, report bool) {
 		slices.Sort(unknown)
 		s.Unknown = append(s.Unknown, unknown...)
 	}
+	return nil
 }
 
 // splitHopPorts replaces a multi-port authority ("h:443,2000-3000") with
