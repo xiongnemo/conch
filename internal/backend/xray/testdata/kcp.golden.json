@@ -1,0 +1,199 @@
+{
+  "log": {
+    "loglevel": "info"
+  },
+  "inbounds": [
+    {
+      "tag": "›mixed",
+      "protocol": "mixed",
+      "listen": "127.0.0.1",
+      "port": 7890,
+      "settings": {
+        "udp": true
+      },
+      "sniffing": {
+        "enabled": true,
+        "destOverride": [
+          "http",
+          "tls",
+          "quic"
+        ],
+        "routeOnly": true
+      }
+    }
+  ],
+  "outbounds": [
+    {
+      "tag": "默认",
+      "protocol": "vmess",
+      "settings": {
+        "address": "192.0.2.70",
+        "port": 4000,
+        "id": "00000000-0000-0000-0000-000000000070",
+        "security": "auto"
+      },
+      "streamSettings": {
+        "network": "kcp",
+        "kcpSettings": {},
+        "finalmask": {
+          "udp": [
+            {
+              "type": "mkcp-legacy"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "tag": "DIRECT",
+      "protocol": "freedom"
+    },
+    {
+      "tag": "REJECT»",
+      "protocol": "blackhole"
+    },
+    {
+      "tag": "REJECT-DROP",
+      "protocol": "blackhole"
+    },
+    {
+      "tag": "伪装加密",
+      "protocol": "vmess",
+      "settings": {
+        "address": "192.0.2.71",
+        "port": 4000,
+        "id": "00000000-0000-0000-0000-000000000071",
+        "security": "auto"
+      },
+      "streamSettings": {
+        "network": "kcp",
+        "kcpSettings": {
+          "mtu": 1200,
+          "tti": 20,
+          "uplinkCapacity": 10,
+          "downlinkCapacity": 50,
+          "maxSendingWindow": 4194304
+        },
+        "finalmask": {
+          "udp": [
+            {
+              "type": "mkcp-legacy",
+              "settings": {
+                "value": "s33d"
+              }
+            },
+            {
+              "type": "mkcp-legacy",
+              "settings": {
+                "header": "wechat"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "tag": "只伪装",
+      "protocol": "vmess",
+      "settings": {
+        "address": "192.0.2.72",
+        "port": 4000,
+        "id": "00000000-0000-0000-0000-000000000072",
+        "security": "auto"
+      },
+      "streamSettings": {
+        "network": "kcp",
+        "security": "tls",
+        "tlsSettings": {
+          "serverName": "k.example.com"
+        },
+        "kcpSettings": {},
+        "finalmask": {
+          "udp": [
+            {
+              "type": "mkcp-legacy"
+            },
+            {
+              "type": "mkcp-legacy",
+              "settings": {
+                "header": "dtls"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "tag": "GLOBAL",
+      "protocol": "loopback",
+      "settings": {
+        "inboundTag": "›group›GLOBAL"
+      }
+    }
+  ],
+  "routing": {
+    "domainStrategy": "IPIfNonMatch",
+    "rules": [
+      {
+        "inboundTag": [
+          "›group›GLOBAL"
+        ],
+        "balancerTag": "GLOBAL"
+      },
+      {
+        "domain": [
+          "domain:a.example"
+        ],
+        "outboundTag": "伪装加密",
+        "ruleTag": "#0 a.example"
+      },
+      {
+        "domain": [
+          "domain:b.example"
+        ],
+        "outboundTag": "只伪装",
+        "ruleTag": "#1 b.example"
+      },
+      {
+        "domain": [
+          "domain:home.arpa",
+          "domain:lan",
+          "domain:local",
+          "domain:localhost"
+        ],
+        "outboundTag": "DIRECT",
+        "ruleTag": "#2-5 lan"
+      },
+      {
+        "ip": [
+          "::1/128",
+          "255.255.255.255/32",
+          "169.254.0.0/16",
+          "192.168.0.0/16",
+          "172.16.0.0/12",
+          "100.64.0.0/10",
+          "fe80::/10",
+          "0.0.0.0/8",
+          "10.0.0.0/8",
+          "127.0.0.0/8",
+          "ff00::/8",
+          "fc00::/7",
+          "224.0.0.0/4"
+        ],
+        "outboundTag": "DIRECT",
+        "ruleTag": "#6-18 lan"
+      }
+    ],
+    "balancers": [
+      {
+        "tag": "GLOBAL",
+        "selector": [
+          "默认"
+        ],
+        "strategy": {
+          "type": "random"
+        }
+      }
+    ]
+  }
+}

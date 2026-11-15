@@ -385,6 +385,26 @@ func transportClash(m *mapping, t Transport) {
 			o.node("download-settings", downloadClash(d))
 		}
 		m.node("xhttp-opts", o.n)
+	case "mkcp":
+		m.str("network", "mkcp")
+		if k := t.KCP; k != nil {
+			for _, kv := range []struct {
+				key string
+				v   int
+			}{{"mtu", k.MTU}, {"tti", k.TTI}, {"uplink-capacity", k.Uplink}, {"downlink-capacity", k.Downlink}, {"write-buffer", k.WriteBuffer}, {"read-buffer", k.ReadBuffer}} {
+				if kv.v != 0 {
+					o.int(kv.key, kv.v)
+				}
+			}
+			if k.Congestion {
+				o.bool("congestion", true)
+			}
+			o.str("seed", k.Seed)
+			o.str("header", k.Header)
+		}
+		if len(o.n.Content) > 0 {
+			m.node("mkcp-opts", o.n)
+		}
 	default:
 		m.str("network", t.Network)
 	}

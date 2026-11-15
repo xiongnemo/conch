@@ -44,6 +44,9 @@ func TestNodesXrayNoLongerTakes(t *testing.T) {
 		{`{ name: o, type: hysteria2, server: 203.0.114.1, port: 443, password: p, obfs: nonsense, obfs-password: x }`, "不认识 hysteria2 混淆", false},
 		{`{ name: c, type: trojan, server: 203.0.114.1, port: 443, password: p, certificate: /c.pem, private-key: /k.pem }`, "不能出示客户端证书", true},
 		{`{ name: a, type: wireguard, server: 203.0.114.1, port: 51820, ip: 10.0.0.2, private-key: k, public-key: p, amnezia-wg-option: { jc: 3, s1: 10 } }`, "xray 没有 AmneziaWG", true},
+		// mKCP: on vless too, which mihomo cannot; xray has no read buffer, and mihomo no dns header.
+		{`{ name: k, type: vless, server: 203.0.114.1, port: 443, uuid: 11111111-2222-3333-4444-555555555555, tls: true, network: kcp, mkcp-opts: { read-buffer: 1048576 } }`, "不能设接收缓冲", false},
+		{`{ name: k, type: vmess, server: 203.0.114.1, port: 443, uuid: 11111111-2222-3333-4444-555555555555, alterId: 0, cipher: auto, network: mkcp, mkcp-opts: { header: dns } }`, "mihomo 不认识 mKCP 伪装", false},
 	} {
 		dir := t.TempDir()
 		profile := filepath.Join(dir, "profile.yaml")

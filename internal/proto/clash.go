@@ -333,6 +333,13 @@ func readTransport(r *reader, s *Spec) {
 				}
 			}
 		}
+	case "kcp", "mkcp":
+		t.Network, t.KCP = "mkcp", &KCP{}
+		if o := r.sub("mkcp-opts"); o != nil {
+			t.KCP = &KCP{MTU: o.int("mtu"), TTI: o.int("tti"), Uplink: o.int("uplink-capacity"), Downlink: o.int("downlink-capacity"),
+				Congestion: o.bool("congestion"), WriteBuffer: o.int("write-buffer"), ReadBuffer: o.int("read-buffer"),
+				Seed: o.str("seed"), Header: o.str("header")}
+		}
 	case "xhttp":
 		if o := r.sub("xhttp-opts"); o != nil {
 			t.Path = o.str("path")
@@ -346,7 +353,7 @@ func readTransport(r *reader, s *Spec) {
 		}
 	}
 	// Subscriptions often carry options for transports they do not use.
-	r.ignore("ws-opts", "grpc-opts", "h2-opts", "http-opts", "xhttp-opts")
+	r.ignore("ws-opts", "grpc-opts", "h2-opts", "http-opts", "xhttp-opts", "mkcp-opts")
 	// A Host header is the transport's host.
 	for k, v := range t.Headers {
 		if strings.EqualFold(k, "host") {

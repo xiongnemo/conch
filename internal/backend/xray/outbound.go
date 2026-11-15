@@ -336,6 +336,31 @@ func transportStream(st *streamSettings, t proto.Transport, warns *[]string) err
 		}
 		st.Network = "raw"
 		st.RawSettings = &rawSettings{Header: rawHeader{Type: "http", Request: req}}
+	case "mkcp":
+		k := cmp.Or(t.KCP, &proto.KCP{})
+		st.Network = "kcp"
+		st.KCPSettings = &kcpSettings{MTU: k.MTU, TTI: k.TTI, Uplink: k.Uplink, Downlink: k.Downlink, MaxSendingWindow: k.WriteBuffer}
+		if k.ReadBuffer != 0 {
+			*warns = append(*warns, "xray 的 mKCP 不能设接收缓冲（read-buffer），用 xray 的默认")
+		}
+		// The packet's checksum, or AES-GCM with a seed, inside its
+		// disguise: xray puts the last mask nearest the wire.
+		sec := mask{Type: "mkcp-legacy"}
+		if k.Seed != "" {
+			sec.Settings = map[string]string{"value": k.Seed}
+		}
+		masks := []mask{sec}
+		switch h := strings.ToLower(k.Header); h {
+		case "", "none", "noop":
+		case "srtp", "utp", "dtls", "wireguard", "wechat-video", "wechat":
+			masks = append(masks, mask{Type: "mkcp-legacy", Settings: map[string]string{"header": strings.TrimSuffix(h, "-video")}})
+		default:
+			*warns = append(*warns, fmt.Sprintf("mihomo 不认识 mKCP 伪装 %q，不加伪装；xray 也不加", k.Header))
+		}
+		if st.FinalMask == nil {
+			st.FinalMask = &finalMask{}
+		}
+		st.FinalMask.UDP = append(st.FinalMask.UDP, masks...)
 	case "h2":
 		return fmt.Errorf("xray 已移除 h2 传输（官方建议迁移到 XHTTP）")
 	default:

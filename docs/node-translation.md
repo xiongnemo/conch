@@ -69,6 +69,10 @@ profile 是 conch 统一的配置，节点用 mihomo（Clash Meta）的写法。
 | h2 | ✗（xray 已移除） | ✓（需要 TLS） |
 | TCP 上的 HTTP 伪装（方法、路径、Host、头） | ✓ | ✓（只用一个路径；不能套 TLS） |
 | XHTTP 及其细项、`download-settings` | ✓ | ✗ |
+| mKCP（`network: mkcp`、`mkcp-opts`：伪装包头、`seed` 加密、MTU、容量、发送缓冲） | ✓（xray 总是做拥塞控制，`congestion` 关不掉） | ✗ |
+| mKCP 的 `read-buffer` | ✗（警告后用 xray 的默认） | ✗ |
+
+mihomo 只有 vmess 能走 mKCP；vless、trojan 节点写了 `network: mkcp`，mihomo 会悄悄改走 TCP，所以 conch 在 mihomo 上报错，xray 照样翻译。
 
 ## 拨号
 

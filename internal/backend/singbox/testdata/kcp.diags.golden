@@ -1,0 +1,3 @@
+错误 ../testdata/kcp.profile.yaml:3：节点 "默认"：sing-box 没有 mKCP 传输，换用 mihomo 或 xray 内核
+错误 ../testdata/kcp.profile.yaml:4：节点 "伪装加密"：sing-box 没有 mKCP 传输，换用 mihomo 或 xray 内核
+错误 ../testdata/kcp.profile.yaml:6：节点 "只伪装"：sing-box 没有 mKCP 传输，换用 mihomo 或 xray 内核

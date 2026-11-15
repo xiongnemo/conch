@@ -385,6 +385,8 @@ func transportOf(t proto.Transport, tls bool, warns *[]string) (*transport, erro
 		return o, nil
 	case "xhttp":
 		return nil, fmt.Errorf("sing-box 不支持 XHTTP 传输")
+	case "mkcp":
+		return nil, fmt.Errorf("sing-box 没有 mKCP 传输，换用 mihomo 或 xray 内核")
 	}
 	return nil, fmt.Errorf("sing-box 不支持 %s 传输", t.Network)
 }

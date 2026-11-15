@@ -101,6 +101,11 @@ func TestParse(t *testing.T) {
 		{"hy2://auth@[2001:db8::1]:443,20000-30000/?sni=x#hop", "hop",
 			proto.Spec{Type: "hysteria2", Server: "2001:db8::1", Port: 443, UDP: true, Password: "auth", TLS: &proto.TLS{SNI: "x"},
 				Hysteria: &proto.Hysteria{Ports: "443,20000-30000"}}},
+		// mKCP: v2rayN puts the seed in the path, other links in seed.
+		{"vmess://" + b64(`{"ps":"k","add":"1.2.3.4","port":"4000","id":"u","aid":"0","net":"kcp","type":"wechat-video","path":"s33d"}`), "k",
+			proto.Spec{Type: "vmess", Server: "1.2.3.4", Port: 4000, UDP: true, UUID: "u", Transport: proto.Transport{Network: "mkcp", KCP: &proto.KCP{Seed: "s33d", Header: "wechat-video"}}}},
+		{"vless://u@1.2.3.4:4000?type=kcp&headerType=dns&seed=x#k", "k",
+			proto.Spec{Type: "vless", Server: "1.2.3.4", Port: 4000, UDP: true, UUID: "u", Transport: proto.Transport{Network: "mkcp", KCP: &proto.KCP{Seed: "x"}}, Unknown: []string{"headerType=dns"}}},
 		{"socks://" + b64("user:pass") + "@1.2.3.4:1080#s", "s",
 			proto.Spec{Type: "socks5", Server: "1.2.3.4", Port: 1080, UDP: true, Username: "user", Password: "pass"}},
 		{"wireguard://KEY%3D@1.2.3.4:51820?publickey=PUB%3D&address=10.0.0.2%2F32,fd00::2&mtu=1280&reserved=1,2,3#wg", "wg",
@@ -121,7 +126,7 @@ func TestParse(t *testing.T) {
 
 func TestParseErrors(t *testing.T) {
 	for _, link := range []string{
-		"https://example.com", "mieru://u:p@h:443", "vless://u@h.example.com:443?type=kcp&security=tls", "vmess://not-base64!", "vless://u@h:notaport", "ss://bm9jb2xvbg@h:1",
+		"https://example.com", "mieru://u:p@h:443", "vless://u@h.example.com:443?type=quic&security=tls", "vmess://not-base64!", "vless://u@h:notaport", "ss://bm9jb2xvbg@h:1",
 	} {
 		if _, _, err := Parse(link); err == nil {
 			t.Errorf("Parse(%q) succeeded, want error", link)

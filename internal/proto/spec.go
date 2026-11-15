@@ -133,7 +133,7 @@ type Reality struct {
 
 // Transport is how the protocol's stream is carried. The zero value is raw TCP.
 type Transport struct {
-	Network         string // "", ws, httpupgrade, grpc, xhttp, h2, http
+	Network         string // "", ws, httpupgrade, grpc, xhttp, h2, http, mkcp
 	Path            string
 	Host            string
 	Headers         map[string]string
@@ -154,6 +154,19 @@ type Transport struct {
 	// xray's names for them), and where downloads go when elsewhere.
 	XHTTPExtra map[string]any
 	Download   *XHTTPDownload
+	KCP        *KCP // mkcp
+}
+
+// KCP is mKCP over UDP, mihomo's mkcp-opts; zero values are the defaults
+// (mihomo's and xray's are the same).
+type KCP struct {
+	MTU, TTI                int
+	Uplink, Downlink        int // capacity, MB/s
+	Congestion              bool
+	WriteBuffer, ReadBuffer int // bytes
+	// Seed encrypts packets with AES-GCM instead of the plain checksum;
+	// Header disguises them (srtp, utp, wechat-video, dtls, wireguard).
+	Seed, Header string
 }
 
 type Hysteria struct {

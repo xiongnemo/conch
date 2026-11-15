@@ -111,6 +111,7 @@ type streamSettings struct {
 	WSSettings          *httpSettings     `json:"wsSettings,omitempty"`
 	HTTPUpgradeSettings *httpSettings     `json:"httpupgradeSettings,omitempty"`
 	GRPCSettings        *grpcSettings     `json:"grpcSettings,omitempty"`
+	KCPSettings         *kcpSettings      `json:"kcpSettings,omitempty"`
 	XHTTPSettings       *xhttpSettings    `json:"xhttpSettings,omitempty"`
 	HysteriaSettings    *hysteriaSettings `json:"hysteriaSettings,omitempty"`
 	MasqueSettings      *masqueSettings   `json:"masqueSettings,omitempty"`
@@ -155,6 +156,16 @@ type httpSettings struct {
 	Host    string            `json:"host,omitempty"`
 	Path    string            `json:"path,omitempty"`
 	Headers map[string]string `json:"headers,omitempty"`
+}
+
+// kcpSettings are mKCP's; zero is xray's default. Packets get their
+// checksum or encryption, and their disguise, from finalmask.
+type kcpSettings struct {
+	MTU              int `json:"mtu,omitempty"`
+	TTI              int `json:"tti,omitempty"`
+	Uplink           int `json:"uplinkCapacity,omitempty"`
+	Downlink         int `json:"downlinkCapacity,omitempty"`
+	MaxSendingWindow int `json:"maxSendingWindow,omitempty"` // bytes
 }
 
 type grpcSettings struct {

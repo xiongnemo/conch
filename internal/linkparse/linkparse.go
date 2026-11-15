@@ -3,6 +3,7 @@
 package linkparse
 
 import (
+	"cmp"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -459,8 +460,18 @@ func applyQuery(s *proto.Spec, q url.Values, report bool) error {
 		}
 	case "h2", "http":
 		tr.Network, tr.Host, tr.Path = "h2", host, path
+	case "kcp", "mkcp":
+		// v2rayN's vmess links put the seed in the path.
+		tr.Network, tr.KCP = "mkcp", &proto.KCP{Seed: cmp.Or(get("seed"), path)}
+		switch h := get("headerType"); h {
+		case "", "none":
+		case "srtp", "utp", "wechat-video", "dtls", "wireguard":
+			tr.KCP.Header = h
+		default: // xray's dns, which mihomo lacks
+			s.Unknown = append(s.Unknown, "headerType="+h)
+		}
 	default:
-		// mKCP, QUIC…: the node would dial plain TCP in mihomo.
+		// QUIC…: the node would dial plain TCP in mihomo.
 		return fmt.Errorf("conch 不支持 %s 传输", tr.Network)
 	}
 	s.Transport = tr

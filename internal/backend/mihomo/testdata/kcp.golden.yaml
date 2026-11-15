@@ -1,0 +1,76 @@
+# 由 conch 生成，请不要手动修改；需要改动时请编辑 profile.yaml
+
+mixed-port: 7890
+allow-lan: false
+mode: rule
+log-level: info
+profile:
+  store-selected: true
+proxies:
+  - name: 默认
+    type: vmess
+    server: 192.0.2.70
+    port: 4000
+    uuid: 00000000-0000-0000-0000-000000000070
+    alterId: 0
+    cipher: auto
+    udp: true
+    network: mkcp
+  - name: 伪装加密
+    type: vmess
+    server: 192.0.2.71
+    port: 4000
+    uuid: 00000000-0000-0000-0000-000000000071
+    alterId: 0
+    cipher: auto
+    network: kcp
+    mkcp-opts:
+      mtu: 1200
+      tti: 20
+      uplink-capacity: 10
+      downlink-capacity: 50
+      congestion: true
+      write-buffer: 4194304
+      header: wechat-video
+      seed: s33d
+  - name: 只伪装
+    type: vmess
+    server: 192.0.2.72
+    port: 4000
+    uuid: 00000000-0000-0000-0000-000000000072
+    alterId: 0
+    cipher: auto
+    network: mkcp
+    tls: true
+    servername: k.example.com
+    mkcp-opts:
+      header: dtls
+proxy-groups:
+  - name: GLOBAL
+    type: select
+    proxies:
+      - 默认
+      - 伪装加密
+      - 只伪装
+      - DIRECT
+rules:
+  - DOMAIN-SUFFIX,a.example,伪装加密
+  - DOMAIN-SUFFIX,b.example,只伪装
+  - DOMAIN-SUFFIX,home.arpa,DIRECT
+  - DOMAIN-SUFFIX,lan,DIRECT
+  - DOMAIN-SUFFIX,local,DIRECT
+  - DOMAIN-SUFFIX,localhost,DIRECT
+  - IP-CIDR6,::1/128,DIRECT,no-resolve
+  - IP-CIDR,255.255.255.255/32,DIRECT,no-resolve
+  - IP-CIDR,169.254.0.0/16,DIRECT,no-resolve
+  - IP-CIDR,192.168.0.0/16,DIRECT,no-resolve
+  - IP-CIDR,172.16.0.0/12,DIRECT,no-resolve
+  - IP-CIDR,100.64.0.0/10,DIRECT,no-resolve
+  - IP-CIDR6,fe80::/10,DIRECT,no-resolve
+  - IP-CIDR,0.0.0.0/8,DIRECT,no-resolve
+  - IP-CIDR,10.0.0.0/8,DIRECT,no-resolve
+  - IP-CIDR,127.0.0.0/8,DIRECT,no-resolve
+  - IP-CIDR6,ff00::/8,DIRECT,no-resolve
+  - IP-CIDR6,fc00::/7,DIRECT,no-resolve
+  - IP-CIDR,224.0.0.0/4,DIRECT,no-resolve
+  - MATCH,默认

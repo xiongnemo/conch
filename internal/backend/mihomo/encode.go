@@ -91,7 +91,14 @@ func (Backend) Encode(r *compile.Result, opts backend.Options) (*backend.Artifac
 
 	proxies := &yaml.Node{Kind: yaml.SequenceNode}
 	for _, p := range r.Proxies {
+		// mihomo dials vless and trojan nodes "over mKCP" with plain TCP.
+		if s := proto.FromClash(p.Node.Raw); s.Transport.Network == "mkcp" && s.Type != "vmess" {
+			d.Errorf(p.Node.Pos, "节点 %q：mihomo 只有 vmess 能走 mKCP，换用 xray 内核", p.Node.Name)
+		}
 		proxies.Content = append(proxies.Content, proxyNode(p))
+	}
+	if d.HasErrors() {
+		return nil, d
 	}
 	doc.set("proxies", proxies)
 

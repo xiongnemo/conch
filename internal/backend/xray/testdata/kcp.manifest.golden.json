@@ -1,0 +1,59 @@
+{
+  "backend": "xray",
+  "proxies": [
+    {
+      "name": "默认",
+      "kind": "node",
+      "node": "默认"
+    },
+    {
+      "name": "伪装加密",
+      "kind": "node",
+      "node": "伪装加密"
+    },
+    {
+      "name": "只伪装",
+      "kind": "node",
+      "node": "只伪装"
+    }
+  ],
+  "rules": [
+    {
+      "index": 0,
+      "rule": "{\"domain\":[\"domain:a.example\"],\"outboundTag\":\"伪装加密\",\"ruleTag\":\"#0 a.example\"}",
+      "tag": "#0 a.example",
+      "tier": "domain",
+      "key": "a.example",
+      "source": "../testdata/kcp.profile.yaml:12"
+    },
+    {
+      "index": 1,
+      "rule": "{\"domain\":[\"domain:b.example\"],\"outboundTag\":\"只伪装\",\"ruleTag\":\"#1 b.example\"}",
+      "tag": "#1 b.example",
+      "tier": "domain",
+      "key": "b.example",
+      "source": "../testdata/kcp.profile.yaml:13"
+    },
+    {
+      "index": 2,
+      "last": 5,
+      "rule": "{\"domain\":[\"domain:home.arpa\",\"domain:lan\",\"domain:local\",\"domain:localhost\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#2-5 lan\"}",
+      "tag": "#2-5 lan",
+      "tier": "domain",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 6,
+      "last": 18,
+      "rule": "{\"ip\":[\"::1/128\",\"255.255.255.255/32\",\"169.254.0.0/16\",\"192.168.0.0/16\",\"172.16.0.0/12\",\"100.64.0.0/10\",\"fe80::/10\",\"0.0.0.0/8\",\"10.0.0.0/8\",\"127.0.0.0/8\",\"ff00::/8\",\"fc00::/7\",\"224.0.0.0/4\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#6-18 lan\"}",
+      "tag": "#6-18 lan",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    }
+  ],
+  "tags": {
+    "REJECT": "REJECT»"
+  }
+}
