@@ -14,6 +14,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -21,6 +22,7 @@ import (
 	"github.com/xiongnemo/conch/internal/api"
 	"github.com/xiongnemo/conch/internal/auth"
 	"github.com/xiongnemo/conch/internal/daemon"
+	"github.com/xiongnemo/conch/internal/kernel"
 	"github.com/xiongnemo/conch/internal/kernels"
 	"github.com/xiongnemo/conch/internal/paths"
 	"github.com/xiongnemo/conch/web"
@@ -184,13 +186,25 @@ func runDaemon(ctx context.Context, out io.Writer, f daemonFlags) error {
 	if err != nil {
 		return err
 	}
+	var live atomic.Pointer[daemon.Daemon]
+	live.Store(d)
+	switches := make(chan kernelSwitch)
 
 	guard := auth.NewGuard(settings)
 	guard.Log = out
 	if guard.Pairings, err = auth.LoadPairings(filepath.Join(paths.DataDir(), "pairings.json")); err != nil {
 		return err
 	}
-	srv := &http.Server{Handler: (&api.Server{D: d, Guard: guard, Web: web.FS()}).Handler(), ReadHeaderTimeout: 10 * time.Second}
+	apiServer := &api.Server{Guard: guard, Web: web.FS(), Daemon: live.Load, Switch: func(ctx context.Context, name string) error {
+		sw := kernelSwitch{name: name, done: make(chan error, 1)}
+		select {
+		case switches <- sw:
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+		return <-sw.done
+	}}
+	srv := &http.Server{Handler: apiServer.Handler(), ReadHeaderTimeout: 10 * time.Second}
 	ln, err := net.Listen("tcp", settings.Listen)
 	if err != nil {
 		return fmt.Errorf("Web UI 无法监听 %s：%w", settings.Listen, err)
@@ -216,11 +230,128 @@ func runDaemon(ctx context.Context, out io.Writer, f daemonFlags) error {
 	}
 
 	go followSettings(ctx, guard, cwd, out)
-	err = d.Run(ctx)
+	err = runSwitching(ctx, opts, &live, switches, out)
 	shutdown, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 	srv.Shutdown(shutdown)
 	return err
+}
+
+// kernelSwitch asks the running daemon to switch to another kernel.
+type kernelSwitch struct {
+	name string
+	done chan error
+}
+
+// switchTimeout is how long a new kernel may take to start before the
+// switch is undone.
+var switchTimeout = 30 * time.Second
+
+// runSwitching runs the daemon until ctx is done, switching kernels when
+// asked: the daemon of the old kernel stops, one of the new kernel takes
+// over the run. A kernel that cannot run the profile gives way to the old
+// one again.
+func runSwitching(ctx context.Context, opts daemon.Options, live *atomic.Pointer[daemon.Daemon], switches <-chan kernelSwitch, out io.Writer) error {
+	cur := start(ctx, live.Load())
+	for {
+		select {
+		case err := <-cur.ran:
+			cur.stop()
+			return err
+		case sw := <-switches:
+			old := cur.d.Status().Backend
+			if sw.name == old {
+				sw.done <- nil
+				continue
+			}
+			if !daemon.IsBackend(sw.name) {
+				sw.done <- fmt.Errorf("没有 %q 这个内核，可以用 %s", sw.name, strings.Join(daemon.Backends, "、"))
+				continue
+			}
+			// Download what is missing while the old kernel still runs.
+			o := opts
+			o.Backend = sw.name
+			if err := ensureKernel(ctx, o, out); err != nil {
+				sw.done <- err
+				continue
+			}
+			fmt.Fprintf(out, "正在从 %s 切换到 %s 内核……\n", old, sw.name)
+			cur.stop()
+			<-cur.ran
+			next, err := takeOver(ctx, o, cur.d)
+			if err != nil {
+				fmt.Fprintf(out, "换不了 %s 内核，换回 %s：%v\n", sw.name, old, err)
+				o.Backend = old
+				var back error
+				if next, back = takeOver(ctx, o, cur.d); back != nil {
+					sw.done <- fmt.Errorf("%w；换回 %s 也失败了：%v", err, old, back)
+					return back
+				}
+				err = fmt.Errorf("换不了 %s 内核，仍在使用 %s：%w", sw.name, old, err)
+			} else {
+				fmt.Fprintf(out, "已切换到 %s 内核\n", sw.name)
+			}
+			cur = next
+			live.Store(cur.d)
+			sw.done <- err
+		}
+	}
+}
+
+// running is a daemon being run.
+type running struct {
+	d    *daemon.Daemon
+	stop context.CancelFunc
+	ran  chan error
+}
+
+func start(ctx context.Context, d *daemon.Daemon) running {
+	runCtx, stop := context.WithCancel(ctx)
+	r := running{d, stop, make(chan error, 1)}
+	go func() { r.ran <- d.Run(runCtx) }()
+	return r
+}
+
+// takeOver starts a daemon of the kernel o asks for, taking over the run
+// from the stopped daemon from, and waits until it runs the profile.
+func takeOver(ctx context.Context, o daemon.Options, from *daemon.Daemon) (running, error) {
+	o.SwitchedFrom = from
+	d, err := daemon.New(o)
+	if err != nil {
+		return running{}, err
+	}
+	r := start(ctx, d)
+	fail := func(err error) (running, error) {
+		r.stop()
+		<-r.ran
+		return running{}, err
+	}
+	tick := time.NewTicker(100 * time.Millisecond)
+	defer tick.Stop()
+	deadline := time.After(switchTimeout)
+	for {
+		select {
+		case err := <-r.ran:
+			r.stop()
+			if err == nil {
+				err = errors.New("内核退出了")
+			}
+			return running{}, err
+		case <-deadline:
+			if s := d.Status().Error; s != "" {
+				return fail(errors.New(s))
+			}
+			return fail(errors.New("内核没有按时启动"))
+		case <-tick.C:
+		}
+		s := d.Status()
+		if s.Ready && s.Error == "" {
+			return r, nil
+		}
+		if s.Error != "" && s.Kernel.State != kernel.Starting {
+			return fail(errors.New(s.Error))
+		}
+	}
 }
 
 // newDaemon creates the daemon, installing the kernel and its geodata the
@@ -229,8 +360,9 @@ func newDaemon(ctx context.Context, opts daemon.Options, out io.Writer) (*daemon
 	d, err := daemon.New(opts)
 	var missing *kernels.NotInstalledError
 	if errors.As(err, &missing) && !opts.Offline {
-		fmt.Fprintf(out, "第一次使用 %s，正在下载内核……\n", missing.Kernel)
-		if _, err := kernels.Install(ctx, kernels.InstallOptions{Kernel: missing.Kernel, Dir: opts.DataDir, Target: kernels.Host(), Log: out}); err != nil {
+		o := opts
+		o.Backend = missing.Kernel
+		if err := ensureKernel(ctx, o, out); err != nil {
 			return nil, err
 		}
 		d, err = daemon.New(opts)
@@ -238,14 +370,38 @@ func newDaemon(ctx context.Context, opts daemon.Options, out io.Writer) (*daemon
 	if err != nil {
 		return nil, err
 	}
-	// xray reads geosite:/geoip: categories from its own data files.
-	if name := d.Status().Backend; name == "xray" && !kernels.HasGeodata(name, paths.KernelHome(name)) && !opts.Offline {
-		fmt.Fprintln(out, "正在下载 xray 需要的 geodata……")
-		if err := kernels.FetchGeodata(ctx, nil, name, "", paths.KernelHome(name), out); err != nil {
-			return nil, err
+	o := opts
+	o.Backend = d.Status().Backend
+	return d, ensureGeodata(ctx, o, out)
+}
+
+// ensureKernel downloads the kernel opts.Backend names, and the geodata
+// it needs, unless they are there.
+func ensureKernel(ctx context.Context, opts daemon.Options, out io.Writer) error {
+	if _, err := kernels.Current(opts.DataDir, opts.Backend, kernels.Host().OS); err != nil {
+		var missing *kernels.NotInstalledError
+		if !errors.As(err, &missing) {
+			return err
+		}
+		if opts.Offline {
+			return fmt.Errorf("%s 内核还没有下载，可以先运行 conch kernel install %s", opts.Backend, opts.Backend)
+		}
+		fmt.Fprintf(out, "第一次使用 %s，正在下载内核……\n", opts.Backend)
+		if _, err := kernels.Install(ctx, kernels.InstallOptions{Kernel: opts.Backend, Dir: opts.DataDir, Target: kernels.Host(), Log: out}); err != nil {
+			return err
 		}
 	}
-	return d, nil
+	return ensureGeodata(ctx, opts, out)
+}
+
+// ensureGeodata downloads the data files xray reads geosite:/geoip:
+// categories from, unless they are there.
+func ensureGeodata(ctx context.Context, opts daemon.Options, out io.Writer) error {
+	if name := opts.Backend; name == "xray" && !kernels.HasGeodata(name, paths.KernelHome(name)) && !opts.Offline {
+		fmt.Fprintln(out, "正在下载 xray 需要的 geodata……")
+		return kernels.FetchGeodata(ctx, nil, name, "", paths.KernelHome(name), out)
+	}
+	return nil
 }
 
 // followSettings picks up a changed password from the .env files.

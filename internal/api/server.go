@@ -2,6 +2,7 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -22,6 +23,20 @@ type Server struct {
 	D     *daemon.Daemon
 	Guard *auth.Guard
 	Web   fs.FS // the Web UI; nil serves none
+	// Daemon, when set, is the daemon in use, which changes when the
+	// kernel is switched; D is used otherwise.
+	Daemon func() *daemon.Daemon
+	// Switch runs another kernel: mihomo, xray or sing-box. Nil when the
+	// server cannot.
+	Switch func(ctx context.Context, backend string) error
+}
+
+// d is the daemon to serve a request with.
+func (s *Server) d() *daemon.Daemon {
+	if s.Daemon != nil {
+		return s.Daemon()
+	}
+	return s.D
 }
 
 // Handler returns the API and the Web UI behind the guard.
@@ -33,13 +48,29 @@ func (s *Server) Handler() http.Handler {
 		writeJSON(w, map[string]bool{"auth": s.Guard.Settings().Auth})
 	})
 	mux.HandleFunc("GET /api/v1/status", func(w http.ResponseWriter, r *http.Request) {
-		writeJSON(w, s.D.Status())
+		writeJSON(w, s.d().Status())
+	})
+	mux.HandleFunc("GET /api/v1/kernels", func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, s.d().Kernels())
+	})
+	mux.HandleFunc("PUT /api/v1/kernel", func(w http.ResponseWriter, r *http.Request) {
+		var body struct {
+			Backend string `json:"backend"` // mihomo | xray | sing-box
+		}
+		if !decode(w, r, &body) {
+			return
+		}
+		if s.Switch == nil {
+			fail(w, errors.New("这个 daemon 不能切换内核，请用 conch daemon --backend 重新启动"))
+			return
+		}
+		s.done(w, s.Switch(r.Context(), body.Backend))
 	})
 	mux.HandleFunc("GET /api/v1/logs", func(w http.ResponseWriter, r *http.Request) {
-		writeJSON(w, s.D.Logs())
+		writeJSON(w, s.d().Logs())
 	})
 	mux.HandleFunc("GET /api/v1/outbounds", func(w http.ResponseWriter, r *http.Request) {
-		writeJSON(w, s.D.Outbounds(r.Context()))
+		writeJSON(w, s.d().Outbounds(r.Context()))
 	})
 	mux.HandleFunc("PUT /api/v1/groups/{name}", s.selectGroup)
 	mux.HandleFunc("POST /api/v1/groups", func(w http.ResponseWriter, r *http.Request) {
@@ -49,22 +80,22 @@ func (s *Server) Handler() http.Handler {
 			Members []string `json:"members"`
 		}
 		if decode(w, r, &body) {
-			s.done(w, s.D.SetGroup(r.Context(), body.Name, body.Type, body.Members))
+			s.done(w, s.d().SetGroup(r.Context(), body.Name, body.Type, body.Members))
 		}
 	})
 	mux.HandleFunc("DELETE /api/v1/groups/{name}", func(w http.ResponseWriter, r *http.Request) {
-		s.done(w, s.D.DeleteGroup(r.Context(), r.PathValue("name")))
+		s.done(w, s.d().DeleteGroup(r.Context(), r.PathValue("name")))
 	})
 	mux.HandleFunc("PUT /api/v1/chains/{name}", func(w http.ResponseWriter, r *http.Request) {
 		var body struct {
 			Hops []string `json:"hops"`
 		}
 		if decode(w, r, &body) {
-			s.done(w, s.D.SetChain(r.Context(), r.PathValue("name"), body.Hops))
+			s.done(w, s.d().SetChain(r.Context(), r.PathValue("name"), body.Hops))
 		}
 	})
 	mux.HandleFunc("DELETE /api/v1/chains/{name}", func(w http.ResponseWriter, r *http.Request) {
-		s.done(w, s.D.DeleteChain(r.Context(), r.PathValue("name")))
+		s.done(w, s.d().DeleteChain(r.Context(), r.PathValue("name")))
 	})
 	mux.HandleFunc("POST /api/v1/nodes", func(w http.ResponseWriter, r *http.Request) {
 		var body struct {
@@ -75,7 +106,7 @@ func (s *Server) Handler() http.Handler {
 		if !decode(w, r, &body) {
 			return
 		}
-		added, err := s.D.AddNodes(r.Context(), body.Link)
+		added, err := s.d().AddNodes(r.Context(), body.Link)
 		if err != nil {
 			fail(w, err)
 			return
@@ -83,7 +114,7 @@ func (s *Server) Handler() http.Handler {
 		writeJSON(w, map[string]any{"name": added.Names[0], "names": added.Names, "skipped": added.Skipped})
 	})
 	mux.HandleFunc("DELETE /api/v1/nodes/{name}", func(w http.ResponseWriter, r *http.Request) {
-		s.done(w, s.D.DeleteNode(r.Context(), r.PathValue("name")))
+		s.done(w, s.d().DeleteNode(r.Context(), r.PathValue("name")))
 	})
 	mux.HandleFunc("POST /api/v1/delay", s.delay)
 	mux.HandleFunc("GET /api/v1/routes", s.routes)
@@ -98,7 +129,7 @@ func (s *Server) Handler() http.Handler {
 			Enabled bool `json:"enabled"`
 		}
 		if decode(w, r, &body) {
-			s.done(w, s.D.SetSysProxy(body.Enabled))
+			s.done(w, s.d().SetSysProxy(body.Enabled))
 		}
 	})
 	mux.HandleFunc("PUT /api/v1/tun", func(w http.ResponseWriter, r *http.Request) {
@@ -106,15 +137,15 @@ func (s *Server) Handler() http.Handler {
 			Enabled bool `json:"enabled"`
 		}
 		if decode(w, r, &body) {
-			s.done(w, s.D.SetTUN(r.Context(), body.Enabled))
+			s.done(w, s.d().SetTUN(r.Context(), body.Enabled))
 		}
 	})
 	mux.HandleFunc("POST /api/v1/subscriptions/{name}/update", func(w http.ResponseWriter, r *http.Request) {
-		s.done(w, s.D.UpdateSubscription(r.Context(), r.PathValue("name")))
+		s.done(w, s.d().UpdateSubscription(r.Context(), r.PathValue("name")))
 	})
 	// The kernel config as it is applied, to read in a browser tab.
 	mux.HandleFunc("GET /api/v1/compiled", func(w http.ResponseWriter, r *http.Request) {
-		config, file, err := s.D.Compiled()
+		config, file, err := s.d().Compiled()
 		if err != nil {
 			fail(w, err)
 			return
@@ -125,10 +156,10 @@ func (s *Server) Handler() http.Handler {
 		w.Write(config)
 	})
 	mux.HandleFunc("POST /api/v1/kernel/restart", func(w http.ResponseWriter, r *http.Request) {
-		s.done(w, s.D.Restart(r.Context()))
+		s.done(w, s.d().Restart(r.Context()))
 	})
 	mux.HandleFunc("GET /api/v1/connections", func(w http.ResponseWriter, r *http.Request) {
-		conns, err := s.D.Connections(r.Context())
+		conns, err := s.d().Connections(r.Context())
 		if err != nil {
 			fail(w, err)
 			return
@@ -136,13 +167,13 @@ func (s *Server) Handler() http.Handler {
 		writeJSON(w, conns)
 	})
 	mux.HandleFunc("DELETE /api/v1/connections/{id}", func(w http.ResponseWriter, r *http.Request) {
-		s.done(w, s.D.CloseConnection(r.Context(), r.PathValue("id")))
+		s.done(w, s.d().CloseConnection(r.Context(), r.PathValue("id")))
 	})
 	mux.HandleFunc("GET /api/v1/failed", func(w http.ResponseWriter, r *http.Request) {
-		writeJSON(w, s.D.Failed())
+		writeJSON(w, s.d().Failed())
 	})
 	mux.HandleFunc("DELETE /api/v1/failed", func(w http.ResponseWriter, r *http.Request) {
-		s.D.ClearFailed()
+		s.d().ClearFailed()
 		w.WriteHeader(http.StatusNoContent)
 	})
 	mux.HandleFunc("GET /api/v1/suggest", func(w http.ResponseWriter, r *http.Request) {
@@ -201,7 +232,7 @@ func (s *Server) selectGroup(w http.ResponseWriter, r *http.Request) {
 	if !decode(w, r, &body) {
 		return
 	}
-	s.done(w, s.D.Select(r.Context(), r.PathValue("name"), body.Selected))
+	s.done(w, s.d().Select(r.Context(), r.PathValue("name"), body.Selected))
 }
 
 func (s *Server) delay(w http.ResponseWriter, r *http.Request) {
@@ -211,7 +242,7 @@ func (s *Server) delay(w http.ResponseWriter, r *http.Request) {
 	if !decode(w, r, &body) {
 		return
 	}
-	if hops, err := s.D.ChainDelay(r.Context(), body.Name); err == nil {
+	if hops, err := s.d().ChainDelay(r.Context(), body.Name); err == nil {
 		// A chain: the delay through each hop, the last being end to end.
 		last := hops[len(hops)-1]
 		out := map[string]any{"delay": last.Delay, "hops": hops}
@@ -221,7 +252,7 @@ func (s *Server) delay(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, out)
 		return
 	}
-	d, err := s.D.Delay(r.Context(), body.Name)
+	d, err := s.d().Delay(r.Context(), body.Name)
 	if err != nil {
 		fail(w, err)
 		return
@@ -230,16 +261,16 @@ func (s *Server) delay(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) routes(w http.ResponseWriter, r *http.Request) {
-	res := s.D.Result()
+	res := s.d().Result()
 	if res == nil {
 		fail(w, errors.New("配置还没有成功编译"))
 		return
 	}
 	expires := map[string]time.Time{}
-	for _, t := range s.D.Temp() {
+	for _, t := range s.d().Temp() {
 		expires[t.Key] = t.Expires
 	}
-	writeJSON(w, view.TableOf(res, expires, daemon.ManagedPath(s.D.Status().Profile)))
+	writeJSON(w, view.TableOf(res, expires, daemon.ManagedPath(s.d().Status().Profile)))
 }
 
 func (s *Server) setRoute(w http.ResponseWriter, r *http.Request) {
@@ -263,7 +294,7 @@ func (s *Server) setRoute(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	undo, err := s.D.SetRoute(r.Context(), strings.TrimSpace(body.Target), body.Via, ttl)
+	undo, err := s.d().SetRoute(r.Context(), strings.TrimSpace(body.Target), body.Via, ttl)
 	if err != nil {
 		fail(w, err)
 		return
@@ -294,11 +325,11 @@ func (s *Server) undoRoute(w http.ResponseWriter, r *http.Request) {
 	if !decode(w, r, &body) {
 		return
 	}
-	s.done(w, s.D.UndoRoute(r.Context(), body.ID))
+	s.done(w, s.d().UndoRoute(r.Context(), body.ID))
 }
 
 func (s *Server) deleteRoute(w http.ResponseWriter, r *http.Request) {
-	s.done(w, s.D.DeleteRoute(r.Context(), r.URL.Query().Get("target")))
+	s.done(w, s.d().DeleteRoute(r.Context(), r.URL.Query().Get("target")))
 }
 
 func (s *Server) explain(w http.ResponseWriter, r *http.Request) {
@@ -308,12 +339,12 @@ func (s *Server) explain(w http.ResponseWriter, r *http.Request) {
 		fail(w, errors.New("缺少 target"))
 		return
 	}
-	ex, err := s.D.Explain(r.Context(), q)
+	ex, err := s.d().Explain(r.Context(), q)
 	if err != nil {
 		fail(w, err)
 		return
 	}
-	writeJSON(w, view.Explain(s.D.Result(), ex))
+	writeJSON(w, view.Explain(s.d().Result(), ex))
 }
 
 // pairCode issues a code for pairing a browser extension.
@@ -356,7 +387,7 @@ func (s *Server) setMode(w http.ResponseWriter, r *http.Request) {
 	if !decode(w, r, &body) {
 		return
 	}
-	s.done(w, s.D.SetMode(r.Context(), body.Mode))
+	s.done(w, s.d().SetMode(r.Context(), body.Mode))
 }
 
 // events streams daemon events as Server-Sent Events.
@@ -368,7 +399,7 @@ func (s *Server) events(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
-	ch, cancel := s.D.Events.Subscribe()
+	ch, cancel := s.d().Events.Subscribe()
 	defer cancel()
 	send := func(e daemon.Event) bool {
 		data, err := json.Marshal(e.Data)
@@ -381,7 +412,7 @@ func (s *Server) events(w http.ResponseWriter, r *http.Request) {
 		flusher.Flush()
 		return true
 	}
-	send(daemon.Event{Type: "state", Data: s.D.Status()})
+	send(daemon.Event{Type: "state", Data: s.d().Status()})
 	keepalive := time.NewTicker(25 * time.Second)
 	defer keepalive.Stop()
 	for {
@@ -404,7 +435,7 @@ func (s *Server) done(w http.ResponseWriter, err error) {
 		fail(w, err)
 		return
 	}
-	writeJSON(w, s.D.Status())
+	writeJSON(w, s.d().Status())
 }
 
 func decode(w http.ResponseWriter, r *http.Request, v any) bool {

@@ -46,7 +46,7 @@ import (
 type Options struct {
 	ProfilePath string
 	DataDir     string
-	Backend     string // mihomo | xray; empty keeps the last one used
+	Backend     string // mihomo | xray | sing-box; empty keeps the last one used
 	KernelBin   string // empty means the installed kernel
 	SidecarBin  string // trojan-go; empty means the installed one
 	Offline     bool   // never download subscriptions or rule lists
@@ -56,12 +56,16 @@ type Options struct {
 	// per-user settings then: `conch agent` sets the system proxy in
 	// each desktop session instead.
 	Service bool
+	// SwitchedFrom is the daemon this one takes over from, with another
+	// kernel: the run goes on, so the system proxy, TUN and mode
+	// switches stay as they were, and clients keep getting events.
+	SwitchedFrom *Daemon
 }
 
 // Daemon owns one kernel process.
 type Daemon struct {
 	opts   Options
-	Events Bus
+	Events *Bus
 	sup    *kernel.Supervisor
 	ctl    control.Kernel
 	// the kernel binary let through Windows' firewall, for TUN
@@ -70,6 +74,7 @@ type Daemon struct {
 	tunRouted bool
 	// inbound.system-proxy as last applied, to notice the profile changing it
 	profileSysProxy *bool
+	switched        bool                // took over from a daemon with another kernel
 	lanOpen         bool                // the proxy listens beyond loopback (noteLAN)
 	undos           []routeUndo         // the latest route changes, for UndoRoute
 	refreshing      atomic.Bool         // subscriptions are being refreshed
@@ -109,6 +114,12 @@ type Daemon struct {
 
 var backends = map[string]backend.Router{"mihomo": mihomo.Backend{}, "xray": xray.Backend{}, "sing-box": singbox.Backend{}}
 
+// Backends are the kernels conch can run, in the order to offer them.
+var Backends = []string{"mihomo", "xray", "sing-box"}
+
+// IsBackend reports whether name is a kernel conch can run.
+func IsBackend(name string) bool { _, ok := backends[name]; return ok }
+
 func New(opts Options) (*Daemon, error) {
 	if opts.Log == nil {
 		opts.Log = io.Discard
@@ -125,6 +136,7 @@ func New(opts Options) (*Daemon, error) {
 	st.Backend = name
 	d := &Daemon{
 		opts:     opts,
+		Events:   &Bus{},
 		backend:  b,
 		state:    st,
 		sup:      kernel.NewSupervisor(),
@@ -135,6 +147,16 @@ func New(opts Options) (*Daemon, error) {
 		subRetry: map[string]subRetry{},
 	}
 	d.lists.Proxy, d.subs.Proxy = d.kernelProxy, d.kernelProxy
+	if from := opts.SwitchedFrom; from != nil {
+		d.Events, d.switched = from.Events, true
+		// The profile's system-proxy wish was taken already; taken again,
+		// it would undo the switch in the UIs.
+		from.mu.Lock()
+		d.profileSysProxy = from.profileSysProxy
+		from.mu.Unlock()
+		opts.SwitchedFrom = nil // nothing else of it is needed; let it go
+		d.opts = opts
+	}
 	// The kernel API is unauthenticated on this socket: keep it in a
 	// directory only this user can enter.
 	runDir := socketDir(opts.DataDir)

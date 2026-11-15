@@ -135,6 +135,8 @@ func (m *Model) overviewKey(key string, item any) tea.Cmd {
 			m.note("正在更新订阅 "+sub.name+"……", false)
 			return m.do("订阅 "+sub.name+" 已更新", func(ctx context.Context) error { return m.c.UpdateSubscription(ctx, sub.name) })
 		}
+	case "K":
+		m.dialog = newKernelDialog(s.Backend)
 	case "R":
 		m.dialog = &confirmDialog{question: "重启内核？正在进行的连接会断开。", yes: m.do("内核已重启", m.c.Restart)}
 	}

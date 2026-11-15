@@ -6,7 +6,7 @@
 
 - **路由表，指哪打哪**：手动条目越具体越优先，与书写顺序无关；只有规则列表之间讲顺序。
 - **链式代理是一等公民**：`AI-Exit: [香港自动, home]`，路由条目可以直接指向一条链，每一跳都能单独测速。
-- **三个内核**：mihomo、xray 和 sing-box（用 `conch daemon --backend xray` 或 `--backend sing-box` 切换），trojan-go 节点由 trojan-go 边车运行。
+- **三个内核**：mihomo、xray 和 sing-box（运行中随时切换：Web UI 页头的内核下拉框、TUI 概览页按 `K`，或 `conch kernel use xray`；系统代理、TUN 和模式保持不变，下次启动沿用），trojan-go 节点由 trojan-go 边车运行。
 - **一套 API，多个界面**：Web UI（带登录）、TUI、浏览器扩展、CLI 用的是同一个 API。
 - 订阅、系统代理、TUN、系统服务、崩溃后自动恢复系统设置。
 
@@ -166,6 +166,7 @@ sudo conch service uninstall    # 保留配置和数据
 | `conch doctor --fix` | 检查常见问题，恢复残留的系统代理和 DNS |
 | `conch pair` | 配对浏览器扩展 |
 | `conch edit` | 编辑 profile，保存前检查 |
+| `conch kernel use [内核]` | 切换内核；不写内核名则列出可用的内核 |
 | `conch autostart on/off` | 登录时自动运行 daemon（不需要管理员权限） |
 
 ## 开发

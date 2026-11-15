@@ -3,6 +3,7 @@ package tui
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -46,6 +47,59 @@ func (d *confirmDialog) view(_ *Model, w, h int) string {
 }
 
 func (d *confirmDialog) hints() string { return "y 确定 · n 取消" }
+
+// kernelDialog picks the kernel to switch to.
+type kernelDialog struct {
+	current string
+	pick    int
+}
+
+func newKernelDialog(current string) *kernelDialog {
+	return &kernelDialog{current: current, pick: max(0, slices.Index(daemon.Backends, current))}
+}
+
+func (d *kernelDialog) key(m *Model, k tea.KeyPressMsg) tea.Cmd {
+	switch k.String() {
+	case "up", "k":
+		d.pick = max(0, d.pick-1)
+	case "down", "j":
+		d.pick = min(len(daemon.Backends)-1, d.pick+1)
+	case "enter":
+		m.dialog = nil
+		name := daemon.Backends[d.pick]
+		if name == d.current {
+			return nil
+		}
+		m.note("正在切换到 "+name+" 内核……", false)
+		return func() tea.Msg {
+			// Longer than other calls: the kernel may be downloaded first.
+			ctx, cancel := context.WithTimeout(m.ctx, 10*time.Minute)
+			defer cancel()
+			return doneMsg{ok: "已切换到 " + name + " 内核", err: m.c.SetKernel(ctx, name)}
+		}
+	case "esc", "q":
+		m.dialog = nil
+	}
+	return nil
+}
+
+func (d *kernelDialog) view(_ *Model, w, h int) string {
+	lines := []string{bold.Render("切换内核"), ""}
+	for i, name := range daemon.Backends {
+		line := "  " + name
+		if name == d.current {
+			line += muted.Render("（正在使用）")
+		}
+		if i == d.pick {
+			line = cursorRow.Render("> " + strings.TrimPrefix(line, "  "))
+		}
+		lines = append(lines, line)
+	}
+	lines = append(lines, "", muted.Render("系统代理、TUN 和模式保持不变；没下载的内核会先下载。"), "", muted.Render(d.hints()))
+	return centered(strings.Join(lines, "\n"), w, h)
+}
+
+func (d *kernelDialog) hints() string { return "↑↓ 选择 · enter 切换 · esc 取消" }
 
 var ttls = []struct {
 	label string

@@ -97,7 +97,7 @@ jobs:
       - name: Kernels accept every golden config; daemon, API, sidecars and extension work end to end
         shell: bash
         run: |
-          go test -race -count=1 -v ./internal/backend/... ./internal/e2e ./internal/sidecar | tee e2e.log
+          go test -race -count=1 -v ./internal/backend/... ./internal/e2e ./internal/sidecar ./cmd/conch | tee e2e.log
           # Tests skip when a kernel or the browser is missing; here that is a
           # failure. TUN has a job of its own.
           if grep -- '--- SKIP' e2e.log | grep -v TestTUN; then exit 1; fi
@@ -198,7 +198,7 @@ jobs:
       - name: Kernels accept every golden config; daemon, API and sidecars work end to end
         shell: bash
         run: |
-          go test -count=1 -v ./internal/backend/... ./internal/e2e ./internal/sidecar | tee e2e.log
+          go test -count=1 -v ./internal/backend/... ./internal/e2e ./internal/sidecar ./cmd/conch | tee e2e.log
           # Only the tests in Chrome may skip: Go cannot hand Chrome its
           # debugging pipe on Windows.
           if grep -- '--- SKIP' e2e.log | grep -v -e TestExtension -e TestWebUINodes; then exit 1; fi
@@ -261,7 +261,7 @@ jobs:
           # Tests use more loopback addresses, which macOS only has once added.
           sudo ifconfig lo0 alias 127.0.0.2 up
           sudo ifconfig lo0 alias 127.0.0.3 up
-          go test -race -count=1 -v ./internal/backend/... ./internal/e2e ./internal/sidecar | tee e2e.log
+          go test -race -count=1 -v ./internal/backend/... ./internal/e2e ./internal/sidecar ./cmd/conch | tee e2e.log
           if grep -- '--- SKIP' e2e.log | grep -v TestTUN; then exit 1; fi
       - name: System proxy (networksetup) and system service (launchd)
         shell: bash

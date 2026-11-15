@@ -115,6 +115,11 @@ func (f *fake) DeleteChain(_ context.Context, name string) error {
 	return nil
 }
 
+func (f *fake) SetKernel(_ context.Context, name string) error {
+	f.record("kernel %s", name)
+	return nil
+}
+
 func (f *fake) AddNodes(_ context.Context, text string) (daemon.AddedNodes, error) {
 	f.record("add node %s", text)
 	return daemon.AddedNodes{Names: []string{"JP 02"}}, nil
@@ -319,6 +324,10 @@ func TestOverview(t *testing.T) {
 	h.see("重启内核？")
 	h.keys("y")
 	h.wantCall("restart")
+	h.keys("K")
+	h.see("切换内核", "mihomo（正在使用）", "sing-box")
+	h.keys("down", "down", "enter")
+	h.wantCall("kernel sing-box")
 
 	data, _ := json.Marshal(control.Traffic{Up: 2048, Down: 3 << 20})
 	h.send(eventMsg{Type: "traffic", Data: data})

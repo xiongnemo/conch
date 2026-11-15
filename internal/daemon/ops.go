@@ -17,6 +17,7 @@ import (
 	"github.com/xiongnemo/conch/internal/diag"
 	"github.com/xiongnemo/conch/internal/explain"
 	"github.com/xiongnemo/conch/internal/kernel"
+	"github.com/xiongnemo/conch/internal/kernels"
 	"github.com/xiongnemo/conch/internal/lists"
 	"github.com/xiongnemo/conch/internal/platform/privilege"
 	"github.com/xiongnemo/conch/internal/route"
@@ -556,7 +557,7 @@ func (d *Daemon) SetMode(ctx context.Context, mode string) error {
 func (d *Daemon) SetTUN(ctx context.Context, on bool) error {
 	if on {
 		if !d.backend.Capabilities().TUN {
-			return fmt.Errorf("%s 内核在这个系统上暂不支持 TUN，可以换用 mihomo 或 sing-box 内核", d.backend.Name())
+			return fmt.Errorf("%s 内核在这个系统上暂不支持 TUN，可以换用 mihomo 或 sing-box 内核（Web UI 页头的内核下拉框，或 conch kernel use mihomo）", d.backend.Name())
 		}
 		if err := privilege.TUNError(d.bin); err != nil {
 			return err
@@ -641,4 +642,26 @@ func (d *Daemon) Temp() []TempRoute {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	return slices.Clone(d.state.Temp)
+}
+
+// KernelChoice is a kernel conch can run, as the UIs offer it.
+type KernelChoice struct {
+	Name      string `json:"name"`
+	Version   string `json:"version,omitempty"`
+	Installed bool   `json:"installed"` // or it is downloaded when chosen
+	Current   bool   `json:"current"`
+}
+
+// Kernels lists the kernels conch can run.
+func (d *Daemon) Kernels() []KernelChoice {
+	var out []KernelChoice
+	for _, name := range Backends {
+		k := KernelChoice{Name: name, Current: name == d.backend.Name()}
+		if inst, err := kernels.Current(d.opts.DataDir, name, kernels.Host().OS); err == nil {
+			k.Version, k.Installed = inst.Version, true
+		}
+		k.Installed = k.Installed || k.Current
+		out = append(out, k)
+	}
+	return out
 }

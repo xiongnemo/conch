@@ -30,6 +30,7 @@ nav button.active { background: var(--accent-soft); color: var(--accent); }
 .segmented button:last-child { border-radius: 0 6px 6px 0; }
 .segmented button.active { background: var(--accent); color: #fff; border-color: var(--accent); }
 
+#backend { padding: 2px 6px; font-size: 13px; }
 .pill { padding: 1px 10px; border-radius: 99px; font-size: 12px; background: var(--line); }
 .pill.running { background: #dcfce7; color: var(--ok); }
 .pill.crashed, .pill.stopped { background: #fee2e2; color: var(--bad); }

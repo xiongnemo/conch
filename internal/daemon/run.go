@@ -18,7 +18,14 @@ func (d *Daemon) Run(ctx context.Context) error {
 	defer d.Stop()
 	defer d.releaseSysProxy()
 	defer d.releaseDNS()
-	d.startSession()
+	if d.switched {
+		// A switch of kernel goes on with the run.
+		d.mu.Lock()
+		d.state.save(d.statePath())
+		d.mu.Unlock()
+	} else {
+		d.startSession()
+	}
 	if err := d.Reconcile(ctx); err != nil {
 		// Keep running: the API shows the problem and edits can fix it.
 		fmt.Fprintln(d.opts.Log, "警告：", err)

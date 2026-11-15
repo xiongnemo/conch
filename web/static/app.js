@@ -125,6 +125,38 @@ function bytes(n = 0) {
 const kindNames = { select: "手动选择", "url-test": "自动最快", fallback: "故障转移", "load-balance": "负载均衡" };
 const stateNames = { running: "运行中", starting: "启动中", crashed: "已崩溃，正在重启", stopped: "已停止" };
 
+// ---- kernel ----
+
+let switching = false;
+
+async function loadKernels() {
+  try {
+    const list = await api("GET", "/kernels");
+    fill($("#backend"), list.map((k) => h("option", { value: k.name, selected: k.current },
+      k.name + (k.installed ? "" : "（切换时下载）"))));
+  } catch (err) {
+    // the status shows what is wrong
+  }
+}
+
+$("#backend").addEventListener("change", async (e) => {
+  const name = e.target.value;
+  switching = true;
+  e.target.disabled = true;
+  $("#kernel").textContent = "正在切换内核……";
+  try {
+    await api("PUT", "/kernel", { backend: name });
+  } catch (err) {
+    showError(err);
+  } finally {
+    switching = false;
+    e.target.disabled = false;
+    await loadKernels();
+    renderStatus(await api("GET", "/status"));
+    refresh();
+  }
+});
+
 // ---- overview ----
 
 let status = null;
@@ -132,7 +164,8 @@ let status = null;
 function renderStatus(s) {
   status = s;
   const k = s.kernel || {};
-  $("#kernel").textContent = `${s.backend} · ${stateNames[k.state] || k.state}`;
+  $("#kernel").textContent = switching ? "正在切换内核……" : stateNames[k.state] || k.state;
+  if (!switching && $("#backend").value !== s.backend) loadKernels();
   $("#kernel").className = "pill " + (k.state || "");
   for (const b of document.querySelectorAll("#modes button")) b.classList.toggle("active", b.dataset.mode === s.mode);
   $("#sysproxy").checked = !!s.sysproxy;

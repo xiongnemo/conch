@@ -326,3 +326,22 @@ func (c *Client) Events(ctx context.Context) (<-chan Event, error) {
 
 // String helps error messages mention where the daemon was expected.
 func (c *Client) String() string { return fmt.Sprintf("conch daemon（%s）", c.Base) }
+
+// Kernels lists the kernels the daemon can run.
+func (c *Client) Kernels(ctx context.Context) ([]daemon.KernelChoice, error) {
+	var v []daemon.KernelChoice
+	return v, c.do(ctx, http.MethodGet, "/api/v1/kernels", nil, &v)
+}
+
+// SetKernel switches the daemon to another kernel: mihomo, xray or
+// sing-box. It returns once the new kernel runs, or the old one again.
+func (c *Client) SetKernel(ctx context.Context, name string) error {
+	// A kernel may be downloaded first: longer than other calls take.
+	slow := *c
+	if c.HTTP != nil {
+		h := *c.HTTP
+		h.Timeout = 10 * time.Minute
+		slow.HTTP = &h
+	}
+	return slow.do(ctx, http.MethodPut, "/api/v1/kernel", map[string]string{"backend": name}, nil)
+}

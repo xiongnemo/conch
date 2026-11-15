@@ -8,15 +8,56 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/xiongnemo/conch/internal/daemon"
 	"github.com/xiongnemo/conch/internal/kernels"
 	"github.com/xiongnemo/conch/internal/paths"
 	"github.com/xiongnemo/conch/internal/platform/privilege"
 )
 
 func newKernelCmd() *cobra.Command {
-	cmd := &cobra.Command{Use: "kernel", Short: "管理内核（下载、校验、查看路径）"}
-	cmd.AddCommand(newKernelInstallCmd(), newKernelPathCmd(), newKernelGeodataCmd(), newKernelSetcapCmd())
+	cmd := &cobra.Command{Use: "kernel", Short: "管理内核（切换、下载、校验、查看路径）"}
+	cmd.AddCommand(newKernelUseCmd(), newKernelInstallCmd(), newKernelPathCmd(), newKernelGeodataCmd(), newKernelSetcapCmd())
 	return cmd
+}
+
+func newKernelUseCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "use [mihomo|xray|sing-box]",
+		Short: "切换正在运行的 daemon 使用的内核（需要 daemon 在运行），不写内核名则列出可用的内核",
+		Long: `切换正在运行的 daemon 使用的内核，以后启动也沿用这个选择。还没下载的内核会先下载。
+系统代理、TUN 和模式的开关保持不变；新内核运行不了 profile 时自动换回原来的内核。`,
+		Args:      cobra.MaximumNArgs(1),
+		ValidArgs: daemon.Backends,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			c := daemonClient()
+			if len(args) == 0 {
+				list, err := c.Kernels(cmd.Context())
+				if err != nil {
+					return err
+				}
+				for _, k := range list {
+					mark, note := "  ", ""
+					if k.Current {
+						mark = "* "
+					}
+					switch {
+					case k.Version != "":
+						note = "  " + k.Version
+					case !k.Installed:
+						note = "  （还没下载，切换时自动下载）"
+					}
+					fmt.Fprintln(cmd.OutOrStdout(), mark+k.Name+note)
+				}
+				return nil
+			}
+			fmt.Fprintf(cmd.ErrOrStderr(), "正在切换到 %s 内核……\n", args[0])
+			if err := c.SetKernel(cmd.Context(), args[0]); err != nil {
+				return err
+			}
+			fmt.Fprintf(cmd.OutOrStdout(), "已切换到 %s 内核\n", args[0])
+			return nil
+		},
+	}
 }
 
 func newKernelInstallCmd() *cobra.Command {

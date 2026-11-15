@@ -45,7 +45,12 @@ func TestWebUINodes(t *testing.T) {
 	p := b.open(t, srv.URL+"/")
 	p.waitText(t, "#login-form", "登录")
 	p.eval(t, `document.querySelector("#password").value = "pw"; document.querySelector("#login-form").requestSubmit()`)
-	p.waitText(t, "header .pill", "mihomo")
+	p.waitText(t, "header .pill", "运行中")
+	// The kernel can be switched from the header.
+	p.waitText(t, "#backend", "sing-box")
+	if got := p.eval(t, `document.querySelector("#backend").value`); got != "mihomo" {
+		t.Errorf("the kernel selector shows %v", got)
+	}
 	// Dialogs would block the page: answer them in it.
 	p.eval(t, `window.alerts = []; window.alert = (m) => window.alerts.push(m); window.confirm = () => true;
 		document.querySelector('[data-tab="outbounds"]').click()`)

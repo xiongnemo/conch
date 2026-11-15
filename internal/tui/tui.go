@@ -34,6 +34,7 @@ type Client interface {
 	DeleteNode(ctx context.Context, name string) error
 	Delay(ctx context.Context, name string) (api.Delay, error)
 	SetMode(ctx context.Context, mode string) error
+	SetKernel(ctx context.Context, name string) error
 	SetSysProxy(ctx context.Context, on bool) error
 	SetTUN(ctx context.Context, on bool) error
 	UpdateSubscription(ctx context.Context, name string) error
@@ -609,7 +610,7 @@ func (m *Model) footer() string {
 func (m *Model) pageHints() string {
 	switch m.page {
 	case pageOverview:
-		return "m 切换模式 · s 系统代理 · t TUN · u 更新订阅 · R 重启内核"
+		return "m 切换模式 · s 系统代理 · t TUN · K 切换内核 · u 更新订阅 · R 重启内核"
 	case pageOutbounds:
 		return "enter 展开/选择 · t 测速 · n 添加节点 · c 新建链 · e 改链 · d 删除"
 	case pageRoutes:
@@ -635,7 +636,7 @@ func (m *Model) helpView(h int) string {
 		"  q / ctrl+c   退出",
 		"",
 		titleStyle.Render("概览"),
-		"  m 切换分流模式 · s 开关系统代理 · t 开关 TUN · u 更新选中的订阅 · R 重启内核",
+		"  m 切换分流模式 · s 开关系统代理 · t 开关 TUN · K 切换内核 · u 更新选中的订阅 · R 重启内核",
 		titleStyle.Render("出口"),
 		"  enter 展开出口组或选择成员 · t 测速（出口组：测所有成员；链：逐跳测速）",
 		"  n 粘贴分享链接添加节点 · c 新建链 · e 修改选中的链 · d 删除用 conch 添加的节点或链",

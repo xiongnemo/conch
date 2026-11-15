@@ -477,7 +477,15 @@ conch sysproxy on
 
 **11.1 xray**
 
-在窗口 A 按 Ctrl+C 停掉 daemon，然后运行 `conch daemon --backend xray`。
+daemon 保持运行。先在 Web UI 里点「全局」，然后在窗口 B 运行：
+
+```powershell
+conch kernel use           # 列出三个内核，mihomo 前面有 *
+conch kernel use xray      # 第一次会先下载 xray 和 geodata
+conch status
+```
+
+预期：打印「已切换到 xray 内核」；`conch status` 显示 xray 运行中，模式仍是「全局」，代理端口不变。Web UI 页头的内核下拉框也变成 xray，不用刷新页面。检查完把模式点回「分流」。
 
 - `Test-Routes`：结果和 mihomo 一样（D 访问 Cloudflare 网站的已知情况除外）。
 - Web UI 出口页：测速；在「出口」组里切换成员。
@@ -487,11 +495,11 @@ conch sysproxy on
 
 **11.2 sing-box**
 
-Ctrl+C，然后运行 `conch daemon --backend sing-box`，把 11.1 的检查（TUN 那条除外）重做一遍。sing-box 改配置时也要重启内核，大约 0.5 秒内的请求会失败。
+这次在 Web UI 页头的内核下拉框里选 sing-box。预期：标签先显示「正在切换内核……」，几秒后变成「运行中」。把 11.1 的检查（TUN 那条除外）重做一遍。sing-box 改配置时也要重启内核，大约 0.5 秒内的请求会失败。
 
 **11.3 记住内核**
 
-Ctrl+C，然后运行不带 `--backend` 的 `conch daemon`。`conch status` 应该显示 sing-box，也就是上一次用的内核。
+Ctrl+C，然后重新运行 `conch daemon`。`conch status` 应该显示 sing-box，也就是上一次用的内核。最后用 `conch kernel use mihomo` 换回 mihomo，后面的步骤都用它。
 
 - [ ] 11 通过
 
