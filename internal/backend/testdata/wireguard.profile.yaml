@@ -1,0 +1,12 @@
+# WireGuard：经由隧道解析域名（remote-dns-resolve）、只发垃圾包的 AmneziaWG（xray 用 noise 掩码；sing-box 没有）
+nodes:
+  - { name: 远程解析, type: wireguard, server: 192.0.2.60, port: 51820, ip: 172.16.0.2, udp: true, remote-dns-resolve: true, dns: [1.1.1.1, "tls://8.8.8.8"],
+      private-key: elM/+PBAa7rn1rifSGuVKiDD9gSiGddGjleV+taVs0U=, public-key: DHZ/8quR7djJIv0jvfkP2aGcbDWdOpjd0opJwa0pM2E= }
+  - { name: 垃圾包, type: wireguard, server: 192.0.2.61, port: 51820, ip: 172.16.0.3, udp: true, ip-version: ipv4,
+      amnezia-wg-option: { jc: 3, jmin: 40, jmax: 70 },
+      private-key: elM/+PBAa7rn1rifSGuVKiDD9gSiGddGjleV+taVs0U=, public-key: DHZ/8quR7djJIv0jvfkP2aGcbDWdOpjd0opJwa0pM2E= }
+
+routes:
+  default: 远程解析
+  entries:
+    a.example: 垃圾包

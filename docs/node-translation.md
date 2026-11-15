@@ -36,6 +36,10 @@ profile 是 conch 统一的配置，节点用 mihomo（Clash Meta）的写法。
 | hysteria2 `cwnd`、`udp-mtu` | ✗（警告后忽略） | ✗（警告后忽略） |
 | wireguard `persistent-keepalive` | ✓ | ✓ |
 | wireguard `workers` | ≈ 用 xray 自己的 | ✓ |
+| wireguard 经由隧道解析域名（`remote-dns-resolve`、`dns`） | ✓（只用 IP 地址的普通 DNS） | ≈ 在本地解析 |
+| wireguard 没开 `remote-dns-resolve`：在本地解析域名 | ✓ | ✓ |
+| AmneziaWG 只发垃圾包（`jc`、`jmin`、`jmax`） | ✓（noise 掩码） | ✗ |
+| AmneziaWG 改了协议的选项（`s1`、`h1`、`i1` 等） | ✗ | ✗ |
 
 ## TLS
 

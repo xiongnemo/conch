@@ -1,0 +1,170 @@
+{
+  "log": {
+    "loglevel": "info"
+  },
+  "inbounds": [
+    {
+      "tag": "›mixed",
+      "protocol": "mixed",
+      "listen": "127.0.0.1",
+      "port": 7890,
+      "settings": {
+        "udp": true
+      },
+      "sniffing": {
+        "enabled": true,
+        "destOverride": [
+          "http",
+          "tls",
+          "quic"
+        ],
+        "routeOnly": true
+      }
+    }
+  ],
+  "outbounds": [
+    {
+      "tag": "远程解析",
+      "protocol": "wireguard",
+      "settings": {
+        "noKernelTun": true,
+        "secretKey": "elM/+PBAa7rn1rifSGuVKiDD9gSiGddGjleV+taVs0U=",
+        "address": [
+          "172.16.0.2/32"
+        ],
+        "peers": [
+          {
+            "publicKey": "DHZ/8quR7djJIv0jvfkP2aGcbDWdOpjd0opJwa0pM2E=",
+            "endpoint": "192.0.2.60:51820"
+          }
+        ],
+        "mtu": 1408,
+        "remoteDNS": [
+          "1.1.1.1",
+          "8.8.8.8"
+        ]
+      }
+    },
+    {
+      "tag": "DIRECT",
+      "protocol": "freedom"
+    },
+    {
+      "tag": "REJECT»",
+      "protocol": "blackhole"
+    },
+    {
+      "tag": "REJECT-DROP",
+      "protocol": "blackhole"
+    },
+    {
+      "tag": "垃圾包",
+      "protocol": "wireguard",
+      "settings": {
+        "noKernelTun": true,
+        "secretKey": "elM/+PBAa7rn1rifSGuVKiDD9gSiGddGjleV+taVs0U=",
+        "address": [
+          "172.16.0.3/32"
+        ],
+        "peers": [
+          {
+            "publicKey": "DHZ/8quR7djJIv0jvfkP2aGcbDWdOpjd0opJwa0pM2E=",
+            "endpoint": "192.0.2.61:51820"
+          }
+        ],
+        "mtu": 1408
+      },
+      "streamSettings": {
+        "finalmask": {
+          "udp": [
+            {
+              "type": "noise",
+              "settings": {
+                "noise": [
+                  {
+                    "rand": "40-70"
+                  },
+                  {
+                    "rand": "40-70"
+                  },
+                  {
+                    "rand": "40-70"
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "sockopt": {
+          "domainStrategy": "ForceIPv4"
+        }
+      },
+      "targetStrategy": "ForceIPv4"
+    },
+    {
+      "tag": "GLOBAL",
+      "protocol": "loopback",
+      "settings": {
+        "inboundTag": "›group›GLOBAL"
+      }
+    }
+  ],
+  "routing": {
+    "domainStrategy": "IPIfNonMatch",
+    "rules": [
+      {
+        "inboundTag": [
+          "›group›GLOBAL"
+        ],
+        "balancerTag": "GLOBAL"
+      },
+      {
+        "domain": [
+          "domain:a.example"
+        ],
+        "outboundTag": "垃圾包",
+        "ruleTag": "#0 a.example"
+      },
+      {
+        "domain": [
+          "domain:home.arpa",
+          "domain:lan",
+          "domain:local",
+          "domain:localhost"
+        ],
+        "outboundTag": "DIRECT",
+        "ruleTag": "#1-4 lan"
+      },
+      {
+        "ip": [
+          "::1/128",
+          "255.255.255.255/32",
+          "169.254.0.0/16",
+          "192.168.0.0/16",
+          "172.16.0.0/12",
+          "100.64.0.0/10",
+          "fe80::/10",
+          "0.0.0.0/8",
+          "10.0.0.0/8",
+          "127.0.0.0/8",
+          "ff00::/8",
+          "fc00::/7",
+          "224.0.0.0/4"
+        ],
+        "outboundTag": "DIRECT",
+        "ruleTag": "#5-17 lan"
+      }
+    ],
+    "balancers": [
+      {
+        "tag": "GLOBAL",
+        "selector": [
+          "远程解析"
+        ],
+        "strategy": {
+          "type": "random"
+        }
+      }
+    ]
+  }
+}

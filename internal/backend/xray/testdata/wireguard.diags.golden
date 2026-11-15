@@ -1,0 +1,1 @@
+警告 ../testdata/wireguard.profile.yaml:3：节点 "远程解析"：xray 在 WireGuard 隧道里只用普通 DNS：tls://8.8.8.8 改为 8.8.8.8

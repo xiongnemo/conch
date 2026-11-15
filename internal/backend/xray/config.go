@@ -99,6 +99,7 @@ type outbound struct {
 	Protocol       string          `json:"protocol"`
 	Settings       any             `json:"settings,omitempty"`
 	StreamSettings *streamSettings `json:"streamSettings,omitempty"`
+	TargetStrategy string          `json:"targetStrategy,omitempty"` // how xray resolves the destination before handing it over
 }
 
 type streamSettings struct {
@@ -293,6 +294,16 @@ type wireguardSettings struct {
 	Peers       []wireguardPeer `json:"peers"`
 	MTU         int             `json:"mtu,omitempty"`
 	Reserved    []int           `json:"reserved,omitempty"`
+	RemoteDNS   []string        `json:"remoteDNS,omitempty"` // IPs inside the tunnel
+}
+
+// noiseSettings: junk packets before a connection's first one.
+type noiseSettings struct {
+	Noise []noiseItem `json:"noise"`
+}
+
+type noiseItem struct {
+	Rand string `json:"rand"` // a random size, "min-max" bytes
 }
 
 type wireguardPeer struct {

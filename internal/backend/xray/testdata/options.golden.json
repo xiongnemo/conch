@@ -152,7 +152,8 @@
           }
         ],
         "mtu": 1408
-      }
+      },
+      "targetStrategy": "ForceIP"
     },
     {
       "tag": "GLOBAL",

@@ -351,6 +351,17 @@ func wireguardClash(m *mapping, w *WireGuard) {
 	if w.Workers > 0 {
 		m.int("workers", w.Workers)
 	}
+	if len(w.DNS) > 0 {
+		m.strs("dns", w.DNS)
+	}
+	if w.RemoteDNS {
+		m.bool("remote-dns-resolve", true)
+	}
+	if len(w.Amnezia) > 0 {
+		a := &mapping{n: &yaml.Node{Kind: yaml.MappingNode}}
+		rawClash(a, w.Amnezia)
+		m.node("amnezia-wg-option", a.n)
+	}
 	peer := func(pm *mapping, p WireGuardPeer) {
 		pm.str("public-key", p.PublicKey)
 		pm.str("pre-shared-key", p.PreSharedKey)

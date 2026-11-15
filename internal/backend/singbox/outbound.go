@@ -185,12 +185,18 @@ func (e *encoder) nodeOutbound(p *compile.Proxy) (*outbound, *endpoint, []string
 	case "reject":
 		return &outbound{Type: "block", Tag: p.Name}, nil, nil, nil
 	case "wireguard":
+		if len(s.WireGuard.Amnezia) > 0 {
+			return nil, nil, nil, fmt.Errorf("sing-box 没有 AmneziaWG（amnezia-wg-option）")
+		}
+		if s.WireGuard.RemoteDNS && len(s.WireGuard.DNS) > 0 {
+			warns = append(warns, "sing-box 在本地解析经由 WireGuard 的域名，不能经由隧道用节点的 dns 解析（remote-dns-resolve）")
+		}
 		ep, err := wireguardEndpoint(p.Name, s.WireGuard)
 		if err != nil {
 			return nil, nil, nil, err
 		}
 		ep.dial = e.dial(p.Upstream, s.Sockopt)
-		return nil, ep, nil, nil
+		return nil, ep, warns, nil
 	default:
 		return nil, nil, nil, fmt.Errorf("sing-box 后端暂不支持 %s 协议", s.Type)
 	}

@@ -1,0 +1,46 @@
+{
+  "backend": "xray",
+  "proxies": [
+    {
+      "name": "远程解析",
+      "kind": "node",
+      "node": "远程解析"
+    },
+    {
+      "name": "垃圾包",
+      "kind": "node",
+      "node": "垃圾包"
+    }
+  ],
+  "rules": [
+    {
+      "index": 0,
+      "rule": "{\"domain\":[\"domain:a.example\"],\"outboundTag\":\"垃圾包\",\"ruleTag\":\"#0 a.example\"}",
+      "tag": "#0 a.example",
+      "tier": "domain",
+      "key": "a.example",
+      "source": "../testdata/wireguard.profile.yaml:12"
+    },
+    {
+      "index": 1,
+      "last": 4,
+      "rule": "{\"domain\":[\"domain:home.arpa\",\"domain:lan\",\"domain:local\",\"domain:localhost\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#1-4 lan\"}",
+      "tag": "#1-4 lan",
+      "tier": "domain",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 5,
+      "last": 17,
+      "rule": "{\"ip\":[\"::1/128\",\"255.255.255.255/32\",\"169.254.0.0/16\",\"192.168.0.0/16\",\"172.16.0.0/12\",\"100.64.0.0/10\",\"fe80::/10\",\"0.0.0.0/8\",\"10.0.0.0/8\",\"127.0.0.0/8\",\"ff00::/8\",\"fc00::/7\",\"224.0.0.0/4\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#5-17 lan\"}",
+      "tag": "#5-17 lan",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    }
+  ],
+  "tags": {
+    "REJECT": "REJECT»"
+  }
+}

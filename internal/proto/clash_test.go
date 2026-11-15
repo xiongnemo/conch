@@ -111,7 +111,7 @@ func TestClashRoundTrip(t *testing.T) {
 			Hysteria: &Hysteria{Obfs: "gecko", ObfsPassword: "g", ObfsMinPacket: 600, Ports: "443,1000-2000", HopMin: 10, HopMax: 30,
 				BBRProfile: "aggressive", MaxStreamWindow: 8388608, MaxConnWindow: 20971520}},
 		{Type: "wireguard", Server: "1.2.3.4", Port: 51820, UDP: true, WireGuard: &WireGuard{PrivateKey: "k", MTU: 1280,
-			Address: []string{"10.0.0.2/32", "fd00::2/128"}, Keepalive: 25, Workers: 2, Peers: []WireGuardPeer{{Server: "1.2.3.4", Port: 51820, PublicKey: "pk", Reserved: []int{1, 2, 3}}}}},
+			Address: []string{"10.0.0.2/32", "fd00::2/128"}, Keepalive: 25, Workers: 2, DNS: []string{"1.1.1.1"}, RemoteDNS: true, Amnezia: map[string]any{"jc": 3, "jmin": 40}, Peers: []WireGuardPeer{{Server: "1.2.3.4", Port: 51820, PublicKey: "pk", Reserved: []int{1, 2, 3}}}}},
 		{Type: "wireguard", Server: "1.2.3.4", Port: 51820, UDP: true, WireGuard: &WireGuard{PrivateKey: "k", Address: []string{"10.0.0.0/24"},
 			Peers: []WireGuardPeer{{Server: "a", Port: 1, PublicKey: "p1", AllowedIPs: []string{"0.0.0.0/0"}}, {Server: "b", Port: 2, PublicKey: "p2"}}}},
 		{Type: "vless", Server: "s", Port: 1, UUID: "u", Sockopt: Sockopt{TFO: true, MPTCP: true, Interface: "eth0", Mark: 7, IPVersion: "ipv6"}},
@@ -155,6 +155,23 @@ func TestBandwidth(t *testing.T) {
 	for bits, want := range map[uint64]string{100e6: "100 Mbps", 96e6: "96 Mbps", 1e9: "1 Gbps", 1.5e6: "1500 Kbps", 800: "800 bps"} {
 		if got := FormatBandwidth(bits); got != want {
 			t.Errorf("%d = %q, want %q", bits, got, want)
+		}
+	}
+}
+
+// Of AmneziaWG, junk before the handshake is what plain WireGuard servers
+// take too; WireGuard's own header values change nothing.
+func TestAmneziaJunk(t *testing.T) {
+	for opts, want := range map[string]bool{
+		"{ jc: 3, jmin: 40, jmax: 70 }":                             true,
+		"{ jc: 3, jmin: 40, jmax: 70, h1: 1, h2: 2, h3: 3, h4: 4 }": true,
+		"{ jc: 3, s1: 10 }":                                         false,
+		"{ jc: 3, h1: 1234 }":                                       false,
+		"{ i1: \"<b 0xf6>\" }":                                      false,
+	} {
+		s := decode(t, "{ name: a, type: wireguard, server: s, port: 1, private-key: k, public-key: p, amnezia-wg-option: "+opts+" }")
+		if _, _, _, ok := s.WireGuard.AmneziaJunk(); ok != want {
+			t.Errorf("%s: %v, want %v", opts, ok, want)
 		}
 	}
 }

@@ -4,6 +4,11 @@
 // from the Spec.
 package proto
 
+import (
+	"fmt"
+	"strconv"
+)
+
 // Spec is one proxy server.
 type Spec struct {
 	Type   string // ss, vmess, vless, trojan, socks5, http, hysteria2, hysteria, tuic, anytls, ssh, wireguard, direct, reject, or the source type if unknown
@@ -202,6 +207,44 @@ type WireGuard struct {
 	Peers      []WireGuardPeer
 	Keepalive  int // seconds between keepalives; 0 is none
 	Workers    int
+	// Where destinations' names are resolved: by these DNS servers through
+	// the tunnel when RemoteDNS, otherwise locally, as mihomo does.
+	DNS       []string
+	RemoteDNS bool
+	// AmneziaWG's options, as mihomo's amnezia-wg-option has them.
+	Amnezia map[string]any
+}
+
+// AmneziaJunk is what of AmneziaWG plain WireGuard servers accept too:
+// junk packets before the handshake (jc of jmin to jmax bytes). ok is
+// false when the options change the protocol itself.
+func (w *WireGuard) AmneziaJunk() (jc, jmin, jmax int, ok bool) {
+	for k, v := range w.Amnezia {
+		n, _ := strconv.Atoi(fmt.Sprint(v))
+		switch k {
+		case "jc":
+			jc = n
+		case "jmin":
+			jmin = n
+		case "jmax":
+			jmax = n
+		case "h1", "h2", "h3", "h4":
+			if n != 0 && fmt.Sprint(n) != k[1:] { // 1 to 4 are WireGuard's own
+				return 0, 0, 0, false
+			}
+		case "s1", "s2", "s3", "s4", "itime", "version":
+			if n != 0 {
+				return 0, 0, 0, false
+			}
+		default:
+			if b, isBool := v.(bool); !isBool || b {
+				if s := fmt.Sprint(v); s != "" && s != "0" && s != "false" {
+					return 0, 0, 0, false
+				}
+			}
+		}
+	}
+	return jc, jmin, jmax, true
 }
 
 type WireGuardPeer struct {

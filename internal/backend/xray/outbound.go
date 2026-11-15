@@ -99,9 +99,40 @@ func (e *encoder) nodeOutbound(p *compile.Proxy) (outbound, []string, error) {
 		return o, nil, fmt.Errorf("xray 没有 %s 协议，换用 mihomo 或 sing-box 内核", s.Type)
 	case "wireguard":
 		o.Protocol = "wireguard"
-		o.Settings = wireguardOutSettings(s.WireGuard)
-		if s.WireGuard.Workers > 0 {
+		w := wireguardOutSettings(s.WireGuard)
+		wg := s.WireGuard
+		if wg.Workers > 0 {
 			warns = append(warns, "xray 不能设置 WireGuard 的 workers，用它自己的")
+		}
+		// mihomo resolves destinations locally unless told to resolve them
+		// through the tunnel; xray does the latter unless told otherwise.
+		if wg.RemoteDNS && len(wg.DNS) > 0 {
+			for _, d := range wg.DNS {
+				if ip := plainIP(d); ip != "" {
+					w.RemoteDNS = append(w.RemoteDNS, ip)
+					if scheme, _, ok := strings.Cut(d, "://"); ok && scheme != "udp" {
+						warns = append(warns, fmt.Sprintf("xray 在 WireGuard 隧道里只用普通 DNS：%s 改为 %s", d, ip))
+					}
+				} else {
+					warns = append(warns, fmt.Sprintf("xray 在 WireGuard 隧道里只能用 IP 地址的 DNS，用不了 %s", d))
+				}
+			}
+		} else {
+			o.TargetStrategy = cmp.Or(targetStrategy[s.Sockopt.IPVersion], "ForceIP")
+		}
+		o.Settings = w
+		if len(wg.Amnezia) > 0 {
+			jc, jmin, jmax, ok := wg.AmneziaJunk()
+			if !ok {
+				return o, nil, fmt.Errorf("xray 没有 AmneziaWG：它只能像 AmneziaWG 一样在握手前发垃圾包（jc、jmin、jmax），这个节点还改了协议本身（s1、h1 等）")
+			}
+			if jc > 0 {
+				noise := noiseSettings{}
+				for range jc {
+					noise.Noise = append(noise.Noise, noiseItem{Rand: fmt.Sprintf("%d-%d", max(jmin, 1), max(jmax, jmin, 1))})
+				}
+				st.FinalMask = &finalMask{UDP: []mask{{Type: "noise", Settings: noise}}}
+			}
 		}
 	default:
 		return o, nil, fmt.Errorf("xray 不支持 %s 协议", s.Type)
@@ -346,6 +377,26 @@ func wireguardOutSettings(w *proto.WireGuard) wireguardSettings {
 // ipVersionStrategy is mihomo's ip-version in xray's terms: the Force
 // strategies, since the Use ones fall back to the system's resolver when
 // a lookup fails, which mihomo never does. dual is what both do anyway.
+// targetStrategy is ip-version for resolving destinations, the Force way.
+var targetStrategy = map[string]string{"ipv4": "ForceIPv4", "ipv6": "ForceIPv6", "ipv4-prefer": "ForceIPv4v6", "ipv6-prefer": "ForceIPv6v4"}
+
+// plainIP is a DNS server's address when it is one, from "1.1.1.1",
+// "udp://1.1.1.1:53" and the like.
+func plainIP(server string) string {
+	if _, rest, ok := strings.Cut(server, "://"); ok {
+		server = rest
+	}
+	server, _, _ = strings.Cut(server, "/")
+	if host, _, err := net.SplitHostPort(server); err == nil {
+		server = host
+	}
+	server = strings.Trim(server, "[]")
+	if net.ParseIP(server) == nil {
+		return ""
+	}
+	return server
+}
+
 var ipVersionStrategy = map[string]string{
 	"ipv4":        "ForceIPv4",
 	"ipv6":        "ForceIPv6",

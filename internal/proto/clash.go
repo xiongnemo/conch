@@ -324,7 +324,11 @@ func readTransport(r *reader, s *Spec) {
 }
 
 func readWireGuard(r *reader, s *Spec) *WireGuard {
-	wg := &WireGuard{PrivateKey: r.str("private-key"), MTU: r.int("mtu"), Keepalive: r.int("persistent-keepalive"), Workers: r.int("workers")}
+	wg := &WireGuard{PrivateKey: r.str("private-key"), MTU: r.int("mtu"), Keepalive: r.int("persistent-keepalive"), Workers: r.int("workers"),
+		DNS: r.strs("dns"), RemoteDNS: r.bool("remote-dns-resolve")}
+	if o := r.sub("amnezia-wg-option"); o != nil {
+		wg.Amnezia = rawKeys(o, nil)
+	}
 	if ip := r.str("ip"); ip != "" {
 		wg.Address = append(wg.Address, withPrefix(ip))
 	}
@@ -612,12 +616,13 @@ func readPlugin(r *reader, s *Spec) *Plugin {
 	return p
 }
 
-// rawKeys takes the keys of a mapping that known has, as written.
+// rawKeys takes the keys of a mapping that known has (all of them for
+// nil), as written.
 func rawKeys(o *reader, known map[string]string) map[string]any {
 	var out map[string]any
 	for i := 0; i+1 < len(o.m.Content); i += 2 {
 		k := o.m.Content[i].Value
-		if _, ok := known[k]; !ok {
+		if _, ok := known[k]; !ok && known != nil {
 			continue
 		}
 		var v any

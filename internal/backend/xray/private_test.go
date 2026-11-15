@@ -43,6 +43,7 @@ func TestNodesXrayNoLongerTakes(t *testing.T) {
 		{`{ name: w, type: trojan, server: 203.0.114.1, port: 443, password: p, network: ws, ws-opts: { path: /w, max-early-data: 2048 } }`, "不能把 early data 放在路径里", false},
 		{`{ name: o, type: hysteria2, server: 203.0.114.1, port: 443, password: p, obfs: nonsense, obfs-password: x }`, "不认识 hysteria2 混淆", false},
 		{`{ name: c, type: trojan, server: 203.0.114.1, port: 443, password: p, certificate: /c.pem, private-key: /k.pem }`, "不能出示客户端证书", true},
+		{`{ name: a, type: wireguard, server: 203.0.114.1, port: 51820, ip: 10.0.0.2, private-key: k, public-key: p, amnezia-wg-option: { jc: 3, s1: 10 } }`, "xray 没有 AmneziaWG", true},
 	} {
 		dir := t.TempDir()
 		profile := filepath.Join(dir, "profile.yaml")
