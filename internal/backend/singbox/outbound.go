@@ -190,6 +190,8 @@ func (e *encoder) nodeOutbound(p *compile.Proxy) (*outbound, *endpoint, []string
 				o.PrivateKeyPath = x.PrivateKey
 			}
 		}
+	case "masque":
+		return nil, nil, nil, fmt.Errorf("sing-box 没有 MASQUE，换用 mihomo 或 xray 内核")
 	case "direct":
 		o.Type, o.Server, o.ServerPort = "direct", "", 0
 	case "reject":

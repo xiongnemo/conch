@@ -212,6 +212,37 @@ func ToClash(name string, s *Spec) *yaml.Node {
 				m.strs("host-key-algorithms", x.HostKeyAlgorithms)
 			}
 		}
+	case "masque":
+		if mq := s.Masque; mq != nil {
+			m.str("private-key", mq.PrivateKey)
+			m.str("public-key", mq.PublicKey)
+			for _, a := range mq.Address {
+				key := "ip"
+				if p, err := netip.ParsePrefix(a); err == nil {
+					if p.Addr().Is6() {
+						key = "ipv6"
+					}
+					if p.Bits() == p.Addr().BitLen() {
+						a = p.Addr().String()
+					}
+				}
+				m.str(key, a)
+			}
+			m.str("uri", mq.URI)
+			m.str("network", mq.Network)
+			if len(mq.DNS) > 0 {
+				m.strs("dns", mq.DNS)
+			}
+			if mq.RemoteDNS {
+				m.bool("remote-dns-resolve", true)
+			}
+		}
+		if t := s.TLS; t != nil {
+			m.str("sni", t.SNI)
+			if t.Insecure {
+				m.bool("skip-cert-verify", true)
+			}
+		}
 	case "wireguard":
 		wireguardClash(m, s.WireGuard)
 	}

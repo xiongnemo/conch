@@ -113,6 +113,7 @@ type streamSettings struct {
 	GRPCSettings        *grpcSettings     `json:"grpcSettings,omitempty"`
 	XHTTPSettings       *xhttpSettings    `json:"xhttpSettings,omitempty"`
 	HysteriaSettings    *hysteriaSettings `json:"hysteriaSettings,omitempty"`
+	MasqueSettings      *masqueSettings   `json:"masqueSettings,omitempty"`
 	FinalMask           *finalMask        `json:"finalmask,omitempty"`
 	Sockopt             *sockopt          `json:"sockopt,omitempty"`
 }
@@ -363,4 +364,22 @@ type realmSettings struct {
 	URL         string       `json:"url"`
 	STUNServers []string     `json:"stunServers"`
 	TLSConfig   *tlsSettings `json:"tlsConfig,omitempty"`
+}
+
+// masqueSettings: MASQUE's transport; warp is Cloudflare WARP's keys.
+type masqueSettings struct {
+	Host string      `json:"host,omitempty"`
+	Path string      `json:"path,omitempty"`
+	Warp *masqueWarp `json:"warp,omitempty"`
+}
+
+type masqueWarp struct {
+	PrivateKey string   `json:"privateKey"`
+	PublicKey  string   `json:"publicKey"`
+	Address    []string `json:"address"`
+}
+
+type masqueOutSettings struct {
+	serverSettings
+	RemoteDNS []string `json:"remoteDNS,omitempty"`
 }

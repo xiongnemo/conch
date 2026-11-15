@@ -41,6 +41,7 @@ type Spec struct {
 	TUIC      *TUIC
 	AnyTLS    *AnyTLS
 	SSH       *SSH
+	Masque    *Masque
 	WireGuard *WireGuard
 	TrojanGo  *TrojanGo
 	Sockopt   Sockopt
@@ -178,6 +179,17 @@ type Realm struct {
 	ServerURL, Token, RealmID string
 	STUN                      []string
 	TLS                       *TLS
+}
+
+// Masque is MASQUE (CONNECT-IP), as Cloudflare WARP has it: the keys
+// (base64 DER), the addresses inside, the proxy's URI, h3 or h2, and where
+// names are resolved, as in WireGuard.
+type Masque struct {
+	PrivateKey, PublicKey string
+	Address               []string
+	URI, Network          string
+	DNS                   []string
+	RemoteDNS             bool
 }
 
 // TUIC v5 (UUID and Password), or v4 with a token.

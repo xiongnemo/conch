@@ -12,9 +12,10 @@ profile 是 conch 统一的配置，节点用 mihomo（Clash Meta）的写法。
 | --- | --- | --- | --- |
 | ss、vmess、vless、trojan、socks5、http、hysteria2、wireguard | ✓ | ✓ | ✓ |
 | hysteria（v1）、tuic（v5）、anytls、ssh | ✓ | ✗ | ✓ |
+| masque（Cloudflare WARP 那样的 CONNECT-IP；h3 或 h2，没有 h3-l4proxy） | ✓ | ✓ | ✗ |
 | direct、reject 节点 | ✓ | ✓ | ✓ |
 | trojan-go | 边车 | 边车 | 边车 |
-| tuic v4（token）、mieru、snell、ssr 等 | ✓ | ✗ | ✗ |
+| tuic v4（token）、mieru、ssr 等 | ✓ | ✗ | ✗ |
 
 ## 协议的细项
 

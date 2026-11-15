@@ -10,6 +10,11 @@
       "name": "垃圾包",
       "kind": "node",
       "node": "垃圾包"
+    },
+    {
+      "name": "masque",
+      "kind": "node",
+      "node": "masque"
     }
   ],
   "rules": [
@@ -18,133 +23,140 @@
       "rule": "DOMAIN-SUFFIX,a.example,垃圾包",
       "tier": "domain",
       "key": "a.example",
-      "source": "../testdata/wireguard.profile.yaml:12"
+      "source": "../testdata/wireguard.profile.yaml:17"
     },
     {
       "index": 1,
+      "rule": "DOMAIN-SUFFIX,b.example,masque",
+      "tier": "domain",
+      "key": "b.example",
+      "source": "../testdata/wireguard.profile.yaml:18"
+    },
+    {
+      "index": 2,
       "rule": "DOMAIN-SUFFIX,home.arpa,DIRECT",
       "tier": "domain",
       "key": "lan",
       "builtin": true
     },
     {
-      "index": 2,
+      "index": 3,
       "rule": "DOMAIN-SUFFIX,lan,DIRECT",
       "tier": "domain",
       "key": "lan",
       "builtin": true
     },
     {
-      "index": 3,
+      "index": 4,
       "rule": "DOMAIN-SUFFIX,local,DIRECT",
       "tier": "domain",
       "key": "lan",
       "builtin": true
     },
     {
-      "index": 4,
+      "index": 5,
       "rule": "DOMAIN-SUFFIX,localhost,DIRECT",
       "tier": "domain",
       "key": "lan",
       "builtin": true
     },
     {
-      "index": 5,
+      "index": 6,
       "rule": "IP-CIDR6,::1/128,DIRECT,no-resolve",
       "tier": "ip",
       "key": "lan",
       "builtin": true
     },
     {
-      "index": 6,
+      "index": 7,
       "rule": "IP-CIDR,255.255.255.255/32,DIRECT,no-resolve",
       "tier": "ip",
       "key": "lan",
       "builtin": true
     },
     {
-      "index": 7,
+      "index": 8,
       "rule": "IP-CIDR,169.254.0.0/16,DIRECT,no-resolve",
       "tier": "ip",
       "key": "lan",
       "builtin": true
     },
     {
-      "index": 8,
+      "index": 9,
       "rule": "IP-CIDR,192.168.0.0/16,DIRECT,no-resolve",
       "tier": "ip",
       "key": "lan",
       "builtin": true
     },
     {
-      "index": 9,
+      "index": 10,
       "rule": "IP-CIDR,172.16.0.0/12,DIRECT,no-resolve",
       "tier": "ip",
       "key": "lan",
       "builtin": true
     },
     {
-      "index": 10,
+      "index": 11,
       "rule": "IP-CIDR,100.64.0.0/10,DIRECT,no-resolve",
       "tier": "ip",
       "key": "lan",
       "builtin": true
     },
     {
-      "index": 11,
+      "index": 12,
       "rule": "IP-CIDR6,fe80::/10,DIRECT,no-resolve",
       "tier": "ip",
       "key": "lan",
       "builtin": true
     },
     {
-      "index": 12,
+      "index": 13,
       "rule": "IP-CIDR,0.0.0.0/8,DIRECT,no-resolve",
       "tier": "ip",
       "key": "lan",
       "builtin": true
     },
     {
-      "index": 13,
+      "index": 14,
       "rule": "IP-CIDR,10.0.0.0/8,DIRECT,no-resolve",
       "tier": "ip",
       "key": "lan",
       "builtin": true
     },
     {
-      "index": 14,
+      "index": 15,
       "rule": "IP-CIDR,127.0.0.0/8,DIRECT,no-resolve",
       "tier": "ip",
       "key": "lan",
       "builtin": true
     },
     {
-      "index": 15,
+      "index": 16,
       "rule": "IP-CIDR6,ff00::/8,DIRECT,no-resolve",
       "tier": "ip",
       "key": "lan",
       "builtin": true
     },
     {
-      "index": 16,
+      "index": 17,
       "rule": "IP-CIDR6,fc00::/7,DIRECT,no-resolve",
       "tier": "ip",
       "key": "lan",
       "builtin": true
     },
     {
-      "index": 17,
+      "index": 18,
       "rule": "IP-CIDR,224.0.0.0/4,DIRECT,no-resolve",
       "tier": "ip",
       "key": "lan",
       "builtin": true
     },
     {
-      "index": 18,
+      "index": 19,
       "rule": "MATCH,远程解析",
       "tier": "default",
       "key": "default",
-      "source": "../testdata/wireguard.profile.yaml:10"
+      "source": "../testdata/wireguard.profile.yaml:15"
     }
   ]
 }

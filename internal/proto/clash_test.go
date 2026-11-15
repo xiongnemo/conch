@@ -123,6 +123,8 @@ func TestClashRoundTrip(t *testing.T) {
 		{Type: "anytls", Server: "s", Port: 443, UDP: true, Password: "p", TLS: &TLS{SNI: "a", Fingerprint: "chrome"}, AnyTLS: &AnyTLS{IdleCheck: 30, IdleTimeout: 30, MinIdle: 1}},
 		{Type: "ssh", Server: "s", Port: 22, Username: "u", Password: "p", SSH: &SSH{PrivateKey: "/k", HostKeys: []string{"ssh-ed25519 AAAA"}}},
 		{Type: "direct", Server: "", Port: 0, Sockopt: Sockopt{Interface: "eth1"}},
+		{Type: "masque", Server: "s", Port: 443, UDP: true, TLS: &TLS{SNI: "m.example"},
+			Masque: &Masque{PrivateKey: "k", PublicKey: "p", Address: []string{"172.16.0.4/32", "2606:4700::4/128"}, Network: "h2", DNS: []string{"1.1.1.1"}, RemoteDNS: true}},
 	}
 	for _, want := range specs {
 		got := FromClash(ToClash("n", want))

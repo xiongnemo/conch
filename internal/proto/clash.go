@@ -156,6 +156,17 @@ func FromClash(m *yaml.Node) *Spec {
 	case "ssh":
 		s.Username, s.Password = r.str("username"), r.str("password")
 		s.SSH = &SSH{PrivateKey: r.str("private-key"), Passphrase: r.str("private-key-passphrase"), HostKeys: r.strs("host-key"), HostKeyAlgorithms: r.strs("host-key-algorithms")}
+	case "masque":
+		s.UDP = r.bool("udp")
+		mq := &Masque{PrivateKey: r.str("private-key"), PublicKey: r.str("public-key"), URI: r.str("uri"), Network: r.str("network"),
+			DNS: r.strs("dns"), RemoteDNS: r.bool("remote-dns-resolve")}
+		for _, key := range []string{"ip", "ipv6"} {
+			if ip := r.str(key); ip != "" {
+				mq.Address = append(mq.Address, withPrefix(ip))
+			}
+		}
+		s.Masque = mq
+		s.TLS = &TLS{SNI: r.str("sni"), Insecure: r.bool("skip-cert-verify")}
 	case "direct", "reject":
 	case "wireguard":
 		s.UDP = true

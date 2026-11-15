@@ -106,6 +106,39 @@ func (e *encoder) nodeOutbound(p *compile.Proxy) (outbound, []string, error) {
 			}
 			st.FinalMask.UDP = append([]mask{m}, st.FinalMask.UDP...)
 		}
+	case "masque":
+		mq := s.Masque
+		if mq.Network == "h3-l4proxy" {
+			return o, nil, fmt.Errorf("xray 的 MASQUE 没有 h3-l4proxy 模式")
+		}
+		settings := masqueOutSettings{serverSettings: srv}
+		// Names are resolved as in WireGuard: locally, unless the node asks
+		// for its DNS servers inside.
+		if mq.RemoteDNS && len(mq.DNS) > 0 {
+			for _, d := range mq.DNS {
+				if ip := plainIP(d); ip != "" {
+					settings.RemoteDNS = append(settings.RemoteDNS, ip)
+				} else {
+					warns = append(warns, fmt.Sprintf("xray 在 MASQUE 隧道里只能用 IP 地址的 DNS，用不了 %s", d))
+				}
+			}
+		} else {
+			o.TargetStrategy = cmp.Or(targetStrategy[s.Sockopt.IPVersion], "ForceIP")
+		}
+		o.Protocol, o.Settings = "masque", settings
+		st.Network = "masque"
+		st.MasqueSettings = &masqueSettings{Warp: &masqueWarp{PrivateKey: mq.PrivateKey, PublicKey: mq.PublicKey, Address: mq.Address}}
+		if u, err := url.Parse(mq.URI); err == nil && u.Host != "" {
+			st.MasqueSettings.Host = u.Host
+			if u.Path != "" && u.Path != "/" {
+				st.MasqueSettings.Path = u.Path
+			}
+		}
+		// mihomo's defaults: WARP's SNI, HTTP/3 unless network is h2.
+		s.TLS.SNI = cmp.Or(s.TLS.SNI, "consumer-masque.cloudflareclient.com")
+		if mq.Network == "h2" {
+			s.TLS.ALPN = []string{"h2"}
+		}
 	case "direct":
 		o.Protocol = "freedom" // with the node's socket options, below
 	case "reject":
