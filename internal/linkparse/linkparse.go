@@ -125,17 +125,22 @@ func vmess(link string) (string, *proto.Spec, error) {
 	s := &proto.Spec{Type: "vmess", Server: str("add"), UUID: str("id"), Cipher: str("scy"), UDP: true}
 	s.Port, _ = strconv.Atoi(str("port"))
 	s.AlterID, _ = strconv.Atoi(str("aid"))
+	// The rest are the query parameters of other links, except that
+	// v2rayN uses "net" for the transport and "type" for its header.
 	q := url.Values{}
-	for _, k := range []string{"net", "type", "host", "path", "tls", "sni", "alpn", "fp", "pbk", "sid", "spx", "mode", "serviceName"} {
-		if val := str(k); val != "" {
-			q.Set(k, val)
+	for k := range v {
+		switch k {
+		case "v", "ps", "add", "port", "id", "aid", "scy", "net", "type", "tls":
+		default:
+			if val := str(k); val != "" {
+				q.Set(k, val)
+			}
 		}
 	}
-	// v2rayN uses "net" for the transport and "type" for its header/mode.
 	q.Set("type", str("net"))
 	q.Set("headerType", str("type"))
 	q.Set("security", str("tls"))
-	applyQuery(s, q, false)
+	applyQuery(s, q, true)
 	if q.Get("type") == "grpc" && s.Transport.ServiceName == "" {
 		s.Transport.ServiceName = str("path")
 	}
@@ -337,6 +342,19 @@ func applyQuery(s *proto.Spec, q url.Values, report bool) {
 			Fingerprint: get("fp"),
 			PinSHA256:   get("pcs"),
 			Insecure:    isTrue(get("allowInsecure", "insecure")),
+			VerifyName:  get("vcn"),
+		}
+		// ech is xray's echConfigList: the list in base64, or looked up
+		// in DNS ("name+https://dns/..."), which conch does through the
+		// profile's DNS, as mihomo does.
+		if e := get("ech"); e != "" {
+			if name, _, isQuery := strings.Cut(e, "+"); isQuery && strings.Contains(e, "://") {
+				t.ECH = &proto.ECH{QueryServerName: name}
+			} else if strings.Contains(e, "://") {
+				t.ECH = &proto.ECH{}
+			} else {
+				t.ECH = &proto.ECH{Config: e}
+			}
 		}
 		if alpn := get("alpn"); alpn != "" {
 			t.ALPN = strings.Split(alpn, ",")
@@ -367,11 +385,20 @@ func applyQuery(s *proto.Spec, q url.Values, report bool) {
 			tr.EarlyData, _ = strconv.Atoi(ed)
 			tr.EarlyDataHeader = "Sec-WebSocket-Protocol"
 		}
+		if eh := get("eh"); eh != "" && tr.EarlyData > 0 {
+			tr.EarlyDataHeader = eh
+		}
 	case "httpupgrade":
 		tr.Host, tr.Path = host, path
 	case "grpc":
 		tr.ServiceName = get("serviceName")
-		get("mode", "authority")
+		// mihomo's gRPC is gun: no multi mode, no authority of its own.
+		if m := get("mode"); m != "" && m != "gun" {
+			s.Unknown = append(s.Unknown, "mode="+m)
+		}
+		if a := get("authority"); a != "" {
+			s.Unknown = append(s.Unknown, "authority="+a)
+		}
 	case "xhttp", "splithttp":
 		tr.Network = "xhttp"
 		tr.Host, tr.Path, tr.Mode = host, path, get("mode")
@@ -382,7 +409,8 @@ func applyQuery(s *proto.Spec, q url.Values, report bool) {
 		tr.Network, tr.Host, tr.Path = "h2", host, path
 	}
 	s.Transport = tr
-	get("headerType", "encryption", "flow", "fragment", "spx")
+	s.PacketEncoding = get("packetEncoding")
+	get("headerType", "encryption", "flow", "spx")
 	if report {
 		var unknown []string
 		for k := range q {

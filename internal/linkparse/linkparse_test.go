@@ -36,6 +36,15 @@ func TestParse(t *testing.T) {
 		{"trojan-go://p%40ss@tg.example.com:443/?sni=cdn.example.com&type=ws&host=cdn.example.com&path=%2Fws&encryption=ss%3Baes-128-gcm%3Bsspass#TG", "TG",
 			proto.Spec{Type: "trojan-go", Server: "tg.example.com", Port: 443, UDP: true, Password: "p@ss", TLS: &proto.TLS{SNI: "cdn.example.com"},
 				Transport: proto.Transport{Network: "ws", Host: "cdn.example.com", Path: "/ws"}, TrojanGo: &proto.TrojanGo{SSMethod: "aes-128-gcm", SSPassword: "sspass"}}},
+		// ECH, verifying another name, early data in another header, packet encoding.
+		{"vless://u@v.example.com:443?security=tls&sni=v.example.com&ech=ech.example.com%2Bhttps%3A%2F%2F1.1.1.1%2Fdns-query&vcn=real.example.com" +
+			"&type=ws&path=%2Fw%3Fed%3D2048&eh=X-Early&packetEncoding=xudp&mode=multi#e", "e",
+			proto.Spec{Type: "vless", Server: "v.example.com", Port: 443, UDP: true, UUID: "u", PacketEncoding: "xudp",
+				TLS:       &proto.TLS{SNI: "v.example.com", VerifyName: "real.example.com", ECH: &proto.ECH{QueryServerName: "ech.example.com"}},
+				Transport: proto.Transport{Network: "ws", Path: "/w", EarlyData: 2048, EarlyDataHeader: "X-Early"}, Unknown: []string{"mode"}}},
+		{"trojan://p@t.example.com:443?type=grpc&serviceName=s&mode=multi&authority=a.example#g", "g",
+			proto.Spec{Type: "trojan", Server: "t.example.com", Port: 443, UDP: true, Password: "p", TLS: &proto.TLS{},
+				Transport: proto.Transport{Network: "grpc", ServiceName: "s"}, Unknown: []string{"mode=multi", "authority=a.example"}}},
 		// A password with ":" in it; no port means 443.
 		{"trojan://pa:ss@t.example.com?sni=t.example.com#colon", "colon",
 			proto.Spec{Type: "trojan", Server: "t.example.com", Port: 443, UDP: true, Password: "pa:ss", TLS: &proto.TLS{SNI: "t.example.com"}}},

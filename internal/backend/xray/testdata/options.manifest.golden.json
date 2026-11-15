@@ -1,0 +1,72 @@
+{
+  "backend": "xray",
+  "proxies": [
+    {
+      "name": "ss-uot",
+      "kind": "node",
+      "node": "ss-uot"
+    },
+    {
+      "name": "vmess-grpc",
+      "kind": "node",
+      "node": "vmess-grpc"
+    },
+    {
+      "name": "hy2-quic",
+      "kind": "node",
+      "node": "hy2-quic"
+    },
+    {
+      "name": "wg",
+      "kind": "node",
+      "node": "wg"
+    }
+  ],
+  "rules": [
+    {
+      "index": 0,
+      "rule": "{\"domain\":[\"domain:a.example\"],\"outboundTag\":\"vmess-grpc\",\"ruleTag\":\"#0 a.example\"}",
+      "tag": "#0 a.example",
+      "tier": "domain",
+      "key": "a.example",
+      "source": "../testdata/options.profile.yaml:23"
+    },
+    {
+      "index": 1,
+      "rule": "{\"domain\":[\"domain:b.example\"],\"outboundTag\":\"hy2-quic\",\"ruleTag\":\"#1 b.example\"}",
+      "tag": "#1 b.example",
+      "tier": "domain",
+      "key": "b.example",
+      "source": "../testdata/options.profile.yaml:24"
+    },
+    {
+      "index": 2,
+      "rule": "{\"domain\":[\"domain:c.example\"],\"outboundTag\":\"wg\",\"ruleTag\":\"#2 c.example\"}",
+      "tag": "#2 c.example",
+      "tier": "domain",
+      "key": "c.example",
+      "source": "../testdata/options.profile.yaml:25"
+    },
+    {
+      "index": 3,
+      "last": 6,
+      "rule": "{\"domain\":[\"domain:home.arpa\",\"domain:lan\",\"domain:local\",\"domain:localhost\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#3-6 lan\"}",
+      "tag": "#3-6 lan",
+      "tier": "domain",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 7,
+      "last": 19,
+      "rule": "{\"ip\":[\"::1/128\",\"255.255.255.255/32\",\"169.254.0.0/16\",\"192.168.0.0/16\",\"172.16.0.0/12\",\"100.64.0.0/10\",\"fe80::/10\",\"0.0.0.0/8\",\"10.0.0.0/8\",\"127.0.0.0/8\",\"ff00::/8\",\"fc00::/7\",\"224.0.0.0/4\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#7-19 lan\"}",
+      "tag": "#7-19 lan",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    }
+  ],
+  "tags": {
+    "REJECT": "REJECT»"
+  }
+}

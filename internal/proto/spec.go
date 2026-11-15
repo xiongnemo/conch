@@ -19,7 +19,14 @@ type Spec struct {
 	Flow       string // VLESS flow, e.g. xtls-rprx-vision
 	Encryption string // VLESS encryption
 	UDPOverTCP bool   // shadowsocks UDP-over-TCP
-	Headers    map[string]string
+	UoTVersion int    // its version: 1 (mihomo's default) or 2
+	// VMess and VLESS: how UDP is carried ("", xudp, packetaddr), and
+	// VMess's padding and authenticated length.
+	PacketEncoding      string
+	GlobalPadding       bool
+	AuthenticatedLength bool
+	Mux                 *Mux // sing-mux (mihomo's smux)
+	Headers             map[string]string
 
 	TLS       *TLS // nil means no TLS
 	Transport Transport
@@ -42,6 +49,25 @@ type TLS struct {
 	PinSHA256   string // expected certificate sha256, hex
 	Fingerprint string // uTLS client fingerprint, e.g. chrome
 	Reality     *Reality
+	ECH         *ECH
+	VerifyName  string // the name the certificate must be for, instead of the SNI
+	// A client certificate for mutual TLS: PEM, or a file's path.
+	Certificate, PrivateKey string
+}
+
+// ECH is Encrypted Client Hello: its config list (base64), or looked up
+// in DNS, under another name if QueryServerName says so.
+type ECH struct {
+	Config          string
+	QueryServerName string
+}
+
+// Mux is sing-mux: several streams over one connection.
+type Mux struct {
+	Protocol                               string // h2mux (the default), smux, yamux
+	MaxConnections, MinStreams, MaxStreams int
+	Padding                                bool
+	BrutalUp, BrutalDown                   uint64 // Brutal congestion control, bits per second; 0 is off
 }
 
 type Reality struct {
@@ -66,6 +92,9 @@ type Transport struct {
 	Method string
 	Paths  []string
 	Hosts  []string
+	// gRPC
+	UserAgent    string
+	PingInterval int // seconds
 }
 
 type Hysteria struct {
@@ -77,6 +106,9 @@ type Hysteria struct {
 	HopMax       int    // HopMax when it is more
 	// gecko obfuscation pads packets to sizes in this range.
 	ObfsMinPacket, ObfsMaxPacket int
+	BBRProfile                   string
+	// QUIC flow-control windows, bytes; 0 is the kernel's default.
+	InitStreamWindow, MaxStreamWindow, InitConnWindow, MaxConnWindow uint64
 }
 
 // TrojanGo holds what trojan-go adds to trojan; such nodes run in a
@@ -92,6 +124,8 @@ type WireGuard struct {
 	Address    []string // interface addresses, e.g. 10.0.0.2/32
 	MTU        int
 	Peers      []WireGuardPeer
+	Keepalive  int // seconds between keepalives; 0 is none
+	Workers    int
 }
 
 type WireGuardPeer struct {

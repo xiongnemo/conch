@@ -119,6 +119,8 @@ type tlsSettings struct {
 	ALPN                 []string `json:"alpn,omitempty"`
 	Fingerprint          string   `json:"fingerprint,omitempty"`
 	PinnedPeerCertSha256 string   `json:"pinnedPeerCertSha256,omitempty"`
+	VerifyPeerCertByName string   `json:"verifyPeerCertByName,omitempty"`
+	ECHConfigList        string   `json:"echConfigList,omitempty"` // base64, or name+DNS server to look it up
 }
 
 type realitySettings struct {
@@ -153,6 +155,8 @@ type httpSettings struct {
 
 type grpcSettings struct {
 	ServiceName string `json:"serviceName"`
+	UserAgent   string `json:"user_agent,omitempty"`
+	IdleTimeout int    `json:"idle_timeout,omitempty"` // seconds: the ping interval
 }
 
 type xhttpSettings struct {
@@ -178,9 +182,14 @@ type mask struct {
 }
 
 type quicParams struct {
-	Congestion string `json:"congestion,omitempty"`
-	BrutalUp   string `json:"brutalUp,omitempty"`
-	BrutalDown string `json:"brutalDown,omitempty"`
+	Congestion       string `json:"congestion,omitempty"`
+	BBRProfile       string `json:"bbrProfile,omitempty"`
+	BrutalUp         string `json:"brutalUp,omitempty"`
+	BrutalDown       string `json:"brutalDown,omitempty"`
+	InitStreamWindow uint64 `json:"initStreamReceiveWindow,omitempty"`
+	MaxStreamWindow  uint64 `json:"maxStreamReceiveWindow,omitempty"`
+	InitConnWindow   uint64 `json:"initConnectionReceiveWindow,omitempty"`
+	MaxConnWindow    uint64 `json:"maxConnectionReceiveWindow,omitempty"`
 }
 
 // udpHopSettings are the settings of the "udphop" UDP mask: port hopping.
@@ -220,8 +229,9 @@ type shadowsocksSettings struct {
 
 type vmessSettings struct {
 	serverSettings
-	ID       string `json:"id"`
-	Security string `json:"security"`
+	ID          string `json:"id"`
+	Security    string `json:"security"`
+	Experiments string `json:"experiments,omitempty"`
 }
 
 type vlessSettings struct {
@@ -249,11 +259,12 @@ type hysteriaOutSettings struct {
 }
 
 type wireguardSettings struct {
-	SecretKey string          `json:"secretKey"`
-	Address   []string        `json:"address,omitempty"`
-	Peers     []wireguardPeer `json:"peers"`
-	MTU       int             `json:"mtu,omitempty"`
-	Reserved  []int           `json:"reserved,omitempty"`
+	NoKernelTun bool            `json:"noKernelTun"`
+	SecretKey   string          `json:"secretKey"`
+	Address     []string        `json:"address,omitempty"`
+	Peers       []wireguardPeer `json:"peers"`
+	MTU         int             `json:"mtu,omitempty"`
+	Reserved    []int           `json:"reserved,omitempty"`
 }
 
 type wireguardPeer struct {
@@ -261,6 +272,7 @@ type wireguardPeer struct {
 	PreSharedKey string   `json:"preSharedKey,omitempty"`
 	Endpoint     string   `json:"endpoint"`
 	AllowedIPs   []string `json:"allowedIPs,omitempty"`
+	KeepAlive    int      `json:"keepAlive,omitempty"`
 }
 
 type loopbackSettings struct {

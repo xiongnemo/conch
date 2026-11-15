@@ -49,7 +49,7 @@ func TestFromClash(t *testing.T) {
 		{"sockopt and unknowns", `{ name: a, type: ss, server: s, port: 1, cipher: aes-128-gcm, password: p, tfo: true,
 			interface-name: eth0, routing-mark: 255, plugin: obfs, plugin-opts: { mode: tls }, smux: { enabled: true } }`,
 			Spec{Type: "ss", Server: "s", Port: 1, Cipher: "aes-128-gcm", Password: "p",
-				Sockopt: Sockopt{TFO: true, Interface: "eth0", Mark: 255}, Unknown: []string{"plugin: obfs", "smux"}}},
+				Sockopt: Sockopt{TFO: true, Interface: "eth0", Mark: 255}, Mux: &Mux{}, Unknown: []string{"plugin: obfs"}}},
 		{"unsupported protocol", `{ name: a, type: tuic, server: s, port: 1, uuid: u, congestion-controller: bbr }`,
 			Spec{Type: "tuic", Server: "s", Port: 1}},
 	}
@@ -65,8 +65,8 @@ func TestFromClash(t *testing.T) {
 
 func TestNestedUnknownFields(t *testing.T) {
 	s := decode(t, `{ name: a, type: vless, server: s, port: 1, uuid: u, network: grpc, tls: true,
-		grpc-opts: { grpc-service-name: svc, ping-interval: 5 }, reality-opts: { public-key: k, future: 1 } }`)
-	want := []string{"grpc-opts.ping-interval", "reality-opts.future"}
+		grpc-opts: { grpc-service-name: svc, max-streams: 5 }, reality-opts: { public-key: k, future: 1 } }`)
+	want := []string{"grpc-opts.max-streams", "reality-opts.future"}
 	if !reflect.DeepEqual(s.Unknown, want) {
 		t.Errorf("Unknown = %q, want %q", s.Unknown, want)
 	}
@@ -82,7 +82,12 @@ func TestNestedUnknownFields(t *testing.T) {
 // ToClash must be the inverse of FromClash for everything a Spec holds.
 func TestClashRoundTrip(t *testing.T) {
 	specs := []*Spec{
-		{Type: "ss", Server: "s", Port: 1, UDP: true, Cipher: "2022-blake3-aes-128-gcm", Password: "p", UDPOverTCP: true},
+		{Type: "ss", Server: "s", Port: 1, UDP: true, Cipher: "2022-blake3-aes-128-gcm", Password: "p", UDPOverTCP: true, UoTVersion: 1},
+		{Type: "ss", Server: "s", Port: 1, Cipher: "aes-128-gcm", Password: "p", UDPOverTCP: true, UoTVersion: 2,
+			Mux: &Mux{Protocol: "h2mux", MaxConnections: 4, Padding: true, BrutalUp: 50_000_000, BrutalDown: 100_000_000}},
+		{Type: "vmess", Server: "s", Port: 443, UUID: "u", Cipher: "auto", GlobalPadding: true, AuthenticatedLength: true, PacketEncoding: "packetaddr",
+			TLS:       &TLS{SNI: "a", VerifyName: "real.example", Certificate: "/c.pem", PrivateKey: "/k.pem", ECH: &ECH{QueryServerName: "q.example"}},
+			Transport: Transport{Network: "grpc", ServiceName: "s", UserAgent: "ua", PingInterval: 15}},
 		{Type: "vmess", Server: "s", Port: 443, UUID: "u", Cipher: "auto", TLS: &TLS{SNI: "a", ALPN: []string{"h2"}, Insecure: true},
 			Transport: Transport{Network: "ws", Path: "/p", Host: "h", Headers: map[string]string{"X": "y"}, EarlyData: 2048, EarlyDataHeader: "Sec-WebSocket-Protocol"}},
 		{Type: "vless", Server: "s", Port: 443, UDP: true, UUID: "u", Flow: "xtls-rprx-vision", Encryption: "mlkem768x25519plus.native.0rtt.x",
@@ -94,8 +99,11 @@ func TestClashRoundTrip(t *testing.T) {
 		{Type: "http", Server: "s", Port: 8080, Username: "u", Password: "p", Headers: map[string]string{"User-Agent": "x"}},
 		{Type: "hysteria2", Server: "s", Port: 443, UDP: true, Password: "p", TLS: &TLS{SNI: "a"},
 			Hysteria: &Hysteria{Obfs: "salamander", ObfsPassword: "o", Up: 50_000_000, Down: 1_000_000_000, Ports: "1000-2000", HopMin: 30, HopMax: 30}},
+		{Type: "hysteria2", Server: "s", Port: 443, UDP: true, Password: "p", TLS: &TLS{ECH: &ECH{Config: "AEX+"}},
+			Hysteria: &Hysteria{Obfs: "gecko", ObfsPassword: "g", ObfsMinPacket: 600, Ports: "443,1000-2000", HopMin: 10, HopMax: 30,
+				BBRProfile: "aggressive", MaxStreamWindow: 8388608, MaxConnWindow: 20971520}},
 		{Type: "wireguard", Server: "1.2.3.4", Port: 51820, UDP: true, WireGuard: &WireGuard{PrivateKey: "k", MTU: 1280,
-			Address: []string{"10.0.0.2/32", "fd00::2/128"}, Peers: []WireGuardPeer{{Server: "1.2.3.4", Port: 51820, PublicKey: "pk", Reserved: []int{1, 2, 3}}}}},
+			Address: []string{"10.0.0.2/32", "fd00::2/128"}, Keepalive: 25, Workers: 2, Peers: []WireGuardPeer{{Server: "1.2.3.4", Port: 51820, PublicKey: "pk", Reserved: []int{1, 2, 3}}}}},
 		{Type: "wireguard", Server: "1.2.3.4", Port: 51820, UDP: true, WireGuard: &WireGuard{PrivateKey: "k", Address: []string{"10.0.0.0/24"},
 			Peers: []WireGuardPeer{{Server: "a", Port: 1, PublicKey: "p1", AllowedIPs: []string{"0.0.0.0/0"}}, {Server: "b", Port: 2, PublicKey: "p2"}}}},
 		{Type: "vless", Server: "s", Port: 1, UUID: "u", Sockopt: Sockopt{TFO: true, MPTCP: true, Interface: "eth0", Mark: 7, IPVersion: "ipv6"}},

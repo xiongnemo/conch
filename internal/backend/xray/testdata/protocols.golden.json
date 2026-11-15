@@ -246,6 +246,7 @@
       "tag": "wg",
       "protocol": "wireguard",
       "settings": {
+        "noKernelTun": true,
         "secretKey": "elM/+PBAa7rn1rifSGuVKiDD9gSiGddGjleV+taVs0U=",
         "address": [
           "172.16.0.2/32"

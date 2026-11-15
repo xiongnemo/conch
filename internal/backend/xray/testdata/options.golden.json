@@ -1,0 +1,203 @@
+{
+  "log": {
+    "loglevel": "info"
+  },
+  "inbounds": [
+    {
+      "tag": "›mixed",
+      "protocol": "mixed",
+      "listen": "127.0.0.1",
+      "port": 7890,
+      "settings": {
+        "udp": true
+      },
+      "sniffing": {
+        "enabled": true,
+        "destOverride": [
+          "http",
+          "tls",
+          "quic"
+        ],
+        "routeOnly": true
+      }
+    }
+  ],
+  "outbounds": [
+    {
+      "tag": "ss-uot",
+      "protocol": "shadowsocks",
+      "settings": {
+        "address": "192.0.2.30",
+        "port": 8388,
+        "method": "aes-128-gcm",
+        "password": "p"
+      }
+    },
+    {
+      "tag": "DIRECT",
+      "protocol": "freedom"
+    },
+    {
+      "tag": "REJECT»",
+      "protocol": "blackhole"
+    },
+    {
+      "tag": "REJECT-DROP",
+      "protocol": "blackhole"
+    },
+    {
+      "tag": "vmess-grpc",
+      "protocol": "vmess",
+      "settings": {
+        "address": "192.0.2.31",
+        "port": 443,
+        "id": "00000000-0000-0000-0000-000000000031",
+        "security": "auto",
+        "experiments": "AuthenticatedLength"
+      },
+      "streamSettings": {
+        "network": "grpc",
+        "security": "tls",
+        "tlsSettings": {
+          "serverName": "v.example.com",
+          "alpn": [
+            "h2"
+          ],
+          "verifyPeerCertByName": "real.example.com",
+          "echConfigList": "ech.example.com+https://223.5.5.5/dns-query"
+        },
+        "grpcSettings": {
+          "serviceName": "svc",
+          "user_agent": "conch",
+          "idle_timeout": 15
+        }
+      }
+    },
+    {
+      "tag": "hy2-quic",
+      "protocol": "hysteria",
+      "settings": {
+        "version": 2,
+        "address": "192.0.2.32",
+        "port": 443
+      },
+      "streamSettings": {
+        "network": "hysteria",
+        "security": "tls",
+        "tlsSettings": {
+          "serverName": "h.example.com",
+          "echConfigList": "AEr+DQBGAAAgACD1sfDkeN8XNm+xt6zRDfHYKm1TBG2LWKZlflEGVi1HEQAMAAEAAQABAAIAAQADAA9lY2guZXhhbXBsZS5jb20AAA=="
+        },
+        "hysteriaSettings": {
+          "version": 2,
+          "auth": "p"
+        },
+        "finalmask": {
+          "quicParams": {
+            "bbrProfile": "aggressive",
+            "maxStreamReceiveWindow": 8388608,
+            "maxConnectionReceiveWindow": 20971520
+          }
+        }
+      }
+    },
+    {
+      "tag": "wg",
+      "protocol": "wireguard",
+      "settings": {
+        "noKernelTun": true,
+        "secretKey": "elM/+PBAa7rn1rifSGuVKiDD9gSiGddGjleV+taVs0U=",
+        "address": [
+          "172.16.0.2/32"
+        ],
+        "peers": [
+          {
+            "publicKey": "DHZ/8quR7djJIv0jvfkP2aGcbDWdOpjd0opJwa0pM2E=",
+            "endpoint": "192.0.2.33:51820",
+            "keepAlive": 25
+          }
+        ],
+        "mtu": 1408
+      }
+    },
+    {
+      "tag": "GLOBAL",
+      "protocol": "loopback",
+      "settings": {
+        "inboundTag": "›group›GLOBAL"
+      }
+    }
+  ],
+  "routing": {
+    "domainStrategy": "IPIfNonMatch",
+    "rules": [
+      {
+        "inboundTag": [
+          "›group›GLOBAL"
+        ],
+        "balancerTag": "GLOBAL"
+      },
+      {
+        "domain": [
+          "domain:a.example"
+        ],
+        "outboundTag": "vmess-grpc",
+        "ruleTag": "#0 a.example"
+      },
+      {
+        "domain": [
+          "domain:b.example"
+        ],
+        "outboundTag": "hy2-quic",
+        "ruleTag": "#1 b.example"
+      },
+      {
+        "domain": [
+          "domain:c.example"
+        ],
+        "outboundTag": "wg",
+        "ruleTag": "#2 c.example"
+      },
+      {
+        "domain": [
+          "domain:home.arpa",
+          "domain:lan",
+          "domain:local",
+          "domain:localhost"
+        ],
+        "outboundTag": "DIRECT",
+        "ruleTag": "#3-6 lan"
+      },
+      {
+        "ip": [
+          "::1/128",
+          "255.255.255.255/32",
+          "169.254.0.0/16",
+          "192.168.0.0/16",
+          "172.16.0.0/12",
+          "100.64.0.0/10",
+          "fe80::/10",
+          "0.0.0.0/8",
+          "10.0.0.0/8",
+          "127.0.0.0/8",
+          "ff00::/8",
+          "fc00::/7",
+          "224.0.0.0/4"
+        ],
+        "outboundTag": "DIRECT",
+        "ruleTag": "#7-19 lan"
+      }
+    ],
+    "balancers": [
+      {
+        "tag": "GLOBAL",
+        "selector": [
+          "ss-uot"
+        ],
+        "strategy": {
+          "type": "random"
+        }
+      }
+    ]
+  }
+}

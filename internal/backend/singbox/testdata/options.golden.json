@@ -1,0 +1,287 @@
+{
+  "log": {
+    "level": "info",
+    "timestamp": true
+  },
+  "dns": {
+    "servers": [
+      {
+        "type": "local",
+        "tag": "local"
+      }
+    ],
+    "final": "local",
+    "strategy": "ipv4_only"
+  },
+  "endpoints": [
+    {
+      "type": "wireguard",
+      "tag": "wg",
+      "address": [
+        "172.16.0.2/32"
+      ],
+      "private_key": "elM/+PBAa7rn1rifSGuVKiDD9gSiGddGjleV+taVs0U=",
+      "mtu": 1408,
+      "workers": 2,
+      "peers": [
+        {
+          "address": "192.0.2.33",
+          "port": 51820,
+          "public_key": "DHZ/8quR7djJIv0jvfkP2aGcbDWdOpjd0opJwa0pM2E=",
+          "allowed_ips": [
+            "0.0.0.0/0",
+            "::/0"
+          ],
+          "persistent_keepalive_interval": 25
+        }
+      ]
+    }
+  ],
+  "inbounds": [
+    {
+      "type": "mixed",
+      "tag": "›mixed",
+      "listen": "127.0.0.1",
+      "listen_port": 7890
+    }
+  ],
+  "outbounds": [
+    {
+      "type": "direct",
+      "tag": "DIRECT"
+    },
+    {
+      "type": "shadowsocks",
+      "tag": "ss-uot",
+      "server": "192.0.2.30",
+      "server_port": 8388,
+      "method": "aes-128-gcm",
+      "password": "p",
+      "udp_over_tcp": {
+        "enabled": true,
+        "version": 2
+      },
+      "multiplex": {
+        "enabled": true,
+        "protocol": "h2mux",
+        "max_connections": 4,
+        "padding": true,
+        "brutal": {
+          "enabled": true,
+          "up_mbps": 50,
+          "down_mbps": 100
+        }
+      }
+    },
+    {
+      "type": "vmess",
+      "tag": "vmess-grpc",
+      "server": "192.0.2.31",
+      "server_port": 443,
+      "uuid": "00000000-0000-0000-0000-000000000031",
+      "security": "auto",
+      "packet_encoding": "packetaddr",
+      "global_padding": true,
+      "authenticated_length": true,
+      "tls": {
+        "enabled": true,
+        "server_name": "v.example.com",
+        "alpn": [
+          "h2"
+        ],
+        "ech": {
+          "enabled": true,
+          "query_server_name": "ech.example.com"
+        }
+      },
+      "transport": {
+        "type": "grpc",
+        "service_name": "svc",
+        "idle_timeout": "15s"
+      }
+    },
+    {
+      "type": "hysteria2",
+      "tag": "hy2-quic",
+      "server": "192.0.2.32",
+      "server_port": 443,
+      "password": "p",
+      "bbr_profile": "aggressive",
+      "stream_receive_window": 8388608,
+      "connection_receive_window": 20971520,
+      "tls": {
+        "enabled": true,
+        "server_name": "h.example.com",
+        "ech": {
+          "enabled": true,
+          "config": [
+            "-----BEGIN ECH CONFIGS-----",
+            "AEr+DQBGAAAgACD1sfDkeN8XNm+xt6zRDfHYKm1TBG2LWKZlflEGVi1HEQAMAAEA",
+            "AQABAAIAAQADAA9lY2guZXhhbXBsZS5jb20AAA==",
+            "-----END ECH CONFIGS-----"
+          ]
+        }
+      }
+    },
+    {
+      "type": "selector",
+      "tag": "GLOBAL",
+      "outbounds": [
+        "ss-uot",
+        "vmess-grpc",
+        "hy2-quic",
+        "wg",
+        "DIRECT"
+      ]
+    }
+  ],
+  "route": {
+    "rules": [
+      {
+        "action": "sniff"
+      },
+      {
+        "domain_suffix": [
+          "a.example"
+        ],
+        "action": "route",
+        "outbound": "vmess-grpc"
+      },
+      {
+        "domain_suffix": [
+          "b.example"
+        ],
+        "action": "route",
+        "outbound": "hy2-quic"
+      },
+      {
+        "domain_suffix": [
+          "c.example"
+        ],
+        "action": "route",
+        "outbound": "wg"
+      },
+      {
+        "domain_suffix": [
+          "home.arpa"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "domain_suffix": [
+          "lan"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "domain_suffix": [
+          "local"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "domain_suffix": [
+          "localhost"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "ip_cidr": [
+          "::1/128"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "ip_cidr": [
+          "255.255.255.255/32"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "ip_cidr": [
+          "169.254.0.0/16"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "ip_cidr": [
+          "192.168.0.0/16"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "ip_cidr": [
+          "172.16.0.0/12"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "ip_cidr": [
+          "100.64.0.0/10"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "ip_cidr": [
+          "fe80::/10"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "ip_cidr": [
+          "0.0.0.0/8"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "ip_cidr": [
+          "10.0.0.0/8"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "ip_cidr": [
+          "127.0.0.0/8"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "ip_cidr": [
+          "ff00::/8"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "ip_cidr": [
+          "fc00::/7"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "ip_cidr": [
+          "224.0.0.0/4"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      }
+    ],
+    "final": "ss-uot",
+    "default_domain_resolver": "local"
+  }
+}

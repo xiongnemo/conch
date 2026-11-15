@@ -59,12 +59,20 @@ func (e *encoder) nodeOutbound(p *compile.Proxy) (*outbound, *endpoint, []string
 		if !slices.Contains(ssMethods, method) {
 			return nil, nil, nil, fmt.Errorf("sing-box 不支持 shadowsocks 加密方式 %q", s.Cipher)
 		}
-		o.Type, o.Method, o.Password, o.UDPOverTCP = "shadowsocks", method, s.Password, s.UDPOverTCP
+		o.Type, o.Method, o.Password = "shadowsocks", method, s.Password
+		if s.UDPOverTCP {
+			// sing-box's default is version 2, mihomo's 1.
+			o.UDPOverTCP = &udpOverTCP{Enabled: true, Version: cmp.Or(s.UoTVersion, 1)}
+		}
 	case "vmess":
 		o.Type, o.UUID, o.Security, o.AlterID = "vmess", s.UUID, cmp.Or(strings.ToLower(s.Cipher), "auto"), s.AlterID
+		o.GlobalPadding, o.AuthLength, o.PacketEncoding = s.GlobalPadding, s.AuthenticatedLength, s.PacketEncoding
 	case "vless":
 		// mihomo takes vision-udp443 for vision, which relays UDP/443 anyway.
-		o.Type, o.UUID, o.Flow = "vless", s.UUID, strings.TrimSuffix(s.Flow, "-udp443")
+		o.Type, o.UUID, o.Flow, o.PacketEncoding = "vless", s.UUID, strings.TrimSuffix(s.Flow, "-udp443"), s.PacketEncoding
+		if e := s.Encryption; e != "" && e != "none" {
+			return nil, nil, nil, fmt.Errorf("sing-box 没有 VLESS 加密（encryption: %s）", e)
+		}
 	case "trojan":
 		o.Type, o.Password = "trojan", s.Password
 	case "socks5":
@@ -88,6 +96,8 @@ func (e *encoder) nodeOutbound(p *compile.Proxy) (*outbound, *endpoint, []string
 				return nil, nil, nil, fmt.Errorf("sing-box 不认识 hysteria2 混淆 %q", h.Obfs)
 			}
 			o.UpMbps, o.DownMbps = mbps(h.Up), mbps(h.Down)
+			// sing-box sets one window of each kind, which quic-go grows to.
+			o.BBRProfile, o.StreamWindow, o.ConnWindow = h.BBRProfile, cmp.Or(h.MaxStreamWindow, h.InitStreamWindow), cmp.Or(h.MaxConnWindow, h.InitConnWindow)
 			if h.Ports != "" {
 				o.ServerPorts = serverPorts(h.Ports)
 				o.ServerPort = 0
@@ -122,6 +132,17 @@ func (e *encoder) nodeOutbound(p *compile.Proxy) (*outbound, *endpoint, []string
 		return nil, nil, nil, err
 	}
 	o.Transport = t
+	if x := s.Mux; x != nil {
+		switch s.Type {
+		case "ss", "vmess", "vless", "trojan":
+			o.Multiplex = &multiplex{Enabled: true, Protocol: x.Protocol, MaxConnections: x.MaxConnections, MinStreams: x.MinStreams, MaxStreams: x.MaxStreams, Padding: x.Padding}
+			if x.BrutalUp > 0 || x.BrutalDown > 0 {
+				o.Multiplex.Brutal = &brutal{Enabled: true, UpMbps: mbps(x.BrutalUp), DownMbps: mbps(x.BrutalDown)}
+			}
+		default:
+			warns = append(warns, "sing-box 只能给 ss、vmess、vless、trojan 用多路复用（smux），这个节点不用")
+		}
+	}
 	o.dial = e.dial(p.Upstream, s.Sockopt)
 	if len(s.Unknown) > 0 {
 		warns = append(warns, fmt.Sprintf("这些字段在 sing-box 中没有对应，已忽略：%s", strings.Join(s.Unknown, "、")))
@@ -132,6 +153,29 @@ func (e *encoder) nodeOutbound(p *compile.Proxy) (*outbound, *endpoint, []string
 func tlsOf(t *proto.TLS, certs certpin.Lookup) (*tlsOptions, []string) {
 	o := &tlsOptions{Enabled: true, ServerName: t.SNI, Insecure: t.Insecure, ALPN: t.ALPN}
 	fp, warns := fingerprint(t.Fingerprint)
+	if t.VerifyName != "" {
+		warns = append(warns, fmt.Sprintf("sing-box 不能按 %s 校验证书（name-cert-verify），按 SNI 校验", t.VerifyName))
+	}
+	if t.Certificate != "" {
+		if pem := pemLines(t.Certificate); pem != nil {
+			o.ClientCertificate = pem
+		} else {
+			o.ClientCertificatePath = []string{t.Certificate}
+		}
+	}
+	if t.PrivateKey != "" {
+		if pem := pemLines(t.PrivateKey); pem != nil {
+			o.ClientKey = pem
+		} else {
+			o.ClientKeyPath = t.PrivateKey
+		}
+	}
+	if e := t.ECH; e != nil {
+		o.ECH = &ech{Enabled: true, QueryServerName: e.QueryServerName}
+		if e.Config != "" {
+			o.ECH.Config = echPEM(e.Config)
+		}
+	}
 	if t.Reality != nil {
 		fp = cmp.Or(fp, "chrome") // REALITY requires uTLS
 		o.Reality = &reality{Enabled: true, PublicKey: t.Reality.PublicKey, ShortID: t.Reality.ShortID}
@@ -194,7 +238,14 @@ func transportOf(t proto.Transport, tls bool, warns *[]string) (*transport, erro
 		}
 		return o, nil
 	case "grpc":
-		return &transport{Type: "grpc", ServiceName: t.ServiceName}, nil
+		o := &transport{Type: "grpc", ServiceName: t.ServiceName}
+		if t.PingInterval > 0 {
+			o.IdleTimeout = strconv.Itoa(t.PingInterval) + "s"
+		}
+		if t.UserAgent != "" {
+			*warns = append(*warns, "sing-box 不能设置 gRPC 的 User-Agent（grpc-user-agent）")
+		}
+		return o, nil
 	case "h2":
 		// sing-box's HTTP transport is HTTP/2 over TLS, and HTTP/1.1 without.
 		if !tls {
@@ -230,13 +281,13 @@ func wireguardEndpoint(tag string, w *proto.WireGuard) (*endpoint, error) {
 	if w == nil || len(w.Peers) == 0 {
 		return nil, fmt.Errorf("WireGuard 节点缺少对端")
 	}
-	ep := &endpoint{Type: "wireguard", Tag: tag, Address: w.Address, PrivateKey: w.PrivateKey, MTU: w.MTU}
+	ep := &endpoint{Type: "wireguard", Tag: tag, Address: w.Address, PrivateKey: w.PrivateKey, MTU: w.MTU, Workers: w.Workers}
 	for _, p := range w.Peers {
 		allowed := p.AllowedIPs
 		if len(allowed) == 0 {
 			allowed = []string{"0.0.0.0/0", "::/0"}
 		}
-		ep.Peers = append(ep.Peers, wgPeer{Address: p.Server, Port: p.Port, PublicKey: p.PublicKey, PreSharedKey: p.PreSharedKey, AllowedIPs: allowed, Reserved: p.Reserved})
+		ep.Peers = append(ep.Peers, wgPeer{Address: p.Server, Port: p.Port, PublicKey: p.PublicKey, PreSharedKey: p.PreSharedKey, AllowedIPs: allowed, Reserved: p.Reserved, Keepalive: w.Keepalive})
 	}
 	return ep, nil
 }
@@ -296,4 +347,23 @@ func orOne(list []string, one string) []string {
 		return []string{one}
 	}
 	return nil
+}
+
+// pemLines is PEM content as sing-box's line arrays, or nil for a path.
+func pemLines(s string) []string {
+	if !strings.Contains(s, "-----BEGIN") {
+		return nil
+	}
+	return strings.Split(strings.TrimSpace(s), "\n")
+}
+
+// echPEM wraps an ECH config list, base64 as mihomo writes it, in the
+// PEM block sing-box reads.
+func echPEM(config string) []string {
+	config = strings.Join(strings.Fields(config), "")
+	lines := []string{"-----BEGIN ECH CONFIGS-----"}
+	for len(config) > 64 {
+		lines, config = append(lines, config[:64]), config[64:]
+	}
+	return append(lines, config, "-----END ECH CONFIGS-----")
 }

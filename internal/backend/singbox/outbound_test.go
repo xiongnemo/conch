@@ -28,6 +28,11 @@ func TestNodeTranslations(t *testing.T) {
 		// An empty header name puts early data in the path, in both.
 		{node: `{ name: w, type: trojan, server: 192.0.2.1, port: 443, password: p, network: ws, ws-opts: { path: /w, max-early-data: 2048 } }`, config: `"max_early_data": 2048`},
 		{node: `{ name: o, type: hysteria2, server: 192.0.2.1, port: 443, password: p, obfs: nonsense, obfs-password: x }`, err: true, said: "不认识 hysteria2 混淆"},
+		{node: `{ name: e, type: vless, server: 192.0.2.1, port: 443, uuid: 11111111-2222-3333-4444-555555555555, tls: true, encryption: mlkem768x25519plus.native.0rtt.x }`, err: true, said: "sing-box 没有 VLESS 加密"},
+		// A client certificate: a file, or PEM in the node.
+		{node: `{ name: c, type: trojan, server: 192.0.2.1, port: 443, password: p, certificate: /etc/conch/c.pem, private-key: /etc/conch/k.pem }`, config: `"client_key_path": "/etc/conch/k.pem"`},
+		{node: `{ name: c, type: trojan, server: 192.0.2.1, port: 443, password: p, certificate: "-----BEGIN CERTIFICATE-----\nMIIB\n-----END CERTIFICATE-----", private-key: /k.pem }`, config: `"MIIB"`},
+		{node: `{ name: u, type: ss, server: 192.0.2.1, port: 1, cipher: aes-128-gcm, password: p, udp-over-tcp: true }`, config: `"version": 1`},
 	} {
 		art, said := backendtest.BuildNode(t, Backend{}, c.node)
 		switch {

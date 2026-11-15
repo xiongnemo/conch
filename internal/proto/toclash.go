@@ -30,25 +30,40 @@ func ToClash(name string, s *Spec) *yaml.Node {
 		m.str("password", s.Password)
 		if s.UDPOverTCP {
 			m.bool("udp-over-tcp", true)
+			if s.UoTVersion > 1 {
+				m.int("udp-over-tcp-version", s.UoTVersion)
+			}
 		}
+		muxClash(m, s.Mux)
 	case "vmess":
 		m.str("uuid", s.UUID)
 		m.int("alterId", s.AlterID)
 		m.str("cipher", cmp.Or(s.Cipher, "auto"))
+		if s.GlobalPadding {
+			m.bool("global-padding", true)
+		}
+		if s.AuthenticatedLength {
+			m.bool("authenticated-length", true)
+		}
+		m.str("packet-encoding", s.PacketEncoding)
 		tlsClash(m, s.TLS, true, "servername")
 		transportClash(m, s.Transport)
+		muxClash(m, s.Mux)
 	case "vless":
 		m.str("uuid", s.UUID)
 		m.str("flow", s.Flow)
 		if s.Encryption != "" && s.Encryption != "none" {
 			m.str("encryption", s.Encryption)
 		}
+		m.str("packet-encoding", s.PacketEncoding)
 		tlsClash(m, s.TLS, true, "servername")
 		transportClash(m, s.Transport)
+		muxClash(m, s.Mux)
 	case "trojan":
 		m.str("password", s.Password)
 		tlsClash(m, s.TLS, false, "sni")
 		transportClash(m, s.Transport)
+		muxClash(m, s.Mux)
 	case "trojan-go":
 		m.str("password", s.Password)
 		tlsClash(m, s.TLS, false, "sni")
@@ -92,6 +107,16 @@ func ToClash(name string, s *Spec) *yaml.Node {
 			if h.ObfsMaxPacket > 0 {
 				m.int("obfs-max-packet-size", h.ObfsMaxPacket)
 			}
+			m.str("bbr-profile", h.BBRProfile)
+			for _, w := range []struct {
+				key string
+				v   uint64
+			}{{"initial-stream-receive-window", h.InitStreamWindow}, {"max-stream-receive-window", h.MaxStreamWindow},
+				{"initial-connection-receive-window", h.InitConnWindow}, {"max-connection-receive-window", h.MaxConnWindow}} {
+				if w.v > 0 {
+					m.int(w.key, int(w.v))
+				}
+			}
 		}
 		tlsClash(m, s.TLS, false, "sni")
 	case "wireguard":
@@ -130,6 +155,16 @@ func tlsClash(m *mapping, t *TLS, explicit bool, sniKey string) {
 	}
 	m.str("fingerprint", t.PinSHA256)
 	m.str("client-fingerprint", t.Fingerprint)
+	m.str("name-cert-verify", t.VerifyName)
+	m.str("certificate", t.Certificate)
+	m.str("private-key", t.PrivateKey)
+	if e := t.ECH; e != nil {
+		eo := &mapping{n: &yaml.Node{Kind: yaml.MappingNode}}
+		eo.bool("enable", true)
+		eo.str("config", e.Config)
+		eo.str("query-server-name", e.QueryServerName)
+		m.node("ech-opts", eo.n)
+	}
 	if r := t.Reality; r != nil {
 		ro := &mapping{n: &yaml.Node{Kind: yaml.MappingNode}}
 		ro.str("public-key", r.PublicKey)
@@ -168,6 +203,10 @@ func transportClash(m *mapping, t Transport) {
 	case "grpc":
 		m.str("network", "grpc")
 		o.str("grpc-service-name", t.ServiceName)
+		o.str("grpc-user-agent", t.UserAgent)
+		if t.PingInterval > 0 {
+			o.int("ping-interval", t.PingInterval)
+		}
 		m.node("grpc-opts", o.n)
 	case "h2":
 		m.str("network", "h2")
@@ -232,6 +271,12 @@ func wireguardClash(m *mapping, w *WireGuard) {
 	}
 	if w.MTU > 0 {
 		m.int("mtu", w.MTU)
+	}
+	if w.Keepalive > 0 {
+		m.int("persistent-keepalive", w.Keepalive)
+	}
+	if w.Workers > 0 {
+		m.int("workers", w.Workers)
 	}
 	peer := func(pm *mapping, p WireGuardPeer) {
 		pm.str("public-key", p.PublicKey)
@@ -328,4 +373,32 @@ func sortedKeys(m map[string]string) []string {
 	}
 	slices.Sort(keys)
 	return keys
+}
+
+func muxClash(m *mapping, x *Mux) {
+	if x == nil {
+		return
+	}
+	o := &mapping{n: &yaml.Node{Kind: yaml.MappingNode}}
+	o.bool("enabled", true)
+	o.str("protocol", x.Protocol)
+	for _, v := range []struct {
+		key string
+		n   int
+	}{{"max-connections", x.MaxConnections}, {"min-streams", x.MinStreams}, {"max-streams", x.MaxStreams}} {
+		if v.n > 0 {
+			o.int(v.key, v.n)
+		}
+	}
+	if x.Padding {
+		o.bool("padding", true)
+	}
+	if x.BrutalUp > 0 || x.BrutalDown > 0 {
+		b := &mapping{n: &yaml.Node{Kind: yaml.MappingNode}}
+		b.bool("enabled", true)
+		b.str("up", FormatBandwidth(x.BrutalUp))
+		b.str("down", FormatBandwidth(x.BrutalDown))
+		o.node("brutal-opts", b.n)
+	}
+	m.node("smux", o.n)
 }

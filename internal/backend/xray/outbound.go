@@ -50,7 +50,12 @@ func (e *encoder) nodeOutbound(p *compile.Proxy) (outbound, []string, error) {
 			security = "auto"
 		}
 		o.Protocol = "vmess"
-		o.Settings = vmessSettings{serverSettings: srv, ID: s.UUID, Security: security}
+		v := vmessSettings{serverSettings: srv, ID: s.UUID, Security: security}
+		if s.AuthenticatedLength {
+			v.Experiments = "AuthenticatedLength"
+		}
+		o.Settings = v
+		// xray always pads VMess AEAD; the server reads either.
 	case "vless":
 		flow := s.Flow
 		if flow == "xtls-rprx-vision" {
@@ -85,12 +90,25 @@ func (e *encoder) nodeOutbound(p *compile.Proxy) (outbound, []string, error) {
 	case "wireguard":
 		o.Protocol = "wireguard"
 		o.Settings = wireguardOutSettings(s.WireGuard)
+		if s.WireGuard.Workers > 0 {
+			warns = append(warns, "xray 不能设置 WireGuard 的 workers，用它自己的")
+		}
 	default:
 		return o, nil, fmt.Errorf("xray 不支持 %s 协议", s.Type)
 	}
 
 	if s.TLS != nil {
-		warns = append(warns, tlsStream(st, s.TLS)...)
+		w, err := e.tlsStream(st, s)
+		if err != nil {
+			return o, nil, err
+		}
+		warns = append(warns, w...)
+	}
+	if s.PacketEncoding == "packetaddr" {
+		warns = append(warns, "xray 没有 packetaddr，UDP 用 xudp 传，服务器也需要支持 xudp")
+	}
+	if s.Mux != nil {
+		warns = append(warns, "xray 没有 sing-mux（smux），这个节点不用多路复用")
 	}
 	if err := transportStream(st, s.Transport, &warns); err != nil {
 		return o, nil, err
@@ -111,7 +129,11 @@ func (e *encoder) nodeOutbound(p *compile.Proxy) (outbound, []string, error) {
 	return o, warns, nil
 }
 
-func tlsStream(st *streamSettings, t *proto.TLS) []string {
+func (e *encoder) tlsStream(st *streamSettings, s *proto.Spec) ([]string, error) {
+	t := s.TLS
+	if t.Certificate != "" || t.PrivateKey != "" {
+		return nil, fmt.Errorf("xray 的 TLS 客户端不能出示客户端证书（certificate、private-key）")
+	}
 	fp, warns := fingerprint(t.Fingerprint)
 	if t.Reality != nil {
 		if fp == "" || fp == "unsafe" {
@@ -125,14 +147,35 @@ func tlsStream(st *streamSettings, t *proto.TLS) []string {
 			ShortID:     t.Reality.ShortID,
 			SpiderX:     t.Reality.SpiderX,
 		}
-		return warns
+		return warns, nil
 	}
 	st.Security = "tls"
-	st.TLSSettings = &tlsSettings{ServerName: t.SNI, ALPN: t.ALPN, Fingerprint: fp, PinnedPeerCertSha256: t.PinSHA256}
+	st.TLSSettings = &tlsSettings{ServerName: t.SNI, ALPN: t.ALPN, Fingerprint: fp, PinnedPeerCertSha256: t.PinSHA256, VerifyPeerCertByName: t.VerifyName}
 	if t.Insecure && t.PinSHA256 == "" {
 		warns = append(warns, "设置了 skip-cert-verify，但 xray 已移除跳过证书校验的选项，这个节点会正常校验证书；如果服务器用的是自签证书，请在节点上写 fingerprint: <证书 sha256> 来固定证书")
 	}
-	return warns
+	if ech := t.ECH; ech != nil {
+		if ech.Config != "" {
+			st.TLSSettings.ECHConfigList = ech.Config
+		} else {
+			// xray looks the config up itself, but needs to be told where:
+			// the DNS mihomo would have used, the profile's.
+			name := cmp.Or(ech.QueryServerName, t.SNI, s.Server)
+			st.TLSSettings.ECHConfigList = name + "+" + e.echDNS()
+		}
+	}
+	return warns, nil
+}
+
+// echDNS is where xray looks up ECH configs: the profile's first DNS
+// over HTTPS, which xray can query on its own.
+func (e *encoder) echDNS() string {
+	for _, ns := range e.r.Settings.DNS.Nameservers {
+		if strings.HasPrefix(ns, "https://") {
+			return ns
+		}
+	}
+	return "https://1.1.1.1/dns-query"
 }
 
 // fingerprint is mihomo's client-fingerprint in xray's names. "none",
@@ -180,7 +223,7 @@ func transportStream(st *streamSettings, t proto.Transport, warns *[]string) err
 		st.HTTPUpgradeSettings = &httpSettings{Host: t.Host, Path: t.Path, Headers: nonEmpty(t.Headers)}
 	case "grpc":
 		st.Network = "grpc"
-		st.GRPCSettings = &grpcSettings{ServiceName: t.ServiceName}
+		st.GRPCSettings = &grpcSettings{ServiceName: t.ServiceName, UserAgent: t.UserAgent, IdleTimeout: t.PingInterval}
 	case "xhttp":
 		st.Network = "xhttp"
 		st.XHTTPSettings = &xhttpSettings{Host: t.Host, Path: t.Path, Mode: t.Mode, Headers: nonEmpty(t.Headers)}
@@ -255,6 +298,8 @@ func hysteriaMask(h *proto.Hysteria, warns *[]string) *finalMask {
 		}
 		q.Congestion, q.BrutalUp, q.BrutalDown = "brutal", bps(up), bps(down)
 	}
+	q.BBRProfile = h.BBRProfile
+	q.InitStreamWindow, q.MaxStreamWindow, q.InitConnWindow, q.MaxConnWindow = h.InitStreamWindow, h.MaxStreamWindow, h.InitConnWindow, h.MaxConnWindow
 	if *q != (quicParams{}) {
 		m.QuicParams = q
 	}
@@ -264,14 +309,17 @@ func hysteriaMask(h *proto.Hysteria, warns *[]string) *finalMask {
 	return m
 }
 
+// wireguardOutSettings: mihomo runs WireGuard in user space, never as a
+// kernel device with routes, which xray does when it may.
 func wireguardOutSettings(w *proto.WireGuard) wireguardSettings {
-	out := wireguardSettings{SecretKey: w.PrivateKey, Address: w.Address, MTU: w.MTU}
+	out := wireguardSettings{NoKernelTun: true, SecretKey: w.PrivateKey, Address: w.Address, MTU: w.MTU}
 	for _, p := range w.Peers {
 		out.Peers = append(out.Peers, wireguardPeer{
 			PublicKey:    p.PublicKey,
 			PreSharedKey: p.PreSharedKey,
 			Endpoint:     net.JoinHostPort(p.Server, strconv.Itoa(p.Port)),
 			AllowedIPs:   p.AllowedIPs,
+			KeepAlive:    w.Keepalive,
 		})
 		if out.Reserved == nil {
 			out.Reserved = p.Reserved // xray keeps reserved bytes per interface

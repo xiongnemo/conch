@@ -71,7 +71,10 @@ type outbound struct {
 	AlterID        int               `json:"alter_id,omitempty"`
 	Flow           string            `json:"flow,omitempty"` // vless
 	PacketEncoding string            `json:"packet_encoding,omitempty"`
-	UDPOverTCP     bool              `json:"udp_over_tcp,omitempty"`
+	GlobalPadding  bool              `json:"global_padding,omitempty"` // vmess
+	AuthLength     bool              `json:"authenticated_length,omitempty"`
+	UDPOverTCP     *udpOverTCP       `json:"udp_over_tcp,omitempty"`
+	Multiplex      *multiplex        `json:"multiplex,omitempty"`
 	Headers        map[string]string `json:"headers,omitempty"` // http
 
 	ServerPorts    []string `json:"server_ports,omitempty"` // hysteria2
@@ -80,6 +83,9 @@ type outbound struct {
 	UpMbps         int      `json:"up_mbps,omitempty"`
 	DownMbps       int      `json:"down_mbps,omitempty"`
 	Obfs           *obfs    `json:"obfs,omitempty"`
+	BBRProfile     string   `json:"bbr_profile,omitempty"`
+	StreamWindow   uint64   `json:"stream_receive_window,omitempty"`
+	ConnWindow     uint64   `json:"connection_receive_window,omitempty"`
 
 	Outbounds   []string `json:"outbounds,omitempty"` // selector, urltest
 	Default     string   `json:"default,omitempty"`
@@ -109,6 +115,27 @@ type domainResolver struct {
 	Strategy string `json:"strategy,omitempty"`
 }
 
+type udpOverTCP struct {
+	Enabled bool `json:"enabled"`
+	Version int  `json:"version,omitempty"`
+}
+
+type multiplex struct {
+	Enabled        bool    `json:"enabled"`
+	Protocol       string  `json:"protocol,omitempty"`
+	MaxConnections int     `json:"max_connections,omitempty"`
+	MinStreams     int     `json:"min_streams,omitempty"`
+	MaxStreams     int     `json:"max_streams,omitempty"`
+	Padding        bool    `json:"padding,omitempty"`
+	Brutal         *brutal `json:"brutal,omitempty"`
+}
+
+type brutal struct {
+	Enabled  bool `json:"enabled"`
+	UpMbps   int  `json:"up_mbps,omitempty"`
+	DownMbps int  `json:"down_mbps,omitempty"`
+}
+
 type obfs struct {
 	Type          string `json:"type"`
 	Password      string `json:"password"`
@@ -125,8 +152,20 @@ type tlsOptions struct {
 	// SHA-256), or the only roots trusted, as PEM lines.
 	CertificatePublicKeySHA256 []string `json:"certificate_public_key_sha256,omitempty"`
 	Certificate                []string `json:"certificate,omitempty"`
-	UTLS                       *utls    `json:"utls,omitempty"`
-	Reality                    *reality `json:"reality,omitempty"`
+	// A client certificate, PEM lines or files.
+	ClientCertificate     []string `json:"client_certificate,omitempty"`
+	ClientCertificatePath []string `json:"client_certificate_path,omitempty"`
+	ClientKey             []string `json:"client_key,omitempty"`
+	ClientKeyPath         string   `json:"client_key_path,omitempty"`
+	ECH                   *ech     `json:"ech,omitempty"`
+	UTLS                  *utls    `json:"utls,omitempty"`
+	Reality               *reality `json:"reality,omitempty"`
+}
+
+type ech struct {
+	Enabled         bool     `json:"enabled"`
+	Config          []string `json:"config,omitempty"` // PEM lines
+	QueryServerName string   `json:"query_server_name,omitempty"`
 }
 
 type utls struct {
@@ -147,6 +186,7 @@ type transport struct {
 	Method              string            `json:"method,omitempty"` // http
 	Headers             map[string]string `json:"headers,omitempty"`
 	ServiceName         string            `json:"service_name,omitempty"`
+	IdleTimeout         string            `json:"idle_timeout,omitempty"` // grpc: the ping interval
 	MaxEarlyData        int               `json:"max_early_data,omitempty"`
 	EarlyDataHeaderName string            `json:"early_data_header_name,omitempty"`
 }
@@ -158,6 +198,7 @@ type endpoint struct {
 	Address    []string `json:"address"`
 	PrivateKey string   `json:"private_key"`
 	MTU        int      `json:"mtu,omitempty"`
+	Workers    int      `json:"workers,omitempty"`
 	Peers      []wgPeer `json:"peers"`
 	dial
 }
@@ -169,6 +210,7 @@ type wgPeer struct {
 	PreSharedKey string   `json:"pre_shared_key,omitempty"`
 	AllowedIPs   []string `json:"allowed_ips"`
 	Reserved     []int    `json:"reserved,omitempty"`
+	Keepalive    int      `json:"persistent_keepalive_interval,omitempty"`
 }
 
 type routing struct {

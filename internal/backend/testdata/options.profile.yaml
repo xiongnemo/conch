@@ -1,0 +1,25 @@
+# 节点上的细项：每个内核都要翻译成自己的写法（没有对应的要说出来），并交给各自的真实内核检查
+nodes:
+  # UDP over TCP 第 2 版，sing-mux 多路复用和 Brutal
+  - { name: ss-uot, type: ss, server: 192.0.2.30, port: 8388, cipher: aes-128-gcm, password: p, udp: true,
+      udp-over-tcp: true, udp-over-tcp-version: 2,
+      smux: { enabled: true, protocol: h2mux, max-connections: 4, padding: true, brutal-opts: { enabled: true, up: 50, down: 100 } } }
+  # VMess 的 padding、认证长度、packetaddr；gRPC 的 User-Agent 和心跳；从 DNS 查 ECH；按别的名字校验证书
+  - { name: vmess-grpc, type: vmess, server: 192.0.2.31, port: 443, uuid: 00000000-0000-0000-0000-000000000031, alterId: 0, cipher: auto,
+      global-padding: true, authenticated-length: true, packet-encoding: packetaddr,
+      tls: true, servername: v.example.com, name-cert-verify: real.example.com, ech-opts: { enable: true, query-server-name: ech.example.com },
+      network: grpc, grpc-opts: { grpc-service-name: svc, grpc-user-agent: conch, ping-interval: 15 } }
+  # hysteria2 的 BBR 和 QUIC 窗口；直接写出的 ECH 配置（sing-box generate ech-keypair 生成）
+  - { name: hy2-quic, type: hysteria2, server: 192.0.2.32, port: 443, password: p, sni: h.example.com,
+      ech-opts: { enable: true, config: "AEr+DQBGAAAgACD1sfDkeN8XNm+xt6zRDfHYKm1TBG2LWKZlflEGVi1HEQAMAAEAAQABAAIAAQADAA9lY2guZXhhbXBsZS5jb20AAA==" },
+      bbr-profile: aggressive, max-stream-receive-window: 8388608, max-connection-receive-window: 20971520 }
+  # WireGuard 的保活和 workers
+  - { name: wg, type: wireguard, server: 192.0.2.33, port: 51820, ip: 172.16.0.2, udp: true, persistent-keepalive: 25, workers: 2,
+      private-key: elM/+PBAa7rn1rifSGuVKiDD9gSiGddGjleV+taVs0U=, public-key: DHZ/8quR7djJIv0jvfkP2aGcbDWdOpjd0opJwa0pM2E= }
+
+routes:
+  default: ss-uot
+  entries:
+    a.example: vmess-grpc
+    b.example: hy2-quic
+    c.example: wg

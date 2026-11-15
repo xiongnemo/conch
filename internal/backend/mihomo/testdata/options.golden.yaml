@@ -1,0 +1,101 @@
+# 由 conch 生成，请不要手动修改；需要改动时请编辑 profile.yaml
+
+mixed-port: 7890
+allow-lan: false
+mode: rule
+log-level: info
+profile:
+  store-selected: true
+proxies:
+  - name: ss-uot
+    type: ss
+    server: 192.0.2.30
+    port: 8388
+    cipher: aes-128-gcm
+    password: p
+    udp: true
+    udp-over-tcp: true
+    udp-over-tcp-version: 2
+    smux:
+      enabled: true
+      protocol: h2mux
+      max-connections: 4
+      padding: true
+      brutal-opts:
+        enabled: true
+        up: 50
+        down: 100
+  - name: vmess-grpc
+    type: vmess
+    server: 192.0.2.31
+    port: 443
+    uuid: 00000000-0000-0000-0000-000000000031
+    alterId: 0
+    cipher: auto
+    global-padding: true
+    authenticated-length: true
+    packet-encoding: packetaddr
+    tls: true
+    servername: v.example.com
+    name-cert-verify: real.example.com
+    ech-opts:
+      enable: true
+      query-server-name: ech.example.com
+    network: grpc
+    grpc-opts:
+      grpc-service-name: svc
+      grpc-user-agent: conch
+      ping-interval: 15
+  - name: hy2-quic
+    type: hysteria2
+    server: 192.0.2.32
+    port: 443
+    password: p
+    sni: h.example.com
+    ech-opts:
+      enable: true
+      config: "AEr+DQBGAAAgACD1sfDkeN8XNm+xt6zRDfHYKm1TBG2LWKZlflEGVi1HEQAMAAEAAQABAAIAAQADAA9lY2guZXhhbXBsZS5jb20AAA=="
+    bbr-profile: aggressive
+    max-stream-receive-window: 8388608
+    max-connection-receive-window: 20971520
+  - name: wg
+    type: wireguard
+    server: 192.0.2.33
+    port: 51820
+    ip: 172.16.0.2
+    udp: true
+    persistent-keepalive: 25
+    workers: 2
+    private-key: elM/+PBAa7rn1rifSGuVKiDD9gSiGddGjleV+taVs0U=
+    public-key: DHZ/8quR7djJIv0jvfkP2aGcbDWdOpjd0opJwa0pM2E=
+proxy-groups:
+  - name: GLOBAL
+    type: select
+    proxies:
+      - ss-uot
+      - vmess-grpc
+      - hy2-quic
+      - wg
+      - DIRECT
+rules:
+  - DOMAIN-SUFFIX,a.example,vmess-grpc
+  - DOMAIN-SUFFIX,b.example,hy2-quic
+  - DOMAIN-SUFFIX,c.example,wg
+  - DOMAIN-SUFFIX,home.arpa,DIRECT
+  - DOMAIN-SUFFIX,lan,DIRECT
+  - DOMAIN-SUFFIX,local,DIRECT
+  - DOMAIN-SUFFIX,localhost,DIRECT
+  - IP-CIDR6,::1/128,DIRECT,no-resolve
+  - IP-CIDR,255.255.255.255/32,DIRECT,no-resolve
+  - IP-CIDR,169.254.0.0/16,DIRECT,no-resolve
+  - IP-CIDR,192.168.0.0/16,DIRECT,no-resolve
+  - IP-CIDR,172.16.0.0/12,DIRECT,no-resolve
+  - IP-CIDR,100.64.0.0/10,DIRECT,no-resolve
+  - IP-CIDR6,fe80::/10,DIRECT,no-resolve
+  - IP-CIDR,0.0.0.0/8,DIRECT,no-resolve
+  - IP-CIDR,10.0.0.0/8,DIRECT,no-resolve
+  - IP-CIDR,127.0.0.0/8,DIRECT,no-resolve
+  - IP-CIDR6,ff00::/8,DIRECT,no-resolve
+  - IP-CIDR6,fc00::/7,DIRECT,no-resolve
+  - IP-CIDR,224.0.0.0/4,DIRECT,no-resolve
+  - MATCH,ss-uot

@@ -1,0 +1,2 @@
+警告 ../testdata/options.profile.yaml:8：节点 "vmess-grpc"：sing-box 不能按 real.example.com 校验证书（name-cert-verify），按 SNI 校验
+警告 ../testdata/options.profile.yaml:8：节点 "vmess-grpc"：sing-box 不能设置 gRPC 的 User-Agent（grpc-user-agent）

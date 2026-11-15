@@ -37,7 +37,12 @@ func FromClash(m *yaml.Node) *Spec {
 		s.Cipher = r.str("cipher")
 		s.Password = r.str("password")
 		s.UDPOverTCP = r.bool("udp-over-tcp")
-		r.ignore("udp-over-tcp-version")
+		if s.UDPOverTCP {
+			s.UoTVersion = cmpInt(r.int("udp-over-tcp-version"), 1) // mihomo's default
+		} else {
+			r.ignore("udp-over-tcp-version")
+		}
+		s.Mux = readMux(r)
 		if p := r.str("plugin"); p != "" {
 			r.ignore("plugin-opts")
 			s.Unknown = append(s.Unknown, "plugin: "+p)
@@ -46,18 +51,23 @@ func FromClash(m *yaml.Node) *Spec {
 		s.UUID = r.str("uuid")
 		s.AlterID = r.int("alterId")
 		s.Cipher = r.str("cipher")
-		r.ignore("packet-encoding", "global-padding", "authenticated-length")
+		s.GlobalPadding = r.bool("global-padding")
+		s.AuthenticatedLength = r.bool("authenticated-length")
+		s.PacketEncoding = packetEncoding(r)
+		s.Mux = readMux(r)
 		readTLS(r, s, r.bool("tls"))
 		readTransport(r, s)
 	case "vless":
 		s.UUID = r.str("uuid")
 		s.Flow = r.str("flow")
 		s.Encryption = r.str("encryption")
-		r.ignore("packet-encoding", "xudp", "packet-addr")
+		s.PacketEncoding = packetEncoding(r)
+		s.Mux = readMux(r)
 		readTLS(r, s, r.bool("tls"))
 		readTransport(r, s)
 	case "trojan":
 		s.Password = r.str("password")
+		s.Mux = readMux(r)
 		readTLS(r, s, true)
 		readTransport(r, s)
 		if o := r.sub("ss-opts"); o != nil && o.bool("enabled") {
@@ -77,11 +87,16 @@ func FromClash(m *yaml.Node) *Spec {
 		s.Password = r.str("password")
 		s.UDP = true
 		s.Hysteria = &Hysteria{
-			Obfs:          r.str("obfs"),
-			ObfsPassword:  r.str("obfs-password"),
-			Ports:         HopPorts(r.str("ports")),
-			ObfsMinPacket: r.int("obfs-min-packet-size"),
-			ObfsMaxPacket: r.int("obfs-max-packet-size"),
+			Obfs:             r.str("obfs"),
+			ObfsPassword:     r.str("obfs-password"),
+			Ports:            HopPorts(r.str("ports")),
+			ObfsMinPacket:    r.int("obfs-min-packet-size"),
+			ObfsMaxPacket:    r.int("obfs-max-packet-size"),
+			BBRProfile:       r.str("bbr-profile"),
+			InitStreamWindow: uint64(r.int("initial-stream-receive-window")),
+			MaxStreamWindow:  uint64(r.int("max-stream-receive-window")),
+			InitConnWindow:   uint64(r.int("initial-connection-receive-window")),
+			MaxConnWindow:    uint64(r.int("max-connection-receive-window")),
 		}
 		if v := r.str("hop-interval"); v != "" {
 			lo, hi, ok := IntRange(v)
@@ -130,13 +145,62 @@ func readTLSCommon(r *reader, s *Spec) *TLS {
 		Insecure:  r.bool("skip-cert-verify"),
 		PinSHA256: r.str("fingerprint"), // mihomo: server certificate sha256
 	}
+	t.VerifyName = r.str("name-cert-verify")
+	t.Certificate, t.PrivateKey = r.str("certificate"), r.str("private-key")
 	if o := r.sub("ech-opts"); o != nil {
 		if o.bool("enable") {
-			s.Unknown = append(s.Unknown, "ech-opts")
+			t.ECH = &ECH{Config: o.str("config"), QueryServerName: o.str("query-server-name")}
+		} else {
+			o.ignoreAll()
 		}
-		o.ignoreAll()
 	}
 	return t
+}
+
+// readMux reads sing-mux options (smux), when they are on.
+func readMux(r *reader) *Mux {
+	o := r.sub("smux")
+	if o == nil {
+		return nil
+	}
+	if !o.bool("enabled") {
+		o.ignoreAll()
+		return nil
+	}
+	m := &Mux{Protocol: o.str("protocol"), MaxConnections: o.int("max-connections"), MinStreams: o.int("min-streams"),
+		MaxStreams: o.int("max-streams"), Padding: o.bool("padding")}
+	if b := o.sub("brutal-opts"); b != nil {
+		if b.bool("enabled") {
+			m.BrutalUp, _ = ParseBandwidth(b.str("up"))
+			m.BrutalDown, _ = ParseBandwidth(b.str("down"))
+		} else {
+			b.ignoreAll()
+		}
+	}
+	return m
+}
+
+// packetEncoding is how VMess and VLESS carry UDP: packet-encoding, or
+// the older xudp and packet-addr switches.
+func packetEncoding(r *reader) string {
+	switch {
+	case r.str("packet-encoding") != "":
+		r.ignore("xudp", "packet-addr")
+		return r.str("packet-encoding")
+	case r.bool("packet-addr"):
+		r.ignore("xudp")
+		return "packetaddr"
+	case r.bool("xudp"):
+		return "xudp"
+	}
+	return ""
+}
+
+func cmpInt(a, b int) int {
+	if a != 0 {
+		return a
+	}
+	return b
 }
 
 func readTransport(r *reader, s *Spec) {
@@ -158,6 +222,8 @@ func readTransport(r *reader, s *Spec) {
 	case "grpc":
 		if o := r.sub("grpc-opts"); o != nil {
 			t.ServiceName = o.str("grpc-service-name")
+			t.UserAgent = o.str("grpc-user-agent")
+			t.PingInterval = o.int("ping-interval")
 		}
 	case "h2":
 		if o := r.sub("h2-opts"); o != nil {
@@ -215,7 +281,7 @@ func readTransport(r *reader, s *Spec) {
 }
 
 func readWireGuard(r *reader, s *Spec) *WireGuard {
-	wg := &WireGuard{PrivateKey: r.str("private-key"), MTU: r.int("mtu")}
+	wg := &WireGuard{PrivateKey: r.str("private-key"), MTU: r.int("mtu"), Keepalive: r.int("persistent-keepalive"), Workers: r.int("workers")}
 	if ip := r.str("ip"); ip != "" {
 		wg.Address = append(wg.Address, withPrefix(ip))
 	}

@@ -1,0 +1,174 @@
+{
+  "backend": "mihomo",
+  "proxies": [
+    {
+      "name": "ss-uot",
+      "kind": "node",
+      "node": "ss-uot"
+    },
+    {
+      "name": "vmess-grpc",
+      "kind": "node",
+      "node": "vmess-grpc"
+    },
+    {
+      "name": "hy2-quic",
+      "kind": "node",
+      "node": "hy2-quic"
+    },
+    {
+      "name": "wg",
+      "kind": "node",
+      "node": "wg"
+    }
+  ],
+  "rules": [
+    {
+      "index": 0,
+      "rule": "DOMAIN-SUFFIX,a.example,vmess-grpc",
+      "tier": "domain",
+      "key": "a.example",
+      "source": "../testdata/options.profile.yaml:23"
+    },
+    {
+      "index": 1,
+      "rule": "DOMAIN-SUFFIX,b.example,hy2-quic",
+      "tier": "domain",
+      "key": "b.example",
+      "source": "../testdata/options.profile.yaml:24"
+    },
+    {
+      "index": 2,
+      "rule": "DOMAIN-SUFFIX,c.example,wg",
+      "tier": "domain",
+      "key": "c.example",
+      "source": "../testdata/options.profile.yaml:25"
+    },
+    {
+      "index": 3,
+      "rule": "DOMAIN-SUFFIX,home.arpa,DIRECT",
+      "tier": "domain",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 4,
+      "rule": "DOMAIN-SUFFIX,lan,DIRECT",
+      "tier": "domain",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 5,
+      "rule": "DOMAIN-SUFFIX,local,DIRECT",
+      "tier": "domain",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 6,
+      "rule": "DOMAIN-SUFFIX,localhost,DIRECT",
+      "tier": "domain",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 7,
+      "rule": "IP-CIDR6,::1/128,DIRECT,no-resolve",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 8,
+      "rule": "IP-CIDR,255.255.255.255/32,DIRECT,no-resolve",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 9,
+      "rule": "IP-CIDR,169.254.0.0/16,DIRECT,no-resolve",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 10,
+      "rule": "IP-CIDR,192.168.0.0/16,DIRECT,no-resolve",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 11,
+      "rule": "IP-CIDR,172.16.0.0/12,DIRECT,no-resolve",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 12,
+      "rule": "IP-CIDR,100.64.0.0/10,DIRECT,no-resolve",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 13,
+      "rule": "IP-CIDR6,fe80::/10,DIRECT,no-resolve",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 14,
+      "rule": "IP-CIDR,0.0.0.0/8,DIRECT,no-resolve",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 15,
+      "rule": "IP-CIDR,10.0.0.0/8,DIRECT,no-resolve",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 16,
+      "rule": "IP-CIDR,127.0.0.0/8,DIRECT,no-resolve",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 17,
+      "rule": "IP-CIDR6,ff00::/8,DIRECT,no-resolve",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 18,
+      "rule": "IP-CIDR6,fc00::/7,DIRECT,no-resolve",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 19,
+      "rule": "IP-CIDR,224.0.0.0/4,DIRECT,no-resolve",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 20,
+      "rule": "MATCH,ss-uot",
+      "tier": "default",
+      "key": "default",
+      "source": "../testdata/options.profile.yaml:21"
+    }
+  ]
+}
