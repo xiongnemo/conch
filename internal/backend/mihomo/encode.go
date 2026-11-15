@@ -14,6 +14,7 @@ import (
 	"github.com/xiongnemo/conch/internal/diag"
 	"github.com/xiongnemo/conch/internal/lists"
 	"github.com/xiongnemo/conch/internal/model"
+	"github.com/xiongnemo/conch/internal/proto"
 	"github.com/xiongnemo/conch/internal/route"
 )
 
@@ -205,6 +206,14 @@ func proxyNode(p *compile.Proxy) *yaml.Node {
 	blockStyle(m)
 	model.SetKey(m, "name", str(p.Name))
 	model.DeleteKey(m, "dialer-proxy")
+	// Bandwidth as conch reads it: mihomo would take "100 mbps" for none.
+	for _, key := range []string{"up", "down"} {
+		if v := model.Lookup(m, key); v != nil && v.Kind == yaml.ScalarNode {
+			if bits, ok := proto.ParseBandwidth(v.Value); ok {
+				model.SetKey(m, key, str(proto.FormatBandwidth(bits)))
+			}
+		}
+	}
 	if p.Upstream != "" {
 		m.Content = append(m.Content, str("dialer-proxy"), str(p.Upstream))
 	}

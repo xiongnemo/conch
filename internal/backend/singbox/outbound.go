@@ -222,15 +222,13 @@ func serverPorts(ports string) []string {
 	return out
 }
 
-// mbps reads a bandwidth like "100 Mbps" or "100" as megabits per second.
-func mbps(s string) int {
-	s = strings.ToLower(strings.TrimSpace(s))
-	n := strings.TrimRight(strings.TrimSpace(strings.TrimSuffix(strings.TrimSuffix(s, "mbps"), "m")), " ")
-	v, err := strconv.Atoi(n)
-	if err != nil {
+// mbps is bits per second in sing-box's whole Mbps, never rounding a hint
+// down to none.
+func mbps(bits uint64) int {
+	if bits == 0 {
 		return 0
 	}
-	return v
+	return max(1, int((bits+500_000)/1_000_000))
 }
 
 func nonEmpty(m map[string]string) map[string]string {

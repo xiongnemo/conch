@@ -418,7 +418,8 @@ function setPath(m, key, v) {
 const textOf = (v) => (v == null ? "" : Array.isArray(v) ? v.join(", ") : String(v));
 
 function valueOf(f, text) {
-  text = String(text).trim();
+  text = String(text);
+  if (f.kind !== "secret") text = text.trim(); // a password is what was typed
   if (text === "") return null;
   if (f.kind === "number") return /^\d+$/.test(text) ? Number(text) : text;
   if (f.kind === "list") {

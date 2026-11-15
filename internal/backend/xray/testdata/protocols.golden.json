@@ -225,8 +225,8 @@
           ],
           "quicParams": {
             "congestion": "brutal",
-            "brutalUp": "50 mbps",
-            "brutalDown": "200 mbps"
+            "brutalUp": "50000000 bps",
+            "brutalDown": "200000000 bps"
           }
         }
       }

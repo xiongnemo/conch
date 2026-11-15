@@ -164,6 +164,14 @@ func transportStream(st *streamSettings, t proto.Transport, warns *[]string) err
 	return nil
 }
 
+// bps writes bits per second the way xray reads them exactly.
+func bps(bits uint64) string {
+	if bits == 0 {
+		return ""
+	}
+	return fmt.Sprintf("%d bps", bits)
+}
+
 func hysteriaMask(h *proto.Hysteria, warns *[]string) *finalMask {
 	m := &finalMask{}
 	if h.Ports != "" {
@@ -181,9 +189,10 @@ func hysteriaMask(h *proto.Hysteria, warns *[]string) *finalMask {
 		m.UDP = append(m.UDP, mask{Type: h.Obfs, Settings: map[string]string{"password": h.ObfsPassword}})
 	}
 	q := &quicParams{}
-	if h.Up != "" || h.Down != "" {
+	if h.Up != 0 || h.Down != 0 {
 		// Bandwidth hints mean Brutal congestion control, as in Hysteria 2.
-		q.Congestion, q.BrutalUp, q.BrutalDown = "brutal", h.Up, h.Down
+		// xray reads every unit as bits, "bps" exactly.
+		q.Congestion, q.BrutalUp, q.BrutalDown = "brutal", bps(h.Up), bps(h.Down)
 	}
 	if *q != (quicParams{}) {
 		m.QuicParams = q

@@ -65,7 +65,7 @@ type Transport struct {
 type Hysteria struct {
 	Obfs         string // salamander
 	ObfsPassword string
-	Up, Down     string // bandwidth, e.g. "100 mbps"
+	Up, Down     uint64 // bandwidth hints, bits per second (ParseBandwidth)
 	Ports        string // port hopping, e.g. "20000-30000"
 	HopInterval  int    // seconds
 }

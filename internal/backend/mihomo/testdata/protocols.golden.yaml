@@ -101,8 +101,8 @@ proxies:
     server: h.example.com
     port: 443
     password: p
-    up: 50
-    down: 200
+    up: 50 Mbps
+    down: 200 Mbps
     obfs: salamander
     obfs-password: o
     ports: "20000-30000"

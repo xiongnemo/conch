@@ -5,7 +5,6 @@ import (
 	"net/netip"
 	"slices"
 	"strconv"
-	"strings"
 
 	"go.yaml.in/yaml/v3"
 
@@ -21,7 +20,7 @@ func ToClash(name string, s *Spec) *yaml.Node {
 	m.str("type", s.Type)
 	m.str("server", s.Server)
 	m.int("port", s.Port)
-	if s.UDP && s.Type != "hysteria2" && s.Type != "wireguard" {
+	if s.UDP && s.Type != "hysteria2" { // mihomo's hysteria2 always relays UDP; its wireguard does not unless told
 		m.bool("udp", true)
 	}
 	switch s.Type {
@@ -77,8 +76,8 @@ func ToClash(name string, s *Spec) *yaml.Node {
 		if h := s.Hysteria; h != nil {
 			m.str("obfs", h.Obfs)
 			m.str("obfs-password", h.ObfsPassword)
-			m.str("up", clashBandwidth(h.Up))
-			m.str("down", clashBandwidth(h.Down))
+			m.str("up", FormatBandwidth(h.Up))
+			m.str("down", FormatBandwidth(h.Down))
 			m.str("ports", h.Ports)
 			if h.HopInterval > 0 {
 				m.int("hop-interval", h.HopInterval)
@@ -192,6 +191,7 @@ func wireguardClash(m *mapping, w *WireGuard) {
 		return
 	}
 	m.str("private-key", w.PrivateKey)
+	written := map[string]bool{}
 	for _, a := range w.Address {
 		key := "ip"
 		if p, err := netip.ParsePrefix(a); err == nil {
@@ -202,6 +202,10 @@ func wireguardClash(m *mapping, w *WireGuard) {
 				a = p.Addr().String()
 			}
 		}
+		if written[key] {
+			continue // one of each family is all the format holds; linkparse reports the rest
+		}
+		written[key] = true
 		m.str(key, a)
 	}
 	if w.MTU > 0 {
@@ -234,17 +238,6 @@ func wireguardClash(m *mapping, w *WireGuard) {
 
 // clashBandwidth writes a normalized bandwidth the way mihomo parses it:
 // "50 mbps" becomes "50 Mbps".
-func clashBandwidth(v string) string {
-	num, unit, ok := strings.Cut(v, " ")
-	if !ok {
-		return v
-	}
-	if u := strings.TrimSuffix(unit, "bps"); u != unit && len(u) == 1 {
-		return num + " " + strings.ToUpper(u) + "bps"
-	}
-	return v
-}
-
 // mapping builds a YAML mapping, skipping empty strings.
 type mapping struct{ n *yaml.Node }
 

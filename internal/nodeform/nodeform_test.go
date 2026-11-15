@@ -27,7 +27,7 @@ func TestParse(t *testing.T) {
 
 // What the form sends is written the way managed.yaml keeps nodes: the
 // form's order, no empty values, quotes only where needed; keys the form
-// does not know stay.
+// does not know stay, and strings stay as they were typed.
 func TestTidyLine(t *testing.T) {
 	n, err := FromJSON([]byte(`{"udp": true, "password": "123456", "port": 8388, "server": " 1.2.3.4 ", "type": "ss", "name": "香港 01",
 		"plugin": "obfs", "cipher": "aes-128-gcm", "ws-opts": {"path": "", "headers": {"Host": ""}}, "sni": "", "alpn": []}`))
@@ -35,7 +35,7 @@ func TestTidyLine(t *testing.T) {
 		t.Fatal(err)
 	}
 	got := Line(Tidy(n))
-	want := `{name: 香港 01, type: ss, server: 1.2.3.4, port: 8388, cipher: aes-128-gcm, password: "123456", udp: true, plugin: obfs}`
+	want := `{name: 香港 01, type: ss, server: " 1.2.3.4 ", port: 8388, cipher: aes-128-gcm, password: "123456", udp: true, plugin: obfs}`
 	if got != want {
 		t.Errorf("got  %s\nwant %s", got, want)
 	}

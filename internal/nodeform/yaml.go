@@ -90,17 +90,17 @@ func Tidy(n *yaml.Node) *yaml.Node {
 	return out
 }
 
-// prune drops empty values: blank strings, nulls, and mappings and lists
-// left empty without them. Quoted strings stay quoted only when they must.
+// prune drops empty values: empty strings, nulls, and mappings and lists
+// left empty without them. Strings are kept as they are, quoted only
+// when they must be.
 func prune(v *yaml.Node) *yaml.Node {
 	switch v.Kind {
 	case yaml.ScalarNode:
-		if v.Tag == "!!null" || v.Tag == "!!str" && strings.TrimSpace(v.Value) == "" {
+		if v.Tag == "!!null" || v.Tag == "!!str" && v.Value == "" {
 			return nil
 		}
 		c := *v
 		if c.Tag == "!!str" {
-			c.Value = strings.TrimSpace(c.Value)
 			c.Style = 0
 			if !isPlainString(c.Value) {
 				c.Style = yaml.DoubleQuotedStyle
@@ -258,7 +258,9 @@ func Text(v any) string {
 // Value is what an input's text means for a field of the kind: nil for
 // nothing, so the key goes away.
 func Value(f Field, text string) any {
-	text = strings.TrimSpace(text)
+	if f.Kind != "secret" {
+		text = strings.TrimSpace(text)
+	}
 	switch {
 	case text == "":
 		return nil

@@ -25,8 +25,8 @@ proxies:
     hop-interval: 30
     obfs: salamander
     obfs-password: o
-    up: 50
-    down: 200
+    up: 50 Mbps
+    down: 200 Mbps
     fingerprint: "BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB"
   - name: 跳一个端口
     type: hysteria2

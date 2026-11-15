@@ -57,14 +57,14 @@ func Parse(link string) (string, *proto.Spec, error) {
 	return name, s, nil
 }
 
-// trojan-go://password@host:port/?sni=…&type=ws&host=…&path=…&encryption=ss;aes-128-gcm;pass#name
+// trojan-go://password@host:port/?sni=…&type=ws&host=…&path=…&encryption=ss;aes-128-gcm:pass#name
 // is trojan-go's own scheme; such nodes run in a trojan-go sidecar.
 func trojanGo(link string) (string, *proto.Spec, error) {
 	u, err := url.Parse(link)
 	if err != nil {
 		return "", nil, err
 	}
-	s := &proto.Spec{Type: "trojan-go", UDP: true, Password: u.User.Username(), TLS: &proto.TLS{}}
+	s := &proto.Spec{Type: "trojan-go", UDP: true, Password: userinfo(u), TLS: &proto.TLS{}}
 	if err := hostPort(s, u); err != nil {
 		return "", nil, err
 	}
@@ -77,12 +77,18 @@ func trojanGo(link string) (string, *proto.Spec, error) {
 	default:
 		return "", nil, fmt.Errorf("不支持 trojan-go 的 %s 传输", t)
 	}
-	if enc := q.Get("encryption"); enc != "" {
-		parts := strings.SplitN(enc, ";", 3)
-		if len(parts) != 3 || parts[0] != "ss" {
-			return "", nil, fmt.Errorf("不认识的 encryption=%s（应该是 ss;加密方式;密码）", enc)
+	// trojan-go writes ss;method:password (url/share_link.go); conch once
+	// wrote ss;method;password, which is still read.
+	if enc := q.Get("encryption"); enc != "" && enc != "none" {
+		provider, params, _ := strings.Cut(enc, ";")
+		method, password, ok := strings.Cut(params, ":")
+		if !ok {
+			method, password, ok = strings.Cut(params, ";")
 		}
-		s.TrojanGo = &proto.TrojanGo{SSMethod: parts[1], SSPassword: parts[2]}
+		if provider != "ss" || !ok || method == "" || password == "" {
+			return "", nil, fmt.Errorf("不认识的 encryption=%s（应该是 ss;加密方式:密码）", enc)
+		}
+		s.TrojanGo = &proto.TrojanGo{SSMethod: method, SSPassword: password}
 	}
 	if q.Get("plugin") != "" {
 		s.Unknown = append(s.Unknown, "plugin")
@@ -154,7 +160,7 @@ func vlessTrojan(link string) (string, *proto.Spec, error) {
 		q.Del("flow")
 		q.Del("encryption")
 	} else {
-		s.Password = u.User.Username()
+		s.Password = userinfo(u)
 		if q.Get("security") == "" {
 			q.Set("security", "tls") // trojan is always TLS
 		}
@@ -197,6 +203,9 @@ func shadowsocks(link string) (string, *proto.Spec, error) {
 		return "", nil, fmt.Errorf("缺少加密方式或密码")
 	}
 	s.Cipher, s.Password = method, password
+	if q := u.Query(); q.Get("udp-over-tcp") == "true" || q.Get("uot") == "1" || q.Get("uot") == "2" {
+		s.UDPOverTCP = true
+	}
 	if p := u.Query().Get("plugin"); p != "" {
 		s.Unknown = append(s.Unknown, "plugin: "+strings.SplitN(p, ";", 2)[0])
 	}
@@ -215,17 +224,25 @@ func hysteria2(link string) (string, *proto.Spec, error) {
 	if err := hostPort(s, u); err != nil {
 		return "", nil, err
 	}
-	s.Password = u.User.Username()
-	if pw, ok := u.User.Password(); ok {
-		s.Password += ":" + pw
-	}
+	s.Password = userinfo(u)
 	q := u.Query()
 	s.Hysteria.Obfs = q.Get("obfs")
 	s.Hysteria.ObfsPassword = q.Get("obfs-password")
 	if mport := q.Get("mport"); mport != "" {
 		s.Hysteria.Ports = mport
 	}
-	s.Hysteria.Up, s.Hysteria.Down = bandwidth(q.Get("up")), bandwidth(q.Get("down"))
+	for _, b := range []struct {
+		key string
+		to  *uint64
+	}{{"up", &s.Hysteria.Up}, {"down", &s.Hysteria.Down}} {
+		if v := q.Get(b.key); v != "" {
+			bits, ok := proto.ParseBandwidth(v)
+			if !ok {
+				s.Unknown = append(s.Unknown, b.key+"="+v)
+			}
+			*b.to = bits
+		}
+	}
 	for _, k := range []string{"obfs", "obfs-password", "mport", "up", "down"} {
 		q.Del(k)
 	}
@@ -276,10 +293,20 @@ func wireguard(link string) (string, *proto.Spec, error) {
 	q := u.Query()
 	key, _ := url.PathUnescape(u.User.Username())
 	wg := &proto.WireGuard{PrivateKey: key}
+	// mihomo's format holds one address of each family.
+	families := map[bool]bool{}
 	for _, a := range strings.Split(firstOf(q, "address", "ip"), ",") {
-		if a = strings.TrimSpace(a); a != "" {
-			wg.Address = append(wg.Address, withPrefix(a))
+		if a = strings.TrimSpace(a); a == "" {
+			continue
 		}
+		a = withPrefix(a)
+		v6 := strings.Contains(a, ":")
+		if families[v6] {
+			s.Unknown = append(s.Unknown, "address="+a+"（每类地址只能有一个）")
+			continue
+		}
+		families[v6] = true
+		wg.Address = append(wg.Address, a)
 	}
 	wg.MTU, _ = strconv.Atoi(q.Get("mtu"))
 	peer := proto.WireGuardPeer{Server: s.Server, Port: s.Port, PublicKey: firstOf(q, "publickey", "public-key", "peer"), PreSharedKey: firstOf(q, "presharedkey", "pre-shared-key")}
@@ -396,12 +423,29 @@ func splitHopPorts(link string) (string, string) {
 
 func hostPort(s *proto.Spec, u *url.URL) error {
 	s.Server = u.Hostname()
+	if u.Port() == "" && slices.Contains([]string{"trojan", "trojan-go", "hysteria2", "hy2"}, strings.ToLower(u.Scheme)) {
+		s.Port = 443 // what these clients dial without a port
+		return nil
+	}
 	port, err := strconv.Atoi(u.Port())
 	if err != nil {
 		return fmt.Errorf("端口无效：%q", u.Port())
 	}
 	s.Port = port
 	return nil
+}
+
+// userinfo is a password as the link has it, with any ":" in it: URLs
+// would read it as a username and a password.
+func userinfo(u *url.URL) string {
+	if u.User == nil {
+		return ""
+	}
+	s := u.User.Username()
+	if pw, ok := u.User.Password(); ok {
+		s += ":" + pw
+	}
+	return s
 }
 
 func fragment(u *url.URL) string {
@@ -437,17 +481,6 @@ func cutQuery(path, key string) (string, string, bool) {
 		p += "?" + rest
 	}
 	return p, v, true
-}
-
-func bandwidth(v string) string {
-	v = strings.ToLower(strings.TrimSpace(v))
-	if v == "" {
-		return ""
-	}
-	if _, err := strconv.ParseFloat(v, 64); err == nil {
-		return v + " mbps"
-	}
-	return v
 }
 
 func withPrefix(ip string) string {

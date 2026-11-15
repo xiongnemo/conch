@@ -2,6 +2,7 @@ package proto
 
 import (
 	"encoding/base64"
+	"fmt"
 	"net/netip"
 	"slices"
 	"strconv"
@@ -78,11 +79,10 @@ func FromClash(m *yaml.Node) *Spec {
 		s.Hysteria = &Hysteria{
 			Obfs:         r.str("obfs"),
 			ObfsPassword: r.str("obfs-password"),
-			Up:           bandwidth(r.str("up")),
-			Down:         bandwidth(r.str("down")),
 			Ports:        r.str("ports"),
 			HopInterval:  r.int("hop-interval"),
 		}
+		s.Hysteria.Up, s.Hysteria.Down = bandwidths(s, r.str("up"), r.str("down"))
 		readTLS(r, s, true)
 	case "wireguard":
 		s.UDP = true
@@ -203,15 +203,16 @@ func readWireGuard(r *reader, s *Spec) *WireGuard {
 }
 
 // bandwidth normalizes a Clash bandwidth: a bare number means Mbps.
-func bandwidth(v string) string {
-	v = strings.ToLower(strings.TrimSpace(v))
-	if v == "" {
-		return ""
+// bandwidths reads up and down; what cannot be read is reported.
+func bandwidths(s *Spec, up, down string) (uint64, uint64) {
+	read := func(key, v string) uint64 {
+		bits, ok := ParseBandwidth(v)
+		if !ok && strings.TrimSpace(v) != "" {
+			s.Unknown = append(s.Unknown, fmt.Sprintf("%s: %s（看不懂的带宽）", key, v))
+		}
+		return bits
 	}
-	if _, err := strconv.ParseFloat(v, 64); err == nil {
-		return v + " mbps"
-	}
-	return v
+	return read("up", up), read("down", down)
 }
 
 // reserved accepts the WireGuard reserved bytes as a list or as base64.
