@@ -49,11 +49,11 @@ $env:Path = "C:\conch-test;" + $env:Path
 conch version
 ```
 
-预期：打印 `dev-` 加 7 位提交号。如果 SmartScreen 拦截，点「更多信息」→「仍要运行」。
+预期：打印 `conch v0.0.…` 这样的版本号。如果 SmartScreen 拦截，点「更多信息」→「仍要运行」。
 
 **0.4 设置登录密码**
 
-先把密码放进配置目录。这样不管在哪个目录运行命令，用的都是同一个密码，第 13 节的服务也会沿用它。
+先把密码放进配置目录。这样不管在哪个目录运行命令，用的都是同一个密码，第 14 节的服务也会沿用它。
 
 ```powershell
 mkdir $env:APPDATA\conch -Force | Out-Null
@@ -541,9 +541,53 @@ TUN 开着时运行 `taskkill /F /IM conch.exe`。预期：网络在几秒内恢
 
 - [ ] 12 通过
 
-## 13. 系统服务（需要管理员）
+## 13. 登录时自动启动（不需要管理员）
 
-**13.1 安装**
+**13.1 开启**
+
+先停掉所有 conch：窗口 A、窗口 C 都按 Ctrl+C。然后在普通（不是管理员）窗口里运行：
+
+```powershell
+conch autostart on
+conch status
+```
+
+预期：
+
+- 打印「已开启：登录后自动运行 conch daemon，现在也已经在后台启动」和使用的 profile；
+- **没有**弹出新的黑色窗口；
+- 过几秒 `conch status` 显示「运行中」，浏览器经由 127.0.0.1:7890 能上网；
+- `%LOCALAPPDATA%\conch\daemon.log` 里有 daemon 的日志。
+
+**13.2 状态**
+
+```powershell
+conch autostart status
+```
+
+预期：显示「已开启（登录时运行 "C:\conch-test\conch.exe" daemon --autostart …）」。
+
+**13.3 注销再登录**
+
+注销 Windows 再登录。预期：没有弹出窗口，`conch status` 显示「运行中」，系统代理没有被打开（默认只是 HTTP + SOCKS5 代理）。
+
+**13.4 关闭**
+
+```powershell
+conch autostart off
+conch autostart status     # 没有开启登录时自动启动
+taskkill /IM conch.exe /F   # 停掉正在后台运行的那个
+```
+
+**13.5 和服务二选一**
+
+装了系统服务（第 14 节）以后再运行 `conch autostart on`。预期：报错，说已经装了系统服务、不需要再开自动启动。
+
+- [ ] 13 通过
+
+## 14. 系统服务（需要管理员）
+
+**14.1 安装**
 
 先停掉所有 conch：窗口 A、窗口 C 都按 Ctrl+C。然后在管理员窗口运行：
 
@@ -559,7 +603,7 @@ conch service install
 
 服务用的是 `C:\ProgramData\conch\profile.yaml`，安装时从你的 profile 复制过去。之后再改 `%APPDATA%\conch\profile.yaml`，**不会**影响服务。
 
-**13.2 不用管理员也能看状态（本轮修复的问题）**
+**14.2 不用管理员也能看状态（本轮修复的问题）**
 
 在普通窗口运行：
 
@@ -570,7 +614,7 @@ conch status               # 内核运行中
 Test-Routes
 ```
 
-**13.3 文件权限（本轮修复的问题）**
+**14.3 文件权限（本轮修复的问题）**
 
 ```powershell
 icacls C:\ProgramData\conch
@@ -578,18 +622,18 @@ icacls C:\ProgramData\conch
 
 预期只有 `NT AUTHORITY\SYSTEM` 和 `BUILTIN\Administrators`。在普通窗口运行 `Get-Content C:\ProgramData\conch\.env`，预期「拒绝访问」。
 
-**13.4 Web UI**
+**14.4 Web UI**
 
 用同一个密码能登录 <http://127.0.0.1:9277/>。
 
-**13.5 agent**
+**14.5 agent**
 
 1. 在普通窗口运行 `conch agent`；
 2. 在 Web UI 里勾选「系统代理」。预期：agent 打印「系统代理已指向 127.0.0.1:7890」，设置页确认；
 3. 取消勾选。预期：打印「已恢复原来的系统代理设置」；
 4. 按 Ctrl+C 结束 agent。
 
-**13.6 登录时自动启动（本轮修复的问题）**
+**14.6 登录时自动启动（本轮修复的问题）**
 
 在 Web UI 里打开系统代理，然后注销、重新登录。预期：
 
@@ -600,22 +644,22 @@ icacls C:\ProgramData\conch
 
 最后在 Web UI 里关掉系统代理。
 
-**13.7 服务里的 TUN**
+**14.7 服务里的 TUN**
 
 在 Web UI 里勾选 TUN，服务以 SYSTEM 身份运行，有权限。不加 `-x` 的 `curl.exe -s https://api.ipify.org` 应该走代理。然后取消勾选。
 
-**13.8 服务运行时重新安装（本轮修复的问题）**
+**14.8 服务运行时重新安装（本轮修复的问题）**
 
 服务和 agent 都在运行时，在管理员窗口再执行一次 `conch service install`。预期：成功，服务重新启动。
 
-**13.9 重启电脑**
+**14.9 重启电脑**
 
 预期：
 
 - 服务自动启动，登录后 agent 也自动启动；
 - 服务重新启动后是纯代理，系统代理是关着的（除非 `C:\ProgramData\conch\profile.yaml` 里写了 `inbound: { system-proxy: true }`）。
 
-**13.10 卸载**
+**14.10 卸载**
 
 在管理员窗口运行：
 
@@ -630,17 +674,17 @@ conch service uninstall
 - `netsh advfirewall firewall show rule name=all | findstr Conch` 没有输出；
 - `reg query HKCU\Software\Microsoft\Windows\CurrentVersion\Run` 里没有 `conch-agent`。
 
-- [ ] 13 通过
+- [ ] 14 通过
 
-## 14. 浏览器扩展
+## 15. 浏览器扩展
 
 先在窗口 A 重新启动 `conch daemon`。
 
-**14.1 加载扩展**
+**15.1 加载扩展**
 
 打开 `chrome://extensions`（Edge 是 `edge://extensions`），打开「开发者模式」，点「加载已解压的扩展程序」，选 `C:\conch-test\extension\chrome`。
 
-**14.2 配对**
+**15.2 配对**
 
 在任意网页上点扩展图标，出现配对页：
 
@@ -649,7 +693,7 @@ conch service uninstall
 
 预期：配对成功，顶部显示「mihomo · 运行中 · 分流」。
 
-**14.3 当前网站**
+**15.3 当前网站**
 
 打开 <https://www.youtube.com/>，点图标。预期：
 
@@ -659,7 +703,7 @@ conch service uninstall
 - 刷新 YouTube 之后，Web UI 连接页里 youtube 的连接走 C；
 - 点「撤销」，条目消失。
 
-**14.4 加载失败的网站**
+**15.4 加载失败的网站**
 
 点「开启：记录网页加载失败的网站」，允许权限，然后刷新网页。预期：
 
@@ -667,17 +711,17 @@ conch service uninstall
 - 被订阅规则屏蔽的广告域名（例如 doubleclick.net）显示「按规则屏蔽」，排在真正失败的后面；
 - 点「分流…」，可以给这个域名指定出口。
 
-**14.5 取消配对**
+**15.5 取消配对**
 
 在 Web UI 概览页的「浏览器扩展」里能看到这次配对。取消它之后，再点扩展图标，回到配对页（「配对已失效」）。
 
-**14.6 Firefox（可选）**
+**15.6 Firefox（可选）**
 
-打开 `about:debugging` →「此 Firefox」→「临时载入附加组件」，选 `extension\firefox\manifest.json`，把 14.2–14.4 重做一遍。
+打开 `about:debugging` →「此 Firefox」→「临时载入附加组件」，选 `extension\firefox\manifest.json`，把 15.2–15.4 重做一遍。
 
-- [ ] 14 通过
+- [ ] 15 通过
 
-## 15. 清理
+## 16. 清理
 
 ```powershell
 conch sysproxy off              # 如果 daemon 还在运行
@@ -695,7 +739,7 @@ Remove-Item -Recurse C:\ProgramData\conch, "C:\Program Files\conch"
 
 最后对照 `proxy-before.txt` 确认系统代理恢复了原样。
 
-## 16. 记录问题
+## 17. 记录问题
 
 每个不通过的地方记下：
 

@@ -153,6 +153,23 @@ jobs:
           test "$(curl -s -m 20 -x http://127.0.0.1:7890 -o /dev/null -w '%{http_code}' https://www.google.com/generate_204)" = 204
           sudo /tmp/conch service uninstall
           if systemctl is-active --quiet conch; then exit 1; fi
+      - name: Autostart at login (systemd user service)
+        shell: bash
+        run: |
+          # A user manager of our own, as a desktop login would start one.
+          sudo loginctl enable-linger "$USER"
+          export XDG_RUNTIME_DIR=/run/user/$(id -u)
+          for i in $(seq 1 30); do test -S "$XDG_RUNTIME_DIR/bus" && break; sleep 1; done
+          install -D /tmp/conch ~/.local/bin/conch
+          ~/.local/bin/conch autostart on
+          for i in $(seq 1 60); do ~/.local/bin/conch status 2>/dev/null | grep -q 运行中 && break; sleep 1; done
+          ~/.local/bin/conch status || { journalctl --user -u conch --no-pager | tail -50; exit 1; }
+          ~/.local/bin/conch autostart status | tee status.txt
+          grep -q active status.txt
+          test "$(curl -s -m 20 -x http://127.0.0.1:7890 -o /dev/null -w '%{http_code}' https://www.google.com/generate_204)" = 204
+          ~/.local/bin/conch autostart off
+          if systemctl --user is-active --quiet conch; then exit 1; fi
+          ~/.local/bin/conch autostart status | grep -q 没有开启
 
   # The daemon on Windows: controllers over unix sockets, Job Objects,
   # kernels' Windows builds.
@@ -182,9 +199,25 @@ jobs:
         shell: bash
         run: |
           go test -count=1 -v ./internal/backend/... ./internal/e2e ./internal/sidecar | tee e2e.log
-          # Only the extension test may skip: Go cannot hand Chrome its
+          # Only the tests in Chrome may skip: Go cannot hand Chrome its
           # debugging pipe on Windows.
-          if grep -- '--- SKIP' e2e.log | grep -v TestExtension; then exit 1; fi
+          if grep -- '--- SKIP' e2e.log | grep -v -e TestExtension -e TestWebUINodes; then exit 1; fi
+      - name: Autostart at login (Run key), running with no console
+        shell: bash
+        run: |
+          mkdir -p "$RUNNER_TEMP/at" && cd "$RUNNER_TEMP/at"
+          printf 'routes: { default: DIRECT }\ninbound: { mixed-port: 7890 }\n' > profile.yaml
+          printf 'CONCH_PASSWORD=ci-autostart\n' > .env
+          "$GITHUB_WORKSPACE/conch.exe" autostart on
+          for i in $(seq 1 60); do "$GITHUB_WORKSPACE/conch.exe" status 2>/dev/null | grep -q 运行中 && break; sleep 1; done
+          "$GITHUB_WORKSPACE/conch.exe" status || { cat "$LOCALAPPDATA/conch/daemon.log" || true; exit 1; }
+          "$GITHUB_WORKSPACE/conch.exe" autostart status | tee status.txt
+          grep -q -- --autostart status.txt
+          test "$(curl -s -m 20 -x http://127.0.0.1:7890 -o /dev/null -w '%{http_code}' https://www.google.com/generate_204)" = 204
+          test -s "$LOCALAPPDATA/conch/daemon.log"
+          "$GITHUB_WORKSPACE/conch.exe" autostart off
+          "$GITHUB_WORKSPACE/conch.exe" autostart status | grep -q 没有开启
+          taskkill //F //IM conch.exe || true
 
   # The daemon on macOS: no death signal reaches the kernel (pid files
   # instead), unix socket paths are short, the kernels' darwin builds.
@@ -257,6 +290,15 @@ jobs:
           test "$(curl -s -m 20 -x http://127.0.0.1:7890 -o /dev/null -w '%{http_code}' https://www.google.com/generate_204)" = 204
           sudo /tmp/conch service uninstall
           if sudo launchctl print system/io.github.xiongnemo.conch.daemon >/dev/null 2>&1; then exit 1; fi
+          # Autostart: a launch agent of the user's own, no sudo.
+          mkdir -p ~/bin && cp /tmp/conch ~/bin/conch
+          ~/bin/conch autostart on
+          ready || { cat ~/Library/Logs/conch/daemon.log || true; exit 1; }
+          ~/bin/conch autostart status | tee status.txt
+          grep -q 正在运行 status.txt
+          test "$(curl -s -m 20 -x http://127.0.0.1:7890 -o /dev/null -w '%{http_code}' https://www.google.com/generate_204)" = 204
+          ~/bin/conch autostart off
+          if launchctl print gui/$(id -u)/io.github.xiongnemo.conch.user >/dev/null 2>&1; then exit 1; fi
 
   extension:
     runs-on: ubuntu-latest

@@ -4,4 +4,4 @@ package main
 
 import "io"
 
-func quietAgent(out io.Writer) io.Writer { return out }
+func quietConsole(out io.Writer, _ string) io.Writer { return out }

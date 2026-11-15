@@ -103,6 +103,17 @@ func newDaemonCmd() *cobra.Command {
 		Short: "运行内核，并提供 Web UI 和 API",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
+			// Started at login: in the profile's directory, as from a
+			// terminal there.
+			if f.chdir != "" {
+				if err := os.Chdir(f.chdir); err != nil {
+					return err
+				}
+			}
+			out := cmd.ErrOrStderr()
+			if f.autostart {
+				out = quietConsole(out, "daemon.log")
+			}
 			// The service passes its directories explicitly.
 			if f.configDir != "" {
 				os.Setenv("CONCH_CONFIG_DIR", f.configDir)
@@ -115,7 +126,7 @@ func newDaemonCmd() *cobra.Command {
 			if f.dataDir != "" {
 				os.Setenv("CONCH_DATA_DIR", f.dataDir)
 			}
-			return serve(cmd.Context(), cmd.ErrOrStderr(), func(ctx context.Context, out io.Writer) error {
+			return serve(cmd.Context(), out, func(ctx context.Context, out io.Writer) error {
 				return runDaemon(ctx, out, f)
 			})
 		},
@@ -127,16 +138,19 @@ func newDaemonCmd() *cobra.Command {
 	fl.BoolVar(&f.service, "service", false, "作为系统服务运行（由 conch service install 设置）：系统代理交给每个用户的 conch agent")
 	fl.StringVar(&f.configDir, "config-dir", "", "配置目录（默认 "+paths.ConfigDir()+"）")
 	fl.StringVar(&f.dataDir, "data-dir", "", "数据目录（默认 "+paths.DataDir()+"）")
-	for _, name := range []string{"service", "config-dir", "data-dir"} {
+	fl.BoolVar(&f.autostart, "autostart", false, "登录时自动启动（由 conch autostart on 设置）")
+	fl.StringVar(&f.chdir, "chdir", "", "先切换到这个目录")
+	for _, name := range []string{"service", "config-dir", "data-dir", "autostart", "chdir"} {
 		fl.MarkHidden(name)
 	}
 	return cmd
 }
 
 type daemonFlags struct {
-	profile, backend   string
-	offline, service   bool
-	configDir, dataDir string
+	profile, backend          string
+	offline, service          bool
+	autostart                 bool
+	configDir, dataDir, chdir string
 }
 
 // runDaemon runs the daemon and its HTTP server until ctx is done.

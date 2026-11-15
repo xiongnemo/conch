@@ -41,7 +41,8 @@ func TestSystemdAnalyzeVerify(t *testing.T) {
 	bin := filepath.Join(dir, "conch")
 	os.WriteFile(bin, []byte("#!/bin/sh\n"), 0o755)
 	l := Layout{Bin: bin, ConfigDir: dir, DataDir: dir}
-	for name, unit := range map[string]string{"conch.service": SystemdUnit(l), "conch-agent.service": SystemdAgentUnit(l)} {
+	user := SystemdUserUnit(Autostart{Bin: bin, Profile: filepath.Join(dir, "my profile", "profile.yaml")})
+	for name, unit := range map[string]string{"conch.service": SystemdUnit(l), "conch-agent.service": SystemdAgentUnit(l), "conch-user.service": user} {
 		path := filepath.Join(dir, name)
 		os.WriteFile(path, []byte(unit), 0o644)
 		out, err := exec.Command(analyze, "verify", path).CombinedOutput()
@@ -61,7 +62,8 @@ func TestSystemdAnalyzeVerify(t *testing.T) {
 func TestLaunchdPlists(t *testing.T) {
 	l := testLayout()
 	l.ConfigDir = "/Library/Application Support/conch"
-	for _, p := range []string{LaunchdDaemonPlist(l), LaunchdAgentPlist(l)} {
+	user := LaunchdUserPlist(Autostart{Bin: l.Bin, Profile: "/Users/a & b/.config/conch/profile.yaml", LogFile: "/Users/a & b/Library/Logs/conch/daemon.log"})
+	for _, p := range []string{LaunchdDaemonPlist(l), LaunchdAgentPlist(l), user} {
 		d := xml.NewDecoder(strings.NewReader(p))
 		d.Strict = true
 		for {

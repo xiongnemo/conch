@@ -13,3 +13,9 @@ func Install(Options) error { return errUnsupported }
 func Uninstall(Options) error { return errUnsupported }
 
 func Status(Options) (string, error) { return "", errUnsupported }
+
+func EnableAutostart(Autostart) error { return errUnsupported }
+
+func DisableAutostart(Autostart) error { return errUnsupported }
+
+func AutostartStatus(Autostart) (string, error) { return "", errUnsupported }

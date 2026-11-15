@@ -114,7 +114,19 @@ routes:
 - **TUI**：`conch tui`，按 `?` 查看按键。
 - **浏览器扩展**：还没有上架商店。从 Releases 下载 `conch-extension-chrome-*.zip` 并解压（或者在 `extension/` 里运行 `npm ci && npm run build`，得到 `dist/chrome`），在 Chrome / Edge 的扩展页面打开开发者模式，选「加载已解压的扩展程序」。Firefox 在 `about:debugging` 里临时载入 `conch-extension-firefox-*.zip`，重启后要重新载入。然后用 `conch pair` 或 Web UI 里的「配对浏览器扩展」拿到配对码，填进扩展弹窗。扩展只能查看和修改路由。
 
-## 系统服务与 TUN
+## 登录时自动启动、系统服务与 TUN
+
+只是想开机后不用手动运行 conch daemon，用自动启动就够了，不需要 sudo 或管理员权限：
+
+```sh
+conch autostart on       # 登录后自动运行 conch daemon，现在也启动
+conch autostart status
+conch autostart off
+```
+
+它就是以你自己的身份运行 `conch daemon`：用你的 profile（开启时记下的那一份）、内核和密码，启动时只是 HTTP + SOCKS5 代理。Linux 用 systemd 用户服务（日志：`journalctl --user -u conch`；没有 systemd 用户会话时改用桌面的自启动项），macOS 用 LaunchAgent（日志在 `~/Library/Logs/conch/daemon.log`），Windows 用注册表的 Run 项（不弹窗口，日志在 `%LOCALAPPDATA%\conch\daemon.log`）。
+
+要在还没登录时就运行，或者要用 TUN，装成系统服务（和自动启动二选一）：
 
 ```sh
 sudo conch service install      # systemd / launchd / Windows 服务，开机启动，可以开 TUN
@@ -154,6 +166,7 @@ sudo conch service uninstall    # 保留配置和数据
 | `conch doctor --fix` | 检查常见问题，恢复残留的系统代理和 DNS |
 | `conch pair` | 配对浏览器扩展 |
 | `conch edit` | 编辑 profile，保存前检查 |
+| `conch autostart on/off` | 登录时自动运行 daemon（不需要管理员权限） |
 
 ## 开发
 
