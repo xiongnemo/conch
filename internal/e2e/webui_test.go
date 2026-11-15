@@ -41,7 +41,9 @@ func webUIOutbounds(t *testing.T) (*browser, *tab) {
 
 	b := launchChrome(t, chrome)
 	p := b.open(t, srv.URL+"/")
-	p.waitText(t, "#login-form", "登录")
+	// The login form is in the page before the script that handles it
+	// runs; the script shows it once it asked for a session.
+	waitFor(t, "the login form", func() bool { return p.eval(t, `!document.querySelector("#login").hidden`) == true })
 	p.eval(t, `document.querySelector("#password").value = "pw"; document.querySelector("#login-form").requestSubmit()`)
 	p.waitText(t, "header .pill", "运行中")
 	// The kernel can be switched from the header.

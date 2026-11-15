@@ -201,7 +201,7 @@ jobs:
           go test -count=1 -v ./internal/backend/... ./internal/e2e ./internal/sidecar ./cmd/conch | tee e2e.log
           # Only the tests in Chrome may skip: Go cannot hand Chrome its
           # debugging pipe on Windows.
-          if grep -- '--- SKIP' e2e.log | grep -v -e TestExtension -e TestWebUINodes; then exit 1; fi
+          if grep -- '--- SKIP' e2e.log | grep -v -e TestExtension -e TestWebUINodes -e TestWebUINodeForm; then exit 1; fi
       - name: Autostart at login (Run key), running with no console
         shell: bash
         run: |
