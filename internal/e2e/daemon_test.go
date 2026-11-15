@@ -97,9 +97,18 @@ inbound: { mixed-port: %d }
 			t.Logf("--- daemon kernel log ---\n%s", strings.Join(d.Logs(), "\n"))
 		}
 	})
-	for deadline := time.Now().Add(15 * time.Second); !d.Status().Ready; time.Sleep(50 * time.Millisecond) {
+	// Whenever the kernel is said to run, so is the config: status never
+	// shows a running kernel with no port.
+	for deadline := time.Now().Add(15 * time.Second); ; time.Sleep(5 * time.Millisecond) {
+		s := d.Status()
+		if s.Kernel.State == "running" && (s.MixedPort == 0 || !s.Ready) {
+			t.Fatalf("running before the config is applied: %+v", s)
+		}
+		if s.Ready {
+			break
+		}
 		if time.Now().After(deadline) {
-			t.Fatalf("daemon not ready: %+v", d.Status())
+			t.Fatalf("daemon not ready: %+v", s)
 		}
 	}
 

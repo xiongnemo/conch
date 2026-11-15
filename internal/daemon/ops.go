@@ -76,6 +76,11 @@ func (d *Daemon) statusLocked() Status {
 	if d.applied != nil && d.res != nil {
 		s.TUN = d.res.Settings.TUN.Enable
 	}
+	// The kernel runs before the daemon has applied a config to it: it is
+	// still loading, its port not open, so it is starting yet.
+	if s.Kernel.State == kernel.Running && d.applied == nil {
+		s.Kernel.State = kernel.Starting
+	}
 	s.Ready = d.applied != nil && s.Kernel.State == kernel.Running
 	s.SysProxy = d.state.SysProxy != nil && d.state.SysProxy.Wanted
 	for _, x := range d.diags {
