@@ -71,6 +71,11 @@ proxies:
       host: cdn.example.com
       path: /v
       mux: false
+  - name: 走eth1
+    type: direct
+    interface-name: eth1
+  - name: 不让走
+    type: reject
   - name: wg
     type: wireguard
     server: 192.0.2.33
@@ -89,6 +94,8 @@ proxy-groups:
       - vmess-grpc
       - hy2-quic
       - ss-v2ray
+      - 走eth1
+      - 不让走
       - wg
       - DIRECT
 rules:
@@ -96,6 +103,8 @@ rules:
   - DOMAIN-SUFFIX,b.example,hy2-quic
   - DOMAIN-SUFFIX,c.example,wg
   - DOMAIN-SUFFIX,d.example,ss-v2ray
+  - DOMAIN-SUFFIX,e.example,走eth1
+  - DOMAIN-SUFFIX,f.example,不让走
   - DOMAIN-SUFFIX,home.arpa,DIRECT
   - DOMAIN-SUFFIX,lan,DIRECT
   - DOMAIN-SUFFIX,local,DIRECT

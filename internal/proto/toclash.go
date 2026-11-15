@@ -21,7 +21,8 @@ func ToClash(name string, s *Spec) *yaml.Node {
 	m.str("type", s.Type)
 	m.str("server", s.Server)
 	m.int("port", s.Port)
-	if s.UDP && s.Type != "hysteria2" { // mihomo's hysteria2 always relays UDP; its wireguard does not unless told
+	// mihomo's QUIC protocols always relay UDP; its wireguard does not unless told.
+	if s.UDP && s.Type != "hysteria2" && s.Type != "hysteria" && s.Type != "tuic" {
 		m.bool("udp", true)
 	}
 	switch s.Type {
@@ -120,6 +121,73 @@ func ToClash(name string, s *Spec) *yaml.Node {
 			}
 		}
 		tlsClash(m, s.TLS, false, "sni")
+	case "hysteria":
+		m.str("auth-str", s.Password)
+		if h := s.Hysteria; h != nil {
+			m.str("auth", h.Auth)
+			m.str("obfs", h.ObfsPassword)
+			m.str("protocol", h.Protocol)
+			m.str("up", FormatBandwidth(h.Up))
+			m.str("down", FormatBandwidth(h.Down))
+			m.str("ports", h.Ports)
+			if h.HopMin > 0 {
+				m.int("hop-interval", h.HopMin)
+			}
+			if h.InitStreamWindow > 0 {
+				m.int("recv-window", int(h.InitStreamWindow))
+			}
+			if h.InitConnWindow > 0 {
+				m.int("recv-window-conn", int(h.InitConnWindow))
+			}
+		}
+		tlsClash(m, s.TLS, false, "sni")
+	case "tuic":
+		m.str("uuid", s.UUID)
+		m.str("password", s.Password)
+		if t := s.TUIC; t != nil {
+			m.str("token", t.Token)
+			m.str("congestion-controller", t.Congestion)
+			m.str("udp-relay-mode", t.UDPRelayMode)
+			if t.UDPOverStream {
+				m.bool("udp-over-stream", true)
+			}
+			if t.ReduceRTT {
+				m.bool("reduce-rtt", true)
+			}
+			if t.Heartbeat > 0 {
+				m.int("heartbeat-interval", t.Heartbeat)
+			}
+		}
+		tlsClash(m, s.TLS, false, "sni")
+		if s.TLS != nil && s.TLS.DisableSNI {
+			m.bool("disable-sni", true)
+		}
+	case "anytls":
+		m.str("password", s.Password)
+		if a := s.AnyTLS; a != nil {
+			for _, v := range []struct {
+				key string
+				n   int
+			}{{"idle-session-check-interval", a.IdleCheck}, {"idle-session-timeout", a.IdleTimeout}, {"min-idle-session", a.MinIdle}} {
+				if v.n > 0 {
+					m.int(v.key, v.n)
+				}
+			}
+		}
+		tlsClash(m, s.TLS, false, "sni")
+	case "ssh":
+		m.str("username", s.Username)
+		m.str("password", s.Password)
+		if x := s.SSH; x != nil {
+			m.str("private-key", x.PrivateKey)
+			m.str("private-key-passphrase", x.Passphrase)
+			if len(x.HostKeys) > 0 {
+				m.strs("host-key", x.HostKeys)
+			}
+			if len(x.HostKeyAlgorithms) > 0 {
+				m.strs("host-key-algorithms", x.HostKeyAlgorithms)
+			}
+		}
 	case "wireguard":
 		wireguardClash(m, s.WireGuard)
 	}

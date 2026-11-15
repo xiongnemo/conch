@@ -90,6 +90,13 @@ func (e *encoder) nodeOutbound(p *compile.Proxy) (outbound, []string, error) {
 		st.Network = "hysteria"
 		st.HysteriaSettings = &hysteriaSettings{Version: 2, Auth: s.Password}
 		st.FinalMask = hysteriaMask(s.Hysteria, &warns)
+	case "direct":
+		o.Protocol = "freedom" // with the node's socket options, below
+	case "reject":
+		o.Protocol = "blackhole"
+		return o, nil, nil
+	case "hysteria", "tuic", "anytls", "ssh":
+		return o, nil, fmt.Errorf("xray 没有 %s 协议，换用 mihomo 或 sing-box 内核", s.Type)
 	case "wireguard":
 		o.Protocol = "wireguard"
 		o.Settings = wireguardOutSettings(s.WireGuard)

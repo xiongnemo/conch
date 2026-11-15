@@ -2,6 +2,7 @@ package singbox
 
 import (
 	"cmp"
+	"encoding/base64"
 	"fmt"
 	"slices"
 	"strconv"
@@ -95,10 +96,11 @@ func (e *encoder) nodeOutbound(p *compile.Proxy) (*outbound, *endpoint, []string
 			switch h.Obfs {
 			case "":
 			case "salamander", "gecko":
-				o.Obfs = &obfs{Type: h.Obfs, Password: h.ObfsPassword}
+				ob := &obfs{Type: h.Obfs, Password: h.ObfsPassword}
 				if h.Obfs == "gecko" {
-					o.Obfs.MinPacketSize, o.Obfs.MaxPacketSize = h.ObfsMinPacket, h.ObfsMaxPacket
+					ob.MinPacketSize, ob.MaxPacketSize = h.ObfsMinPacket, h.ObfsMaxPacket
 				}
+				o.Obfs = ob
 			default:
 				return nil, nil, nil, fmt.Errorf("sing-box 不认识 hysteria2 混淆 %q", h.Obfs)
 			}
@@ -119,6 +121,69 @@ func (e *encoder) nodeOutbound(p *compile.Proxy) (*outbound, *endpoint, []string
 		if s.TLS == nil {
 			s.TLS = &proto.TLS{} // hysteria2 always runs over TLS
 		}
+	case "hysteria":
+		h := s.Hysteria
+		switch h.Protocol {
+		case "", "udp":
+		default:
+			return nil, nil, nil, fmt.Errorf("sing-box 的 hysteria 只能走 UDP，不支持 %s", h.Protocol)
+		}
+		o.Type, o.AuthStr, o.UpMbps, o.DownMbps = "hysteria", s.Password, mbps(h.Up), mbps(h.Down)
+		if h.ObfsPassword != "" {
+			o.Obfs = h.ObfsPassword
+		}
+		if h.Auth != "" {
+			auth, err := base64.StdEncoding.DecodeString(h.Auth)
+			if err != nil {
+				return nil, nil, nil, fmt.Errorf("hysteria 的 auth 不是 base64")
+			}
+			o.Auth = auth
+		}
+		o.StreamWindow, o.ConnWindow = h.InitStreamWindow, h.InitConnWindow
+		if h.Ports != "" {
+			o.ServerPorts, o.ServerPort = serverPorts(h.Ports), 0
+			o.HopInterval = strconv.Itoa(h.HopMin) + "s" // mihomo's default is 10, sing-box's 30
+		}
+	case "tuic":
+		t := s.TUIC
+		if t.Token != "" {
+			return nil, nil, nil, fmt.Errorf("sing-box 只有 TUIC v5，没有 v4（token）")
+		}
+		o.Type, o.UUID, o.Password = "tuic", s.UUID, s.Password
+		o.Congestion, o.UDPRelayMode, o.UDPOverStream, o.ZeroRTT = t.Congestion, t.UDPRelayMode, t.UDPOverStream, t.ReduceRTT
+		if strings.HasPrefix(t.Congestion, "bbr") {
+			o.Congestion = "bbr" // mihomo's bbr_meta_v1 and v2 are its own BBRs
+		}
+		if t.Heartbeat > 0 {
+			o.Heartbeat = strconv.Itoa(t.Heartbeat) + "ms"
+		}
+	case "anytls":
+		a := s.AnyTLS
+		o.Type, o.Password, o.MinIdle = "anytls", s.Password, a.MinIdle
+		if a.IdleCheck > 0 {
+			o.IdleCheck = strconv.Itoa(a.IdleCheck) + "s"
+		}
+		if a.IdleTimeout > 0 {
+			o.IdleTimeout2 = strconv.Itoa(a.IdleTimeout) + "s"
+		}
+		if s.Sockopt.TFO {
+			warns = append(warns, "sing-box 的 anytls 不能用 TCP Fast Open（tfo）")
+			s.Sockopt.TFO = false
+		}
+	case "ssh":
+		x := s.SSH
+		o.Type, o.User, o.Password, o.KeyPassphrase, o.HostKey, o.HostKeyAlgos = "ssh", s.Username, s.Password, x.Passphrase, x.HostKeys, x.HostKeyAlgorithms
+		if x.PrivateKey != "" {
+			if pem := pemLines(x.PrivateKey); pem != nil {
+				o.PrivateKey = pem
+			} else {
+				o.PrivateKeyPath = x.PrivateKey
+			}
+		}
+	case "direct":
+		o.Type, o.Server, o.ServerPort = "direct", "", 0
+	case "reject":
+		return &outbound{Type: "block", Tag: p.Name}, nil, nil, nil
 	case "wireguard":
 		ep, err := wireguardEndpoint(p.Name, s.WireGuard)
 		if err != nil {
@@ -160,7 +225,7 @@ func (e *encoder) nodeOutbound(p *compile.Proxy) (*outbound, *endpoint, []string
 }
 
 func tlsOf(t *proto.TLS, certs certpin.Lookup) (*tlsOptions, []string) {
-	o := &tlsOptions{Enabled: true, ServerName: t.SNI, Insecure: t.Insecure, ALPN: t.ALPN}
+	o := &tlsOptions{Enabled: true, ServerName: t.SNI, Insecure: t.Insecure, ALPN: t.ALPN, DisableSNI: t.DisableSNI}
 	fp, warns := fingerprint(t.Fingerprint)
 	if t.VerifyName != "" {
 		warns = append(warns, fmt.Sprintf("sing-box 不能按 %s 校验证书（name-cert-verify），按 SNI 校验", t.VerifyName))

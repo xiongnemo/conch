@@ -1,0 +1,74 @@
+# 由 conch 生成，请不要手动修改；需要改动时请编辑 profile.yaml
+
+mixed-port: 7890
+allow-lan: false
+mode: rule
+log-level: info
+profile:
+  store-selected: true
+proxies:
+  - name: tuic
+    type: tuic
+    server: 192.0.2.50
+    port: 443
+    uuid: 00000000-0000-0000-0000-000000000050
+    password: p
+    sni: t.example.com
+    congestion-controller: bbr
+    udp-relay-mode: quic
+    reduce-rtt: true
+  - name: hysteria
+    type: hysteria
+    server: 192.0.2.51
+    port: 443
+    auth-str: a
+    obfs: o
+    up: 30 Mbps
+    down: 200 Mbps
+    sni: h.example.com
+    ports: "20000-30000"
+  - name: anytls
+    type: anytls
+    server: 192.0.2.52
+    port: 443
+    password: p
+    sni: a.example.com
+    client-fingerprint: chrome
+    idle-session-timeout: 60
+  - name: ssh
+    type: ssh
+    server: 192.0.2.53
+    port: 22
+    username: u
+    password: p
+proxy-groups:
+  - name: GLOBAL
+    type: select
+    proxies:
+      - tuic
+      - hysteria
+      - anytls
+      - ssh
+      - DIRECT
+rules:
+  - DOMAIN-SUFFIX,a.example,hysteria
+  - DOMAIN-SUFFIX,b.example,anytls
+  - DOMAIN-SUFFIX,c.example,ssh
+  - DOMAIN-SUFFIX,home.arpa,DIRECT
+  - DOMAIN-SUFFIX,lan,DIRECT
+  - DOMAIN-SUFFIX,local,DIRECT
+  - DOMAIN-SUFFIX,localhost,DIRECT
+  - IP-CIDR6,::1/128,DIRECT,no-resolve
+  - IP-CIDR,255.255.255.255/32,DIRECT,no-resolve
+  - IP-CIDR,169.254.0.0/16,DIRECT,no-resolve
+  - IP-CIDR,192.168.0.0/16,DIRECT,no-resolve
+  - IP-CIDR,172.16.0.0/12,DIRECT,no-resolve
+  - IP-CIDR,100.64.0.0/10,DIRECT,no-resolve
+  - IP-CIDR6,fe80::/10,DIRECT,no-resolve
+  - IP-CIDR,0.0.0.0/8,DIRECT,no-resolve
+  - IP-CIDR,10.0.0.0/8,DIRECT,no-resolve
+  - IP-CIDR,127.0.0.0/8,DIRECT,no-resolve
+  - IP-CIDR6,ff00::/8,DIRECT,no-resolve
+  - IP-CIDR6,fc00::/7,DIRECT,no-resolve
+  - IP-CIDR,224.0.0.0/4,DIRECT,no-resolve
+  - MATCH,tuic

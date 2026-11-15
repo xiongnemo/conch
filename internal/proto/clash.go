@@ -108,6 +108,46 @@ func FromClash(m *yaml.Node) *Spec {
 		// mihomo's hysteria2 has no uTLS or REALITY and ignores their keys.
 		r.ignore("client-fingerprint", "reality-opts")
 		readQUICTLS(r, s)
+	case "hysteria":
+		s.Password = r.str("auth-str")
+		s.UDP = true
+		s.Hysteria = &Hysteria{Auth: r.str("auth"), ObfsPassword: r.str("obfs"), Protocol: firstNonEmpty(r.str("protocol"), r.str("obfs-protocol")),
+			Ports: HopPorts(r.str("ports"))}
+		s.Hysteria.HopMin = cmpInt(r.int("hop-interval"), 10) // mihomo's default
+		s.Hysteria.HopMax = s.Hysteria.HopMin
+		up, down := r.str("up"), r.str("down")
+		if v := r.int("up-speed"); v > 0 && up == "" {
+			up = strconv.Itoa(v)
+		}
+		if v := r.int("down-speed"); v > 0 && down == "" {
+			down = strconv.Itoa(v)
+		}
+		s.Hysteria.Up, s.Hysteria.Down = bandwidths(s, up, down)
+		s.Hysteria.InitStreamWindow, s.Hysteria.InitConnWindow = uint64(r.int("recv-window")), uint64(r.int("recv-window-conn"))
+		r.ignore("client-fingerprint", "reality-opts")
+		readQUICTLS(r, s)
+		if s.TLS.ALPN == nil {
+			s.TLS.ALPN = []string{"hysteria"}
+		}
+	case "tuic":
+		s.UUID, s.Password = r.str("uuid"), r.str("password")
+		s.UDP = true
+		s.TUIC = &TUIC{Token: r.str("token"), Congestion: r.str("congestion-controller"), UDPRelayMode: r.str("udp-relay-mode"),
+			UDPOverStream: r.bool("udp-over-stream"), ReduceRTT: r.bool("reduce-rtt"), Heartbeat: cmpInt(r.int("heartbeat-interval"), 10000)}
+		r.ignore("client-fingerprint", "reality-opts")
+		readQUICTLS(r, s)
+		if s.TLS.ALPN == nil {
+			s.TLS.ALPN = []string{"h3"}
+		}
+		s.TLS.DisableSNI = r.bool("disable-sni")
+	case "anytls":
+		s.Password = r.str("password")
+		s.AnyTLS = &AnyTLS{IdleCheck: r.int("idle-session-check-interval"), IdleTimeout: r.int("idle-session-timeout"), MinIdle: r.int("min-idle-session")}
+		readTLS(r, s, true)
+	case "ssh":
+		s.Username, s.Password = r.str("username"), r.str("password")
+		s.SSH = &SSH{PrivateKey: r.str("private-key"), Passphrase: r.str("private-key-passphrase"), HostKeys: r.strs("host-key"), HostKeyAlgorithms: r.strs("host-key-algorithms")}
+	case "direct", "reject":
 	case "wireguard":
 		s.UDP = true
 		s.WireGuard = readWireGuard(r, s)

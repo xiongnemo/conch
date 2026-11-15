@@ -6,7 +6,7 @@ package proto
 
 // Spec is one proxy server.
 type Spec struct {
-	Type   string // ss, vmess, vless, trojan, socks5, http, hysteria2, wireguard, or the source type if unknown
+	Type   string // ss, vmess, vless, trojan, socks5, http, hysteria2, hysteria, tuic, anytls, ssh, wireguard, direct, reject, or the source type if unknown
 	Server string
 	Port   int
 	UDP    bool
@@ -32,7 +32,10 @@ type Spec struct {
 	TLS       *TLS // nil means no TLS
 	Transport Transport
 
-	Hysteria  *Hysteria
+	Hysteria  *Hysteria // hysteria2, and hysteria (v1)
+	TUIC      *TUIC
+	AnyTLS    *AnyTLS
+	SSH       *SSH
 	WireGuard *WireGuard
 	TrojanGo  *TrojanGo
 	Sockopt   Sockopt
@@ -52,6 +55,7 @@ type TLS struct {
 	Reality     *Reality
 	ECH         *ECH
 	VerifyName  string // the name the certificate must be for, instead of the SNI
+	DisableSNI  bool   // send no SNI (TUIC)
 	// A client certificate for mutual TLS: PEM, or a file's path.
 	Certificate, PrivateKey string
 }
@@ -152,11 +156,35 @@ type Hysteria struct {
 	Ports        string // port hopping, e.g. "443,20000-30000"
 	HopMin       int    // seconds between hops; a random time up to
 	HopMax       int    // HopMax when it is more
+	// Hysteria v1: the transport (udp, wechat-video, faketcp), and the
+	// auth as base64 bytes when it is not the password string.
+	Protocol, Auth string
 	// gecko obfuscation pads packets to sizes in this range.
 	ObfsMinPacket, ObfsMaxPacket int
 	BBRProfile                   string
 	// QUIC flow-control windows, bytes; 0 is the kernel's default.
 	InitStreamWindow, MaxStreamWindow, InitConnWindow, MaxConnWindow uint64
+}
+
+// TUIC v5 (UUID and Password), or v4 with a token.
+type TUIC struct {
+	Token         string
+	Congestion    string // cubic, new_reno, bbr…
+	UDPRelayMode  string // native, quic
+	UDPOverStream bool
+	ReduceRTT     bool // 0-RTT
+	Heartbeat     int  // milliseconds
+}
+
+type AnyTLS struct {
+	IdleCheck, IdleTimeout int // seconds
+	MinIdle                int
+}
+
+// SSH: a private key, PEM or a file's path, and the host keys to trust.
+type SSH struct {
+	PrivateKey, Passphrase      string
+	HostKeys, HostKeyAlgorithms []string
 }
 
 // TrojanGo holds what trojan-go adds to trojan; such nodes run in a

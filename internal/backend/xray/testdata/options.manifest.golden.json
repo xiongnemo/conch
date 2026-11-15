@@ -22,6 +22,16 @@
       "node": "ss-v2ray"
     },
     {
+      "name": "走eth1",
+      "kind": "node",
+      "node": "走eth1"
+    },
+    {
+      "name": "不让走",
+      "kind": "node",
+      "node": "不让走"
+    },
+    {
       "name": "wg",
       "kind": "node",
       "node": "wg"
@@ -34,7 +44,7 @@
       "tag": "#0 a.example",
       "tier": "domain",
       "key": "a.example",
-      "source": "../testdata/options.profile.yaml:26"
+      "source": "../testdata/options.profile.yaml:29"
     },
     {
       "index": 1,
@@ -42,7 +52,7 @@
       "tag": "#1 b.example",
       "tier": "domain",
       "key": "b.example",
-      "source": "../testdata/options.profile.yaml:27"
+      "source": "../testdata/options.profile.yaml:30"
     },
     {
       "index": 2,
@@ -50,7 +60,7 @@
       "tag": "#2 c.example",
       "tier": "domain",
       "key": "c.example",
-      "source": "../testdata/options.profile.yaml:28"
+      "source": "../testdata/options.profile.yaml:31"
     },
     {
       "index": 3,
@@ -58,22 +68,38 @@
       "tag": "#3 d.example",
       "tier": "domain",
       "key": "d.example",
-      "source": "../testdata/options.profile.yaml:29"
+      "source": "../testdata/options.profile.yaml:32"
     },
     {
       "index": 4,
-      "last": 7,
-      "rule": "{\"domain\":[\"domain:home.arpa\",\"domain:lan\",\"domain:local\",\"domain:localhost\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#4-7 lan\"}",
-      "tag": "#4-7 lan",
+      "rule": "{\"domain\":[\"domain:e.example\"],\"outboundTag\":\"走eth1\",\"ruleTag\":\"#4 e.example\"}",
+      "tag": "#4 e.example",
+      "tier": "domain",
+      "key": "e.example",
+      "source": "../testdata/options.profile.yaml:33"
+    },
+    {
+      "index": 5,
+      "rule": "{\"domain\":[\"domain:f.example\"],\"outboundTag\":\"不让走\",\"ruleTag\":\"#5 f.example\"}",
+      "tag": "#5 f.example",
+      "tier": "domain",
+      "key": "f.example",
+      "source": "../testdata/options.profile.yaml:34"
+    },
+    {
+      "index": 6,
+      "last": 9,
+      "rule": "{\"domain\":[\"domain:home.arpa\",\"domain:lan\",\"domain:local\",\"domain:localhost\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#6-9 lan\"}",
+      "tag": "#6-9 lan",
       "tier": "domain",
       "key": "lan",
       "builtin": true
     },
     {
-      "index": 8,
-      "last": 20,
-      "rule": "{\"ip\":[\"::1/128\",\"255.255.255.255/32\",\"169.254.0.0/16\",\"192.168.0.0/16\",\"172.16.0.0/12\",\"100.64.0.0/10\",\"fe80::/10\",\"0.0.0.0/8\",\"10.0.0.0/8\",\"127.0.0.0/8\",\"ff00::/8\",\"fc00::/7\",\"224.0.0.0/4\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#8-20 lan\"}",
-      "tag": "#8-20 lan",
+      "index": 10,
+      "last": 22,
+      "rule": "{\"ip\":[\"::1/128\",\"255.255.255.255/32\",\"169.254.0.0/16\",\"192.168.0.0/16\",\"172.16.0.0/12\",\"100.64.0.0/10\",\"fe80::/10\",\"0.0.0.0/8\",\"10.0.0.0/8\",\"127.0.0.0/8\",\"ff00::/8\",\"fc00::/7\",\"224.0.0.0/4\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#10-22 lan\"}",
+      "tag": "#10-22 lan",
       "tier": "ip",
       "key": "lan",
       "builtin": true

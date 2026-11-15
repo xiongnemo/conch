@@ -84,10 +84,27 @@ type outbound struct {
 	HopIntervalMax string   `json:"hop_interval_max,omitempty"`
 	UpMbps         int      `json:"up_mbps,omitempty"`
 	DownMbps       int      `json:"down_mbps,omitempty"`
-	Obfs           *obfs    `json:"obfs,omitempty"`
+	Obfs           any      `json:"obfs,omitempty"` // hysteria2: *obfs; hysteria: the password
 	BBRProfile     string   `json:"bbr_profile,omitempty"`
 	StreamWindow   uint64   `json:"stream_receive_window,omitempty"`
 	ConnWindow     uint64   `json:"connection_receive_window,omitempty"`
+
+	Auth           []byte   `json:"auth,omitempty"` // hysteria
+	AuthStr        string   `json:"auth_str,omitempty"`
+	Congestion     string   `json:"congestion_control,omitempty"` // tuic
+	UDPRelayMode   string   `json:"udp_relay_mode,omitempty"`
+	UDPOverStream  bool     `json:"udp_over_stream,omitempty"`
+	ZeroRTT        bool     `json:"zero_rtt_handshake,omitempty"`
+	Heartbeat      string   `json:"heartbeat,omitempty"`
+	IdleCheck      string   `json:"idle_session_check_interval,omitempty"` // anytls
+	IdleTimeout2   string   `json:"idle_session_timeout,omitempty"`
+	MinIdle        int      `json:"min_idle_session,omitempty"`
+	User           string   `json:"user,omitempty"` // ssh
+	PrivateKey     []string `json:"private_key,omitempty"`
+	PrivateKeyPath string   `json:"private_key_path,omitempty"`
+	KeyPassphrase  string   `json:"private_key_passphrase,omitempty"`
+	HostKey        []string `json:"host_key,omitempty"`
+	HostKeyAlgos   []string `json:"host_key_algorithms,omitempty"`
 
 	Outbounds   []string `json:"outbounds,omitempty"` // selector, urltest
 	Default     string   `json:"default,omitempty"`
@@ -159,6 +176,7 @@ type tlsOptions struct {
 	ClientCertificatePath []string `json:"client_certificate_path,omitempty"`
 	ClientKey             []string `json:"client_key,omitempty"`
 	ClientKeyPath         string   `json:"client_key_path,omitempty"`
+	DisableSNI            bool     `json:"disable_sni,omitempty"`
 	ECH                   *ech     `json:"ech,omitempty"`
 	UTLS                  *utls    `json:"utls,omitempty"`
 	Reality               *reality `json:"reality,omitempty"`

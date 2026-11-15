@@ -50,8 +50,8 @@ func TestFromClash(t *testing.T) {
 			interface-name: eth0, routing-mark: 255, plugin: kcptun, plugin-opts: { key: k }, smux: { enabled: true } }`,
 			Spec{Type: "ss", Server: "s", Port: 1, Cipher: "aes-128-gcm", Password: "p",
 				Sockopt: Sockopt{TFO: true, Interface: "eth0", Mark: 255}, Mux: &Mux{}, Plugin: &Plugin{Name: "kcptun"}}},
-		{"unsupported protocol", `{ name: a, type: tuic, server: s, port: 1, uuid: u, congestion-controller: bbr }`,
-			Spec{Type: "tuic", Server: "s", Port: 1}},
+		{"unsupported protocol", `{ name: a, type: mieru, server: s, port: 1, username: u, transport: TCP }`,
+			Spec{Type: "mieru", Server: "s", Port: 1}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -115,6 +115,13 @@ func TestClashRoundTrip(t *testing.T) {
 		{Type: "wireguard", Server: "1.2.3.4", Port: 51820, UDP: true, WireGuard: &WireGuard{PrivateKey: "k", Address: []string{"10.0.0.0/24"},
 			Peers: []WireGuardPeer{{Server: "a", Port: 1, PublicKey: "p1", AllowedIPs: []string{"0.0.0.0/0"}}, {Server: "b", Port: 2, PublicKey: "p2"}}}},
 		{Type: "vless", Server: "s", Port: 1, UUID: "u", Sockopt: Sockopt{TFO: true, MPTCP: true, Interface: "eth0", Mark: 7, IPVersion: "ipv6"}},
+		{Type: "tuic", Server: "s", Port: 443, UDP: true, UUID: "u", Password: "p", TLS: &TLS{SNI: "a", ALPN: []string{"h3"}, DisableSNI: true},
+			TUIC: &TUIC{Congestion: "bbr", UDPRelayMode: "quic", ReduceRTT: true, Heartbeat: 10000}},
+		{Type: "hysteria", Server: "s", Port: 443, UDP: true, Password: "a", TLS: &TLS{SNI: "a", ALPN: []string{"hysteria"}},
+			Hysteria: &Hysteria{ObfsPassword: "o", Protocol: "udp", Up: 10_000_000, Down: 50_000_000, Ports: "1000-2000", HopMin: 10, HopMax: 10, InitStreamWindow: 15728640}},
+		{Type: "anytls", Server: "s", Port: 443, UDP: true, Password: "p", TLS: &TLS{SNI: "a", Fingerprint: "chrome"}, AnyTLS: &AnyTLS{IdleCheck: 30, IdleTimeout: 30, MinIdle: 1}},
+		{Type: "ssh", Server: "s", Port: 22, Username: "u", Password: "p", SSH: &SSH{PrivateKey: "/k", HostKeys: []string{"ssh-ed25519 AAAA"}}},
+		{Type: "direct", Server: "", Port: 0, Sockopt: Sockopt{Interface: "eth1"}},
 	}
 	for _, want := range specs {
 		got := FromClash(ToClash("n", want))

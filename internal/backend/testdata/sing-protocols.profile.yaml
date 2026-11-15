@@ -1,0 +1,14 @@
+# mihomo 和 sing-box 都有、xray 没有的协议
+nodes:
+  - { name: tuic, type: tuic, server: 192.0.2.50, port: 443, uuid: 00000000-0000-0000-0000-000000000050, password: p, sni: t.example.com,
+      congestion-controller: bbr, udp-relay-mode: quic, reduce-rtt: true }
+  - { name: hysteria, type: hysteria, server: 192.0.2.51, port: 443, auth-str: a, obfs: o, up: "30 Mbps", down: 200, sni: h.example.com, ports: "20000-30000" }
+  - { name: anytls, type: anytls, server: 192.0.2.52, port: 443, password: p, sni: a.example.com, client-fingerprint: chrome, idle-session-timeout: 60 }
+  - { name: ssh, type: ssh, server: 192.0.2.53, port: 22, username: u, password: p }
+
+routes:
+  default: tuic
+  entries:
+    a.example: hysteria
+    b.example: anytls
+    c.example: ssh

@@ -134,6 +134,15 @@
       "password": "p"
     },
     {
+      "type": "direct",
+      "tag": "走eth1",
+      "bind_interface": "eth1"
+    },
+    {
+      "type": "block",
+      "tag": "不让走"
+    },
+    {
       "type": "selector",
       "tag": "GLOBAL",
       "outbounds": [
@@ -141,6 +150,8 @@
         "vmess-grpc",
         "hy2-quic",
         "ss-v2ray",
+        "走eth1",
+        "不让走",
         "wg",
         "DIRECT"
       ]
@@ -178,6 +189,20 @@
         ],
         "action": "route",
         "outbound": "ss-v2ray"
+      },
+      {
+        "domain_suffix": [
+          "e.example"
+        ],
+        "action": "route",
+        "outbound": "走eth1"
+      },
+      {
+        "domain_suffix": [
+          "f.example"
+        ],
+        "action": "route",
+        "outbound": "不让走"
       },
       {
         "domain_suffix": [

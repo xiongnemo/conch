@@ -42,6 +42,12 @@ func Parse(link string) (string, *proto.Spec, error) {
 		name, s, err = wireguard(link)
 	case "trojan-go":
 		name, s, err = trojanGo(link)
+	case "tuic":
+		name, s, err = tuic(link)
+	case "hysteria":
+		name, s, err = hysteriaV1(link)
+	case "anytls":
+		name, s, err = anytls(link)
 	default:
 		return "", nil, fmt.Errorf("暂不支持 %s:// 链接", scheme)
 	}
@@ -491,7 +497,7 @@ func splitHopPorts(link string) (string, string) {
 
 func hostPort(s *proto.Spec, u *url.URL) error {
 	s.Server = u.Hostname()
-	if u.Port() == "" && slices.Contains([]string{"trojan", "trojan-go", "hysteria2", "hy2"}, strings.ToLower(u.Scheme)) {
+	if u.Port() == "" && slices.Contains([]string{"trojan", "trojan-go", "hysteria2", "hy2", "anytls"}, strings.ToLower(u.Scheme)) {
 		s.Port = 443 // what these clients dial without a port
 		return nil
 	}
@@ -673,4 +679,93 @@ func xrayDownload(s *proto.Spec, d map[string]any, rename func(map[string]any, s
 			Reality: &proto.Reality{PublicKey: cmpOr(str(r, "publicKey"), str(r, "password")), ShortID: str(r, "shortId"), SpiderX: str(r, "spiderX")}}
 	}
 	return dl
+}
+
+// rest reports the query parameters a link parser did not use.
+func rest(s *proto.Spec, q url.Values, used ...string) {
+	var unknown []string
+	for k := range q {
+		if !slices.Contains(used, k) {
+			unknown = append(unknown, k)
+		}
+	}
+	slices.Sort(unknown)
+	s.Unknown = append(s.Unknown, unknown...)
+}
+
+// tuic://uuid:password@host:port?sni=…&alpn=h3&congestion_control=bbr&udp_relay_mode=native
+// (v5), or tuic://token@host:port (v4), as mihomo reads them.
+func tuic(link string) (string, *proto.Spec, error) {
+	u, err := url.Parse(link)
+	if err != nil {
+		return "", nil, err
+	}
+	s := &proto.Spec{Type: "tuic", UDP: true, TUIC: &proto.TUIC{}}
+	if err := hostPort(s, u); err != nil {
+		return "", nil, err
+	}
+	if pw, ok := u.User.Password(); ok {
+		s.UUID, s.Password = u.User.Username(), pw
+	} else {
+		s.TUIC.Token = u.User.Username()
+	}
+	q := u.Query()
+	s.TUIC.Congestion, s.TUIC.UDPRelayMode = q.Get("congestion_control"), q.Get("udp_relay_mode")
+	s.TUIC.Heartbeat = 10000 // mihomo's default
+	s.TLS = &proto.TLS{SNI: q.Get("sni"), Insecure: isTrue(firstOf(q, "allow_insecure", "insecure")), DisableSNI: q.Get("disable_sni") == "1",
+		ALPN: []string{"h3"}}
+	if a := q.Get("alpn"); a != "" {
+		s.TLS.ALPN = strings.Split(a, ",")
+	}
+	rest(s, q, "congestion_control", "udp_relay_mode", "sni", "allow_insecure", "insecure", "disable_sni", "alpn")
+	return fragment(u), s, nil
+}
+
+// hysteria://host:port?auth=…&peer=sni&obfs=…&upmbps=…&downmbps=…&protocol=udp (v1)
+func hysteriaV1(link string) (string, *proto.Spec, error) {
+	link, hop := splitHopPorts(link)
+	u, err := url.Parse(link)
+	if err != nil {
+		return "", nil, err
+	}
+	q := u.Query()
+	s := &proto.Spec{Type: "hysteria", UDP: true, Password: q.Get("auth"),
+		Hysteria: &proto.Hysteria{ObfsPassword: q.Get("obfs"), Protocol: q.Get("protocol"), Ports: cmpOr(q.Get("mport"), hop), HopMin: 10, HopMax: 10}}
+	if err := hostPort(s, u); err != nil {
+		return "", nil, err
+	}
+	for _, b := range []struct {
+		to   *uint64
+		keys []string
+	}{{&s.Hysteria.Up, []string{"up", "upmbps"}}, {&s.Hysteria.Down, []string{"down", "downmbps"}}} {
+		if v := firstOf(q, b.keys...); v != "" {
+			bits, ok := proto.ParseBandwidth(v)
+			if !ok {
+				s.Unknown = append(s.Unknown, b.keys[0]+"="+v)
+			}
+			*b.to = bits
+		}
+	}
+	s.TLS = &proto.TLS{SNI: q.Get("peer"), Insecure: isTrue(q.Get("insecure")), ALPN: []string{"hysteria"}}
+	if a := q.Get("alpn"); a != "" {
+		s.TLS.ALPN = strings.Split(a, ",")
+	}
+	rest(s, q, "auth", "obfs", "protocol", "mport", "up", "upmbps", "down", "downmbps", "peer", "insecure", "alpn")
+	return fragment(u), s, nil
+}
+
+// anytls://password@host:port?sni=…&insecure=1&hpkp=<certificate sha256>
+func anytls(link string) (string, *proto.Spec, error) {
+	u, err := url.Parse(link)
+	if err != nil {
+		return "", nil, err
+	}
+	s := &proto.Spec{Type: "anytls", UDP: true, Password: userinfo(u), AnyTLS: &proto.AnyTLS{}}
+	if err := hostPort(s, u); err != nil {
+		return "", nil, err
+	}
+	q := u.Query()
+	s.TLS = &proto.TLS{SNI: q.Get("sni"), Insecure: isTrue(q.Get("insecure")), PinSHA256: q.Get("hpkp"), Fingerprint: q.Get("fp")}
+	rest(s, q, "sni", "insecure", "hpkp", "fp")
+	return fragment(u), s, nil
 }

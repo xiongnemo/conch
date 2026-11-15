@@ -55,6 +55,15 @@ func TestParse(t *testing.T) {
 		{"trojan://p@t.example.com:443?type=grpc&serviceName=s&mode=multi&authority=a.example#g", "g",
 			proto.Spec{Type: "trojan", Server: "t.example.com", Port: 443, UDP: true, Password: "p", TLS: &proto.TLS{},
 				Transport: proto.Transport{Network: "grpc", ServiceName: "s"}, Unknown: []string{"mode=multi", "authority=a.example"}}},
+		// What sing-box has and xray not.
+		{"tuic://11111111-2222-3333-4444-555555555555:pw@t.example.com:443?congestion_control=bbr&udp_relay_mode=quic&sni=t.example.com&alpn=h3&odd=1#tuic", "tuic",
+			proto.Spec{Type: "tuic", Server: "t.example.com", Port: 443, UDP: true, UUID: "11111111-2222-3333-4444-555555555555", Password: "pw",
+				TLS: &proto.TLS{SNI: "t.example.com", ALPN: []string{"h3"}}, TUIC: &proto.TUIC{Congestion: "bbr", UDPRelayMode: "quic", Heartbeat: 10000}, Unknown: []string{"odd"}}},
+		{"hysteria://h.example.com:443?auth=a&peer=h.example.com&obfs=o&upmbps=30&downmbps=200&protocol=udp#hy1", "hy1",
+			proto.Spec{Type: "hysteria", Server: "h.example.com", Port: 443, UDP: true, Password: "a", TLS: &proto.TLS{SNI: "h.example.com", ALPN: []string{"hysteria"}},
+				Hysteria: &proto.Hysteria{ObfsPassword: "o", Protocol: "udp", Up: 30_000_000, Down: 200_000_000, HopMin: 10, HopMax: 10}}},
+		{"anytls://pw@a.example.com?sni=a.example.com&insecure=1#at", "at",
+			proto.Spec{Type: "anytls", Server: "a.example.com", Port: 443, UDP: true, Password: "pw", TLS: &proto.TLS{SNI: "a.example.com", Insecure: true}, AnyTLS: &proto.AnyTLS{}}},
 		// A password with ":" in it; no port means 443.
 		{"trojan://pa:ss@t.example.com?sni=t.example.com#colon", "colon",
 			proto.Spec{Type: "trojan", Server: "t.example.com", Port: 443, UDP: true, Password: "pa:ss", TLS: &proto.TLS{SNI: "t.example.com"}}},
@@ -112,7 +121,7 @@ func TestParse(t *testing.T) {
 
 func TestParseErrors(t *testing.T) {
 	for _, link := range []string{
-		"https://example.com", "tuic://u:p@h:443", "vmess://not-base64!", "vless://u@h:notaport", "ss://bm9jb2xvbg@h:1",
+		"https://example.com", "mieru://u:p@h:443", "vmess://not-base64!", "vless://u@h:notaport", "ss://bm9jb2xvbg@h:1",
 	} {
 		if _, _, err := Parse(link); err == nil {
 			t.Errorf("Parse(%q) succeeded, want error", link)

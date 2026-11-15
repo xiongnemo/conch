@@ -123,6 +123,19 @@
       }
     },
     {
+      "tag": "走eth1",
+      "protocol": "freedom",
+      "streamSettings": {
+        "sockopt": {
+          "interface": "eth1"
+        }
+      }
+    },
+    {
+      "tag": "不让走",
+      "protocol": "blackhole"
+    },
+    {
       "tag": "wg",
       "protocol": "wireguard",
       "settings": {
@@ -188,13 +201,27 @@
       },
       {
         "domain": [
+          "domain:e.example"
+        ],
+        "outboundTag": "走eth1",
+        "ruleTag": "#4 e.example"
+      },
+      {
+        "domain": [
+          "domain:f.example"
+        ],
+        "outboundTag": "不让走",
+        "ruleTag": "#5 f.example"
+      },
+      {
+        "domain": [
           "domain:home.arpa",
           "domain:lan",
           "domain:local",
           "domain:localhost"
         ],
         "outboundTag": "DIRECT",
-        "ruleTag": "#4-7 lan"
+        "ruleTag": "#6-9 lan"
       },
       {
         "ip": [
@@ -213,7 +240,7 @@
           "224.0.0.0/4"
         ],
         "outboundTag": "DIRECT",
-        "ruleTag": "#8-20 lan"
+        "ruleTag": "#10-22 lan"
       }
     ],
     "balancers": [
