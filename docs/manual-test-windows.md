@@ -491,7 +491,7 @@ conch status
 - Web UI 出口页：测速；在「出口」组里切换成员。
 - Web UI 连接页：每条连接都有「命中」和出口路径。打开 baidu.com 这类走订阅规则的网站，「命中」也要写出具体是哪一条，例如「订阅 订阅 的规则 域名后缀 baidu.com」。
 - 加一条路由（例如 `conch route add example.net E --for 5m`），大约 1 秒后生效。xray 改配置要重启内核，期间可能有一两个请求失败。
-- `conch tun on`：预期报错，内容包含「xray 内核在这个系统上暂不支持 TUN」。xray 的 TUN 目前只在 Linux 上可用。
+- xray 的 TUN 在 12.7 测。
 
 **11.2 sing-box**
 
@@ -543,7 +543,16 @@ conch daemon --backend mihomo
 
 用 sing-box（`--backend sing-box`，管理员窗口）把 12.2–12.4 重做一遍。防火墙规则这次叫「Conch sing-box」。
 
-**12.7 强制结束**
+**12.7 xray**
+
+用 xray（`--backend xray`，管理员窗口）把 12.2–12.4 重做一遍。xray 的 TUN 是它自己配系统路由（xray v26.11.9 起支持），和 mihomo、sing-box 不是同一套实现，所以要单独测。预期：
+
+- `conch status` 显示 `xray v26.11.9`，后面**没有**「没有经过这个 conch 验证」；
+- `Get-NetAdapter` 里多出一块名为 `conch` 的网卡；`xray.exe` 所在的文件夹里有 `wintun.dll`（`conch kernel path xray` 显示 xray.exe 的位置）；
+- 12.3 的几条都成立，`nslookup www.google.com` 同样返回 198.18.x.x；
+- 关闭 TUN 后网卡消失，`route print -4` 里没有残留指向它的路由。
+
+**12.8 强制结束**
 
 TUN 开着时运行 `taskkill /F /IM conch.exe`。预期：网络在几秒内恢复，因为 TUN 网卡随内核一起消失。如果断网了，记录下来，然后运行 `conch doctor --fix`；还不行就重启电脑。
 

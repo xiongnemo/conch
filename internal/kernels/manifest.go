@@ -8,13 +8,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"runtime"
+	"slices"
 	"strings"
 
 	"golang.org/x/sys/cpu"
 )
 
 //go:generate go run ./gen -kernel mihomo -repo MetaCubeX/mihomo -version v1.19.32 -file kernels.json
-//go:generate go run ./gen -kernel xray -repo XTLS/Xray-core -version v26.3.27 -file kernels.json
+//go:generate go run ./gen -kernel xray -repo XTLS/Xray-core -version v26.11.9 -file kernels.json
 //go:generate go run ./gen -kernel trojan-go -repo p4gefau1t/trojan-go -version v0.10.6 -file kernels.json
 //go:generate go run ./gen -kernel sing-box -repo SagerNet/sing-box -version v1.14.2 -file kernels.json
 
@@ -26,12 +27,37 @@ type Manifest map[string]*Kernel
 
 type Kernel struct {
 	Repo     string     `json:"repo"`     // GitHub owner/name
-	Releases []*Release `json:"releases"` // tested releases, recommended first
+	Releases []*Release `json:"releases"` // known releases, recommended first
 }
 
 type Release struct {
-	Version string            `json:"version"`
-	Assets  map[string]string `json:"assets"` // asset file name → sha256 hex
+	Version string `json:"version"`
+	// Verified means this conch passed its tests with real kernels on this
+	// release: the configs it writes work there. Others may ignore what
+	// they do not know without a word. The recommended release always is.
+	Verified bool              `json:"verified,omitempty"`
+	Assets   map[string]string `json:"assets"` // asset file name → sha256 hex
+}
+
+// Verified lists the releases of kernel this conch was verified with,
+// recommended first.
+func Verified(kernel string) []string {
+	m, err := Embedded()
+	if err != nil || m[kernel] == nil {
+		return nil
+	}
+	var out []string
+	for _, r := range m[kernel].Releases {
+		if r.Verified {
+			out = append(out, r.Version)
+		}
+	}
+	return out
+}
+
+// IsVerified reports whether this conch was verified with that release.
+func IsVerified(kernel, version string) bool {
+	return slices.Contains(Verified(kernel), version)
 }
 
 // Embedded returns the manifest compiled into this binary.

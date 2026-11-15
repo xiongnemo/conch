@@ -66,9 +66,6 @@
     {
       "tag": "DIRECT",
       "protocol": "freedom",
-      "settings": {
-        "domainStrategy": "UseIP"
-      },
       "streamSettings": {
         "sockopt": {
           "domainStrategy": "UseIP",
@@ -119,7 +116,16 @@
       "tag": "›dns",
       "protocol": "dns",
       "settings": {
-        "nonIPQuery": "reject"
+        "rules": [
+          {
+            "action": "hijack",
+            "qType": "1,28"
+          },
+          {
+            "action": "return",
+            "rCode": 5
+          }
+        ]
       }
     }
   ],

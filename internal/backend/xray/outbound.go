@@ -12,10 +12,10 @@ import (
 	"github.com/xiongnemo/conch/internal/proto"
 )
 
-// Shadowsocks methods Xray-core implements.
+// Shadowsocks methods Xray-core implements; it dropped "none" and "plain".
 var ssMethods = []string{
 	"aes-128-gcm", "aes-256-gcm", "chacha20-poly1305", "chacha20-ietf-poly1305",
-	"xchacha20-poly1305", "xchacha20-ietf-poly1305", "none", "plain",
+	"xchacha20-poly1305", "xchacha20-ietf-poly1305",
 	"2022-blake3-aes-128-gcm", "2022-blake3-aes-256-gcm", "2022-blake3-chacha20-poly1305",
 }
 
@@ -34,13 +34,22 @@ func (e *encoder) nodeOutbound(p *compile.Proxy) (outbound, []string, error) {
 			return o, nil, fmt.Errorf("xray 不支持 shadowsocks 加密方式 %q", s.Cipher)
 		}
 		o.Protocol = "shadowsocks"
-		o.Settings = shadowsocksSettings{serverSettings: srv, Method: strings.ToLower(s.Cipher), Password: s.Password, UoT: s.UDPOverTCP}
+		o.Settings = shadowsocksSettings{serverSettings: srv, Method: strings.ToLower(s.Cipher), Password: s.Password}
+		if s.UDPOverTCP {
+			warns = append(warns, "xray 已不支持 shadowsocks 的 UDP over TCP（udp-over-tcp），这个节点的 UDP 会直接以 UDP 发往服务器")
+		}
 	case "vmess":
 		if s.AlterID != 0 {
 			return o, nil, fmt.Errorf("xray 只支持 alterId 为 0 的 VMess（AEAD），这个节点是 %d", s.AlterID)
 		}
+		security := cmp.Or(strings.ToLower(s.Cipher), "auto")
+		if security == "none" || security == "zero" {
+			// The client picks the cipher, so the server takes any.
+			warns = append(warns, fmt.Sprintf("xray 已不支持 VMess 的 %s 加密，改用 auto", security))
+			security = "auto"
+		}
 		o.Protocol = "vmess"
-		o.Settings = vmessSettings{serverSettings: srv, ID: s.UUID, Security: cmp.Or(strings.ToLower(s.Cipher), "auto")}
+		o.Settings = vmessSettings{serverSettings: srv, ID: s.UUID, Security: security}
 	case "vless":
 		o.Protocol = "vless"
 		o.Settings = vlessSettings{serverSettings: srv, ID: s.UUID, Flow: s.Flow, Encryption: cmp.Or(s.Encryption, "none")}
@@ -55,13 +64,13 @@ func (e *encoder) nodeOutbound(p *compile.Proxy) (outbound, []string, error) {
 		o.Settings = userPassSettings{serverSettings: srv, User: s.Username, Pass: s.Password, Headers: s.Headers}
 	case "hysteria2":
 		if p.Upstream != "" && s.Hysteria.Ports != "" {
-			return o, nil, fmt.Errorf("xray v26.3.27 不支持把带端口跳跃（ports）的 hysteria2 节点放在链里（udphop 只能在最外层）")
+			return o, nil, fmt.Errorf("xray 还不能把带端口跳跃（ports）的 hysteria2 节点放在链里")
 		}
 		o.Protocol = "hysteria"
 		o.Settings = hysteriaOutSettings{Version: 2, serverSettings: srv}
 		st.Network = "hysteria"
 		st.HysteriaSettings = &hysteriaSettings{Version: 2, Auth: s.Password}
-		st.FinalMask = hysteriaMask(s.Hysteria)
+		st.FinalMask = hysteriaMask(s.Hysteria, &warns)
 	case "wireguard":
 		o.Protocol = "wireguard"
 		o.Settings = wireguardOutSettings(s.WireGuard)
@@ -76,6 +85,11 @@ func (e *encoder) nodeOutbound(p *compile.Proxy) (outbound, []string, error) {
 		return o, nil, err
 	}
 	st.Sockopt = e.sockopt(p.Upstream, s.Sockopt)
+	// xray refuses a whole config with one of these; better to name the
+	// node. (It refuses Trojan without TLS too, which nodes never are.)
+	if s.Type == "vless" && st.Security == "" && cmp.Or(s.Encryption, "none") == "none" && requiresEncryption(s.Server) {
+		return o, nil, fmt.Errorf("xray 不允许 VLESS 不加密（没有 TLS、REALITY，也没有 VLESS 加密）连接公网服务器")
+	}
 
 	if len(s.Unknown) > 0 {
 		warns = append(warns, fmt.Sprintf("这些字段在 xray 中没有对应，已忽略：%s", strings.Join(s.Unknown, "、")))
@@ -147,18 +161,26 @@ func transportStream(st *streamSettings, t proto.Transport, warns *[]string) err
 	return nil
 }
 
-func hysteriaMask(h *proto.Hysteria) *finalMask {
+func hysteriaMask(h *proto.Hysteria, warns *[]string) *finalMask {
 	m := &finalMask{}
+	if h.Ports != "" {
+		// Port hopping as Hysteria 2 does it: now and then another port of
+		// the server, from another local socket. It opens the sockets
+		// itself, so it must be the first mask.
+		interval := h.HopInterval
+		if interval > 0 && interval < 5 {
+			*warns = append(*warns, fmt.Sprintf("xray 的端口跳跃间隔至少 5 秒，hop-interval %d 改为 5", interval))
+			interval = 5
+		}
+		m.UDP = append(m.UDP, mask{Type: "udphop", Settings: udpHopSettings{Mode: "intervalLocal,intervalRemote", Interval: interval, RemotePorts: strings.ReplaceAll(h.Ports, ":", "-")}})
+	}
 	if h.Obfs != "" {
-		m.UDP = []mask{{Type: h.Obfs, Settings: map[string]string{"password": h.ObfsPassword}}}
+		m.UDP = append(m.UDP, mask{Type: h.Obfs, Settings: map[string]string{"password": h.ObfsPassword}})
 	}
 	q := &quicParams{}
 	if h.Up != "" || h.Down != "" {
 		// Bandwidth hints mean Brutal congestion control, as in Hysteria 2.
 		q.Congestion, q.BrutalUp, q.BrutalDown = "brutal", h.Up, h.Down
-	}
-	if h.Ports != "" {
-		q.UDPHop = &udpHop{Ports: h.Ports, Interval: h.HopInterval}
 	}
 	if *q != (quicParams{}) {
 		m.QuicParams = q

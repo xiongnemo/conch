@@ -65,7 +65,12 @@ func newDoctorCmd() *cobra.Command {
 			if inst, err := kernels.Current(paths.DataDir(), backend, kernels.Host().OS); err != nil {
 				d.bad("%v", err)
 			} else {
-				d.ok("内核 %s %s 已安装", backend, inst.Version)
+				if kernels.IsVerified(backend, inst.Version) {
+					d.ok("内核 %s %s 已安装，是验证过的版本", backend, inst.Version)
+				} else {
+					d.bad("内核 %s %s 没有经过这个 conch 验证（验证过的是 %s），配置里它不认识的部分会被悄悄忽略；运行 conch kernel install %s 安装验证过的版本，再重启 conch daemon",
+						backend, inst.Version, strings.Join(kernels.Verified(backend), "、"), backend)
+				}
 				if tunWanted {
 					if err := privilege.TUNError(inst.Path); err != nil {
 						d.bad("profile 开启了 TUN，但%v", err)

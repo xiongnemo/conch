@@ -31,11 +31,28 @@ type Backend struct{}
 func (Backend) Name() string { return "xray" }
 
 func (Backend) Capabilities() backend.Capabilities {
-	// xray v26.3.27 finds processes on Windows and Linux only.
-	// TUN: xray brings the device up, conch routes the system into it,
-	// which it only knows how to do on Linux so far.
-	return backend.Capabilities{ProcessMatch: backend.TargetOS != "darwin", KeywordMatch: true, Chains: true, TUN: backend.TargetOS == "linux"}
+	// xray finds processes, and routes the system into its TUN device (or
+	// conch does, on Linux), on Linux, macOS and Windows.
+	desktop := slices.Contains([]string{"linux", "darwin", "windows"}, backend.TargetOS)
+	return backend.Capabilities{ProcessMatch: desktop, KeywordMatch: true, Chains: true, TUN: desktop}
 }
+
+// RoutedByConch reports whether conch routes the system into xray's TUN
+// device (tunroute), as on Linux. Elsewhere xray does it itself.
+//
+// On Linux conch's policy routing sends DNS into the device whatever
+// resolver the system asks, the router's included; xray's own routes
+// leave queries to the local network outside, and its takeover of the
+// system resolver needs systemd-resolved.
+func RoutedByConch() bool { return backend.TargetOS == "linux" }
+
+// The TUN device's addresses where xray routes the system into it, as
+// sing-box's, and the resolver Windows is given on it: queries to it go
+// into the device, where xray answers them.
+var (
+	tunGateway = []string{"172.19.0.1/30", "fdfe:dcba:9876::1/126"}
+	tunDNS     = "172.19.0.2"
+)
 
 const (
 	inMixed       = compile.HopSep + "mixed"
@@ -591,11 +608,13 @@ const (
 	dnsOut = compile.HopSep + "dns"    // queries through the device
 )
 
-// tun adds the TUN inbound. xray only brings the device up and conch
-// routes the system into it (tunroute), so whatever xray sends itself
-// carries tunroute.Mark to stay out of it, and xray resolves its servers'
-// names with its own resolver: through the system's, the queries would
-// come back through the device.
+// tun adds the TUN inbound. On Linux xray only brings the device up and
+// conch routes the system into it (tunroute), so whatever xray sends
+// itself carries tunroute.Mark to stay out of it. Elsewhere xray routes
+// the system into the device and binds its own connections to the
+// physical interface. Either way xray resolves its servers' names with
+// its own resolver: through the system's, the queries would come back
+// through the device.
 func (e *encoder) tun(cfg *config) {
 	s := e.r.Settings
 	sniff := []string{"http", "tls", "quic"}
@@ -605,7 +624,21 @@ func (e *encoder) tun(cfg *config) {
 		servers = append([]string{"fakedns"}, servers...)
 		cfg.FakeDNS = []fakeDNSPool{{IPPool: "198.18.0.0/15", PoolSize: 65535}}
 	}
-	cfg.Inbounds = append(cfg.Inbounds, inbound{Tag: inTUN, Protocol: "tun", Settings: tunSettings{Name: TUNDevice, MTU: 1500},
+	ts := tunSettings{Name: TUNDevice, MTU: 1500}
+	if !RoutedByConch() {
+		ts = tunSettings{MTU: 1500, Gateway: tunGateway, AutoSystemRoutingTable: []string{"0.0.0.0/0", "::/0"}, AutoOutboundsInterface: "auto"}
+		if backend.TargetOS == "windows" {
+			ts.Name = "conch"
+			// Windows asks the resolvers of every interface; with strict
+			// routes, the filtering platform keeps queries (and IPv6 not
+			// routed into the device) from leaving any other way.
+			ts.DNS = []string{tunDNS}
+			if s.TUN.StrictRoute {
+				ts.AutoSystemWfpBlockLeak = []string{"dns", "misconfigtun"}
+			}
+		}
+	}
+	cfg.Inbounds = append(cfg.Inbounds, inbound{Tag: inTUN, Protocol: "tun", Settings: ts,
 		Sniffing: &sniffing{Enabled: true, DestOverride: sniff}})
 	strategy := "UseIPv4"
 	if cfg.DNS != nil {
@@ -614,7 +647,11 @@ func (e *encoder) tun(cfg *config) {
 	cfg.DNS = &dnsConfig{Servers: servers, QueryStrategy: strategy, Tag: dnsIn}
 	// DNS through the device is answered by xray's resolver; the
 	// resolver's own queries go out directly.
-	cfg.Outbounds = append(cfg.Outbounds, outbound{Tag: dnsOut, Protocol: "dns", Settings: dnsOutboundSettings{NonIPQuery: "reject"}})
+	// A and AAAA queries are answered; others are refused (REFUSED).
+	cfg.Outbounds = append(cfg.Outbounds, outbound{Tag: dnsOut, Protocol: "dns", Settings: dnsOutboundSettings{Rules: []dnsOutboundRule{
+		{Action: "hijack", QType: "1,28"},
+		{Action: "return", RCode: 5},
+	}}})
 	cfg.Routing.Rules = append([]rule{
 		{InboundTag: []string{inTUN}, Port: "53", OutboundTag: dnsOut, RuleTag: dnsOut},
 		{InboundTag: []string{dnsIn}, OutboundTag: e.tags["DIRECT"], RuleTag: dnsIn},
@@ -624,8 +661,6 @@ func (e *encoder) tun(cfg *config) {
 		switch o.Protocol {
 		case "loopback", "blackhole", "dns":
 			continue
-		case "freedom":
-			o.Settings = freedomSettings{DomainStrategy: "UseIP"}
 		}
 		if o.StreamSettings == nil {
 			o.StreamSettings = &streamSettings{}
@@ -634,7 +669,9 @@ func (e *encoder) tun(cfg *config) {
 			o.StreamSettings.Sockopt = &sockopt{}
 		}
 		so := o.StreamSettings.Sockopt
-		so.Mark = tunroute.Mark
+		if RoutedByConch() {
+			so.Mark = tunroute.Mark
+		}
 		if so.DialerProxy == "" {
 			so.DomainStrategy = cmp.Or(so.DomainStrategy, "UseIP")
 		}

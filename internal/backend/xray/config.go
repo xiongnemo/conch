@@ -55,16 +55,26 @@ type fakeDNSPool struct {
 }
 
 type tunSettings struct {
-	Name string `json:"name"`
+	Name string `json:"name,omitempty"` // empty: xray picks a free one (utunN on macOS)
 	MTU  int    `json:"MTU"`
+	// Where xray routes the system into the device itself (not Linux,
+	// where conch does): the device's addresses, the routes, and its own
+	// connections bound to the physical interface to stay out of it.
+	Gateway                []string `json:"gateway,omitempty"`
+	DNS                    []string `json:"dns,omitempty"` // Windows: the device's resolver
+	AutoSystemRoutingTable []string `json:"autoSystemRoutingTable,omitempty"`
+	AutoOutboundsInterface string   `json:"autoOutboundsInterface,omitempty"`
+	AutoSystemWfpBlockLeak []string `json:"autoSystemWfpBlockLeak,omitempty"` // Windows
 }
 
 type dnsOutboundSettings struct {
-	NonIPQuery string `json:"nonIPQuery"`
+	Rules []dnsOutboundRule `json:"rules"`
 }
 
-type freedomSettings struct {
-	DomainStrategy string `json:"domainStrategy,omitempty"`
+type dnsOutboundRule struct {
+	Action string `json:"action"`          // direct | drop | return | hijack
+	QType  string `json:"qType,omitempty"` // a port list, e.g. "1,28"
+	RCode  int    `json:"rCode,omitempty"` // for return
 }
 
 type inbound struct {
@@ -167,15 +177,16 @@ type mask struct {
 }
 
 type quicParams struct {
-	Congestion string  `json:"congestion,omitempty"`
-	BrutalUp   string  `json:"brutalUp,omitempty"`
-	BrutalDown string  `json:"brutalDown,omitempty"`
-	UDPHop     *udpHop `json:"udpHop,omitempty"`
+	Congestion string `json:"congestion,omitempty"`
+	BrutalUp   string `json:"brutalUp,omitempty"`
+	BrutalDown string `json:"brutalDown,omitempty"`
 }
 
-type udpHop struct {
-	Ports    string `json:"ports"`
-	Interval int    `json:"interval,omitempty"`
+// udpHopSettings are the settings of the "udphop" UDP mask: port hopping.
+type udpHopSettings struct {
+	Mode        string `json:"mode"`
+	Interval    int    `json:"interval,omitempty"` // seconds, 5 or more; xray's default is 30
+	RemotePorts string `json:"remotePorts"`
 }
 
 type sockopt struct {
@@ -198,7 +209,6 @@ type shadowsocksSettings struct {
 	serverSettings
 	Method   string `json:"method"`
 	Password string `json:"password"`
-	UoT      bool   `json:"uot,omitempty"`
 }
 
 type vmessSettings struct {

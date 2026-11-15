@@ -4,6 +4,7 @@
     "releases": [
       {
         "version": "v1.19.32",
+        "verified": true,
         "assets": {
           "mihomo-android-386-v1.19.32.gz": "27b3f6450380360fb8463ab4f291e9bf8871dfe330ceb8ca0147fd98e066c47e",
           "mihomo-android-amd64-v1.19.32.gz": "91c159015e7d8aaff22153b9fd18749a0c7258d6f252ea344ecace975ce17413",
@@ -106,6 +107,7 @@
     "releases": [
       {
         "version": "v1.14.2",
+        "verified": true,
         "assets": {
           "SFM-1.14.2.dSYMs.zip": "90601d3ff28f8a7184d641b90ba7b1616b20a47120df5d591a96a3283a61a153",
           "sing-box-1.14.2-android-386.tar.gz": "855ad664d406435f48c65488baf07cef0bd2c11e833c2c5a80b63f48ce6340db",
@@ -161,6 +163,7 @@
     "releases": [
       {
         "version": "v0.10.6",
+        "verified": true,
         "assets": {
           "trojan-go-darwin-amd64.zip": "b51a368e662090bfb23ef5daaf38ad062a51b9761e1badf9760c743a108aa425",
           "trojan-go-darwin-arm64.zip": "908f834db1b24c61a37a1d0937288b0fe24341b7e73e7de00ce4a756e5a50391",
@@ -192,6 +195,44 @@
   "xray": {
     "repo": "XTLS/Xray-core",
     "releases": [
+      {
+        "version": "v26.11.9",
+        "verified": true,
+        "assets": {
+          "Xray-android-amd64.zip": "48c266cdb9660dade968814e2f91d84e6aff534b7c3762ca3e385fb8aa475bd8",
+          "Xray-android-arm64-v8a.zip": "edcefc25b9b3195b11e18624c8269a969d6aabc39c6298a9a5ab29de15d46f3b",
+          "Xray-freebsd-32.zip": "37d8b8f7d07189e3366b3059fbab89f9676f96c5c6f057b9eaf183d6ce65e579",
+          "Xray-freebsd-64.zip": "d86d4b2c7498244b0aea8c936b59154b743401c6c0326c222ce367c229777ba6",
+          "Xray-freebsd-arm32-v7a.zip": "45670785e16044231fa1c3369644052e9dfc3938ada09f189feafcd47666f16c",
+          "Xray-freebsd-arm64-v8a.zip": "d6d06f71daf393056fa4266c0eba8eaca6ebd0f227e6e3fa126fbf5edf249c8b",
+          "Xray-linux-32.zip": "225343a01db48e23c1d3091e7fa45971b0d12c20943927846a4a87da374e384d",
+          "Xray-linux-64.zip": "b651f7e1d9966ee2c1b1ee1bf8b52c72771824d3065dce96bbc8bcc19ed95f82",
+          "Xray-linux-arm32-v5.zip": "b6c0ace0208f57a7dfbdd5320566ec92b84d276bdc0d911a239bbc3433e84612",
+          "Xray-linux-arm32-v6.zip": "955be2b84854ba566b2afc6c20186967e5a0ce7b2078e0f4e9a99e3aac662f38",
+          "Xray-linux-arm32-v7a.zip": "19c51e08a6562705fb1cb032a84fd87df21d7e27b194f035be7e754dbe3a97b3",
+          "Xray-linux-arm64-v8a.zip": "64ed6858982a7f5eb85d88b811089063bd4f17561f4c8f44e0f1dc8e6f6430be",
+          "Xray-linux-loong64.zip": "00b1f594b2199df13e55a4e5fda1b468353c0c2d3efbe18ea3b08de29611586b",
+          "Xray-linux-mips32.zip": "4ceb213ad7cd8c1fc9250bb886e730665cddb9dfe891291b09231a204f8ba6ef",
+          "Xray-linux-mips32le.zip": "793dc40029283eb9ccead188b05abf0d34b64aab16ad1f6eadd204963a54837b",
+          "Xray-linux-mips64.zip": "5dfa670184e3174e9d1a585116c2abff9049992dec5dfd763b067a53030153ed",
+          "Xray-linux-mips64le.zip": "bc84f436a76c429e5bab46ef0c2338ee67d049ec5f9b7676611ead2bc0276f77",
+          "Xray-linux-ppc64.zip": "bc54aa3b0d6e6946fd64eb61cf2889d3c8854cbf125f937a4e05baef7a340fa4",
+          "Xray-linux-ppc64le.zip": "3a4a7b48c75445eda394e31d1ce329ec88f9b157871a4fb1ea9b16443f372e20",
+          "Xray-linux-riscv64.zip": "296884b8601ee95dba31e6664c6121d80e33697382a1f564f05b028e61601a84",
+          "Xray-linux-s390x.zip": "5657912fbd7429d8a0202dccd8815a297fe49d009216a5359af238ebb6f0db4c",
+          "Xray-macos-64.zip": "488963e676e06f5e48547f9dd38116aaca8de4234959b4272ae8f284e658dfd0",
+          "Xray-macos-arm64-v8a.zip": "233f0c66681cd0726f81a6b2b6ed6a5710869e312047b522e46ed53035bebd26",
+          "Xray-openbsd-32.zip": "e3dd1a3525c741f7c0fe8c0dc98372b9753a05ded59b398d61e9310041287187",
+          "Xray-openbsd-64.zip": "c9c6f0bf17f9b85618012b1a5439451ea86b99eb56e327df2a27653b9aea177b",
+          "Xray-openbsd-arm32-v7a.zip": "369b68b801f5b53058af509bf6f12a90bb268219195a0c104fa2aa192c67c727",
+          "Xray-openbsd-arm64-v8a.zip": "b0be613b3f6a9f1afa7ceaa36cd3d5dfb4ecaa31e1f6b3e294ab4c8db111c045",
+          "Xray-win7-32.zip": "48a8b160a0f45d21bd56aa81d74c2420758fa72abac75b4b6faf45767c5ef48f",
+          "Xray-win7-64.zip": "df87ef380c58d3e2286b4e49834f4b6a4819a8155ebf9124b4610b0d8148af7e",
+          "Xray-windows-32.zip": "a5b6d456688612b678d2d528626d192972c96e645ae4e1e7fbb2566421f60bce",
+          "Xray-windows-64.zip": "1262522266337b824f07beb8e1375786b437683b3890105469088f8e17e0a69d",
+          "Xray-windows-arm64-v8a.zip": "9fdd48ff890e54ffdc37f92df9037c940fe4d4f914755b70cc644b97e9678a83"
+        }
+      },
       {
         "version": "v26.3.27",
         "assets": {

@@ -19,6 +19,7 @@ import (
 	"runtime"
 	"slices"
 	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -82,6 +83,7 @@ type Daemon struct {
 	subRetry        map[string]subRetry // failed subscriptions, by name
 	backend         backend.Router
 	bin             string
+	kernelVersion   string // the installed release; empty for a kernel given by path
 	home            string
 	socket          string
 
@@ -181,7 +183,11 @@ func New(opts Options) (*Daemon, error) {
 		if err != nil {
 			return nil, err
 		}
-		d.bin = inst.Path
+		d.bin, d.kernelVersion = inst.Path, inst.Version
+		if !kernels.IsVerified(name, inst.Version) {
+			fmt.Fprintf(opts.Log, "警告：%s %s 没有经过这个版本的 conch 验证（验证过的是 %s），conch 写的配置里它不认识的部分会被悄悄忽略；运行 conch kernel install %s 安装验证过的版本，再重启 conch daemon\n",
+				name, inst.Version, strings.Join(kernels.Verified(name), "、"), name)
+		}
 	}
 	switch name {
 	case "mihomo":
@@ -262,10 +268,11 @@ func (d *Daemon) Stop() {
 }
 
 // routeTUN routes the system into xray's TUN device when TUN is on, and
-// back out when it is off: xray only brings the device up. It runs after
-// every start of the kernel, whose new device starts without routes.
+// back out when it is off, where conch does that for xray (Linux; xray
+// routes itself elsewhere). It runs after every start of the kernel,
+// whose new device starts without routes.
 func (d *Daemon) routeTUN(res *compile.Result) error {
-	want := d.backend.Name() == "xray" && res.Settings.TUN.Enable
+	want := d.backend.Name() == "xray" && xray.RoutedByConch() && res.Settings.TUN.Enable
 	d.mu.Lock()
 	routed := d.tunRouted
 	d.mu.Unlock()
@@ -282,6 +289,27 @@ func (d *Daemon) routeTUN(res *compile.Result) error {
 	d.mu.Lock()
 	d.tunRouted = want
 	d.mu.Unlock()
+	return nil
+}
+
+// tunError says why the kernel could not run TUN here, if it could not:
+// the privileges to create the device, conch's own to route the system
+// into xray's on Linux, and the wintun.dll xray loads on Windows.
+func (d *Daemon) tunError() error {
+	if err := privilege.TUNError(d.bin); err != nil {
+		return err
+	}
+	if d.backend.Name() != "xray" {
+		return nil
+	}
+	if xray.RoutedByConch() {
+		return privilege.RoutesError()
+	}
+	if runtime.GOOS == "windows" {
+		if _, err := os.Stat(filepath.Join(filepath.Dir(d.bin), "wintun.dll")); err != nil {
+			return fmt.Errorf("%w：xray 的 TUN 需要 wintun.dll，和 xray.exe 放在同一个文件夹；运行 conch kernel install xray 重新安装 xray 即可", privilege.ErrTUN)
+		}
+	}
 	return nil
 }
 
@@ -427,12 +455,8 @@ func (d *Daemon) build(ctx context.Context) (*compile.Result, *backend.Artifact,
 	// kernel that cannot create the device would fail where a check of
 	// its config cannot tell (mihomo even reloads without a word).
 	if res.Settings.TUN.Enable && d.backend.Capabilities().TUN {
-		if err := privilege.TUNError(d.bin); err != nil {
+		if err := d.tunError(); err != nil {
 			diags.Errorf(diag.Pos{}, "%v", err)
-		} else if d.backend.Name() == "xray" {
-			if err := privilege.RoutesError(); err != nil {
-				diags.Errorf(diag.Pos{}, "%v", err)
-			}
 		}
 	}
 	if diags.HasErrors() {

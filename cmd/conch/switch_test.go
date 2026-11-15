@@ -78,7 +78,10 @@ func TestSwitchKernel(t *testing.T) {
 			}
 		}
 	}
-	ready()
+	// Its kernel is a release conch was not verified with, and says so.
+	if s := ready(); s.KernelVersion != "v0" || !s.Unverified {
+		t.Errorf("an unverified release: %+v", s)
+	}
 	if err := live.Load().SetMode(ctx, "global"); err != nil {
 		t.Fatal(err)
 	}

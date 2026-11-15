@@ -29,7 +29,7 @@ scoop bucket add nemo https://github.com/xiongnemo/windows-binaries-scoop-bucket
 scoop install nemo/conch-nightly   # 预发布版本
 ```
 
-内核不需要自己装：第一次运行 `conch daemon` 时会自动下载并校验（每个 conch 版本都内置了测试过的内核版本和 sha256）。连不上 GitHub 的话，把环境变量 `CONCH_MIRROR` 设成下载镜像，例如 `CONCH_MIRROR=https://ghfast.top conch daemon`；自动下载和 `conch kernel` 命令都会用它，从镜像下载的文件同样会校验。也可以手动安装：
+内核不需要自己装：第一次运行 `conch daemon` 时会自动下载并校验（每个 conch 版本都内置了验证过的内核版本和 sha256）。「验证过」是指 conch 的 CI 用这个版本的真实内核跑过全部测试；内核遇到不认识的配置往往悄悄忽略，所以用了没验证过的版本（例如 `--version` 指定的旧版本，或升级 conch 之前装的内核），`conch status`、`conch doctor`、Web UI 和 TUI 都会标出来，换成验证过的版本只要运行 `conch kernel install <内核>` 再重启 daemon。连不上 GitHub 的话，把环境变量 `CONCH_MIRROR` 设成下载镜像，例如 `CONCH_MIRROR=https://ghfast.top conch daemon`；自动下载和 `conch kernel` 命令都会用它，从镜像下载的文件同样会校验。也可以手动安装：
 
 ```sh
 conch kernel install mihomo          # 或 xray --geodata、sing-box、trojan-go
@@ -136,7 +136,7 @@ sudo conch service uninstall    # 保留配置和数据
 
 服务会带上你现在的 profile、已下载的内核和登录密码。服务改不了每个用户的系统代理，所以每个用户登录后会运行 `conch agent` 来设置。
 
-不装服务也能开 TUN：Linux 上给内核加权限（`sudo conch kernel setcap`，升级内核后要重做一次）；macOS 需要 root；Windows 需要管理员。macOS 上开启 TUN 时，conch 会临时把系统 DNS 指向一个能被 TUN 接管的地址，关闭时恢复（sing-box 自己处理）。xray 内核的 TUN 目前只支持 Linux：xray 只建网卡，系统路由由 conch 来配，所以 conch 自己也要有权限（root 或系统服务）。
+不装服务也能开 TUN：Linux 上给内核加权限（`sudo conch kernel setcap`，升级内核后要重做一次）；macOS 需要 root；Windows 需要管理员。macOS 上开启 TUN 时，conch 会临时把系统 DNS 指向一个能被 TUN 接管的地址，关闭时恢复（sing-box 自己处理）。xray 内核的 TUN：Linux 上 xray 只建网卡，系统路由由 conch 来配（发往局域网路由器的 DNS 也能接管），所以 conch 自己也要有权限（root 或系统服务）；macOS 和 Windows 上由 xray 自己配路由，Windows 上 xray 需要和 xray.exe 放在一起的 wintun.dll，`conch kernel install xray` 会一起装好。
 
 ## 文件
 

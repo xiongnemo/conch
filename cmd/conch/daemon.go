@@ -497,7 +497,10 @@ func newStatusCmd() *cobra.Command {
 				return err
 			}
 			w := cmd.OutOrStdout()
-			fmt.Fprintf(w, "内核：%s（%s", s.Backend, s.Kernel.State.Text())
+			fmt.Fprintf(w, "内核：%s（%s", strings.TrimSpace(s.Backend+" "+s.KernelVersion), s.Kernel.State.Text())
+			if s.Unverified {
+				fmt.Fprint(w, "，这个版本没有经过这个 conch 验证")
+			}
 			if s.Kernel.Restarts > 0 {
 				fmt.Fprintf(w, "，重启过 %d 次", s.Kernel.Restarts)
 			}

@@ -22,9 +22,12 @@ func (m *Model) overviewRows(w int) []row {
 		return []row{{text: muted.Render("正在连接 daemon……")}}
 	}
 	field := func(name, value string) row { return row{text: fit(muted.Render(name), 10) + value} }
-	kernel := s.Backend + " · " + s.Kernel.State.Text()
+	kernel := strings.TrimSpace(s.Backend+" "+s.KernelVersion) + " · " + s.Kernel.State.Text()
 	if s.Kernel.Restarts > 0 {
 		kernel += fmt.Sprintf("（重启过 %d 次）", s.Kernel.Restarts)
+	}
+	if s.Unverified {
+		kernel += warn.Render(" · 版本未经验证，可以运行 conch kernel install " + s.Backend)
 	}
 	var modes []string
 	for _, mode := range []string{"rule", "global", "direct"} {

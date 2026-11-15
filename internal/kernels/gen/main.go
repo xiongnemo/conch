@@ -79,6 +79,10 @@ func main() {
 		k = &kernels.Kernel{Repo: *repo}
 		m[*kernel] = k
 	}
+	// Generated again, a release keeps its mark.
+	if old := k.Release(*version); old != nil {
+		release.Verified = old.Verified
+	}
 	k.Releases = slices.DeleteFunc(k.Releases, func(r *kernels.Release) bool { return r.Version == *version })
 	k.Releases = append([]*kernels.Release{release}, k.Releases...)
 
@@ -90,6 +94,9 @@ func main() {
 		log.Fatal(err)
 	}
 	log.Printf("%s %s: %d assets", *kernel, *version, len(release.Assets))
+	if !release.Verified {
+		log.Printf(`it is now the recommended release: once conch's tests pass with it, mark it "verified": true in %s`, *file)
+	}
 }
 
 // download hashes an asset GitHub has no digest for.

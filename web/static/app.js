@@ -133,7 +133,7 @@ async function loadKernels() {
   try {
     const list = await api("GET", "/kernels");
     fill($("#backend"), list.map((k) => h("option", { value: k.name, selected: k.current },
-      k.name + (k.installed ? "" : "（切换时下载）"))));
+      k.name + (!k.installed ? "（切换时下载）" : k.unverified ? `（${k.version} 未经验证）` : ""))));
   } catch (err) {
     // the status shows what is wrong
   }
@@ -176,7 +176,8 @@ function renderStatus(s) {
   $("#banner").textContent = s.error ? "配置有问题，内核继续使用上一份可用的配置：\n" + problems.join("\n") : problems.join("\n");
 
   const rows = [
-    ["内核", `${s.backend}（${stateNames[k.state] || k.state}${k.restarts ? `，重启过 ${k.restarts} 次` : ""}）`],
+    ["内核", `${s.backend}${s.kernelVersion ? " " + s.kernelVersion : ""}（${stateNames[k.state] || k.state}${k.restarts ? `，重启过 ${k.restarts} 次` : ""}）` +
+      (s.unverified ? "。这个版本没有经过这个 conch 验证，可以运行 conch kernel install " + s.backend + " 安装验证过的版本，再重启 conch daemon" : "")],
     ["代理端口", s.mixedPort ? `127.0.0.1:${s.mixedPort}（HTTP 和 SOCKS5）` : "-"],
     ["配置文件", s.profile],
   ];

@@ -209,6 +209,14 @@
         "finalmask": {
           "udp": [
             {
+              "type": "udphop",
+              "settings": {
+                "mode": "intervalLocal,intervalRemote",
+                "interval": 30,
+                "remotePorts": "20000-30000"
+              }
+            },
+            {
               "type": "salamander",
               "settings": {
                 "password": "o"
@@ -218,11 +226,7 @@
           "quicParams": {
             "congestion": "brutal",
             "brutalUp": "50 mbps",
-            "brutalDown": "200 mbps",
-            "udpHop": {
-              "ports": "20000-30000",
-              "interval": 30
-            }
+            "brutalDown": "200 mbps"
           }
         }
       }

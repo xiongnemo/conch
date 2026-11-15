@@ -35,3 +35,23 @@ func TestAssetsInManifest(t *testing.T) {
 		}
 	}
 }
+
+// The recommended release is the one CI tests conch with, so it must be
+// marked verified; a release added to the manifest is not until then.
+func TestRecommendedReleasesAreVerified(t *testing.T) {
+	m, err := Embedded()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for name, k := range m {
+		if len(k.Releases) == 0 || !k.Releases[0].Verified {
+			t.Errorf("%s: the recommended release %s is not marked verified", name, k.Releases[0].Version)
+		}
+		if got := Verified(name); len(got) == 0 || got[0] != k.Releases[0].Version {
+			t.Errorf("Verified(%q) = %v", name, got)
+		}
+	}
+	if IsVerified("xray", "v26.3.27") || !IsVerified("xray", "v26.11.9") {
+		t.Error("xray v26.3.27 predates the configs conch writes; v26.11.9 is the one tested")
+	}
+}

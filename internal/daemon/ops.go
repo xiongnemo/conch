@@ -19,7 +19,6 @@ import (
 	"github.com/xiongnemo/conch/internal/kernel"
 	"github.com/xiongnemo/conch/internal/kernels"
 	"github.com/xiongnemo/conch/internal/lists"
-	"github.com/xiongnemo/conch/internal/platform/privilege"
 	"github.com/xiongnemo/conch/internal/route"
 	"github.com/xiongnemo/conch/internal/subscription"
 )
@@ -42,6 +41,8 @@ type Status struct {
 	Ready         bool                          `json:"ready"`
 	Backend       string                        `json:"backend"`
 	Kernel        kernel.Status                 `json:"kernel"`
+	KernelVersion string                        `json:"kernelVersion,omitempty"`
+	Unverified    bool                          `json:"unverified,omitempty"` // a release this conch was not verified with
 	Mode          string                        `json:"mode"`
 	MixedPort     int                           `json:"mixedPort"`
 	Profile       string                        `json:"profile"`
@@ -61,7 +62,8 @@ func (d *Daemon) Status() Status {
 }
 
 func (d *Daemon) statusLocked() Status {
-	s := Status{Service: d.opts.Service, Backend: d.backend.Name(), Kernel: d.sup.Status(), Profile: d.opts.ProfilePath, Error: d.lastErr, Caps: d.ctl.Caps()}
+	s := Status{Service: d.opts.Service, Backend: d.backend.Name(), Kernel: d.sup.Status(), Profile: d.opts.ProfilePath, Error: d.lastErr, Caps: d.ctl.Caps(),
+		KernelVersion: d.kernelVersion, Unverified: d.kernelVersion != "" && !kernels.IsVerified(d.backend.Name(), d.kernelVersion)}
 	// A copy: callers read it after the lock is released, while
 	// subscription updates write to the daemon's own.
 	for name, info := range d.subInfo {
@@ -559,13 +561,8 @@ func (d *Daemon) SetTUN(ctx context.Context, on bool) error {
 		if !d.backend.Capabilities().TUN {
 			return fmt.Errorf("%s 内核在这个系统上暂不支持 TUN，可以换用 mihomo 或 sing-box 内核（Web UI 页头的内核下拉框，或 conch kernel use mihomo）", d.backend.Name())
 		}
-		if err := privilege.TUNError(d.bin); err != nil {
+		if err := d.tunError(); err != nil {
 			return err
-		}
-		if d.backend.Name() == "xray" {
-			if err := privilege.RoutesError(); err != nil {
-				return err
-			}
 		}
 	}
 	d.mu.Lock()
@@ -646,10 +643,11 @@ func (d *Daemon) Temp() []TempRoute {
 
 // KernelChoice is a kernel conch can run, as the UIs offer it.
 type KernelChoice struct {
-	Name      string `json:"name"`
-	Version   string `json:"version,omitempty"`
-	Installed bool   `json:"installed"` // or it is downloaded when chosen
-	Current   bool   `json:"current"`
+	Name       string `json:"name"`
+	Version    string `json:"version,omitempty"`
+	Installed  bool   `json:"installed"` // or it is downloaded when chosen
+	Current    bool   `json:"current"`
+	Unverified bool   `json:"unverified,omitempty"` // the installed release was not verified with this conch
 }
 
 // Kernels lists the kernels conch can run.
@@ -658,7 +656,7 @@ func (d *Daemon) Kernels() []KernelChoice {
 	for _, name := range Backends {
 		k := KernelChoice{Name: name, Current: name == d.backend.Name()}
 		if inst, err := kernels.Current(d.opts.DataDir, name, kernels.Host().OS); err == nil {
-			k.Version, k.Installed = inst.Version, true
+			k.Version, k.Installed, k.Unverified = inst.Version, true, !kernels.IsVerified(name, inst.Version)
 		}
 		k.Installed = k.Installed || k.Current
 		out = append(out, k)

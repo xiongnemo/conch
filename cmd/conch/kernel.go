@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/user"
 	"path/filepath"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -41,6 +42,8 @@ func newKernelUseCmd() *cobra.Command {
 						mark = "* "
 					}
 					switch {
+					case k.Unverified:
+						note = "  " + k.Version + "（没有经过这个 conch 验证，可以用 conch kernel install " + k.Name + " 安装验证过的版本，再重启 conch daemon）"
 					case k.Version != "":
 						note = "  " + k.Version
 					case !k.Installed:
@@ -79,6 +82,10 @@ func newKernelInstallCmd() *cobra.Command {
 				return err
 			}
 			fmt.Fprintf(cmd.OutOrStdout(), "已安装 %s %s：%s\n", inst.Kernel, inst.Version, inst.Path)
+			if !kernels.IsVerified(inst.Kernel, inst.Version) {
+				fmt.Fprintf(cmd.ErrOrStderr(), "注意：%s %s 没有经过这个 conch 验证（验证过的是 %s），conch 写的配置里它不认识的部分会被悄悄忽略\n",
+					inst.Kernel, inst.Version, strings.Join(kernels.Verified(inst.Kernel), "、"))
+			}
 			if geodata {
 				return kernels.FetchGeodata(cmd.Context(), nil, o.Kernel, o.Mirror, paths.KernelHome(o.Kernel), cmd.ErrOrStderr())
 			}

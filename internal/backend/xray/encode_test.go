@@ -5,6 +5,7 @@ import (
 	"math/rand/v2"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"slices"
 	"strings"
@@ -19,14 +20,45 @@ func TestGolden(t *testing.T) {
 	backendtest.Golden(t, Backend{}, ".json")
 }
 
-// xray cannot find processes on macOS, so there app entries are an error
-// that says so.
-func TestNoAppEntriesOnMacOS(t *testing.T) {
+// xray finds processes on macOS too since v26.6.
+func TestAppEntriesOnMacOS(t *testing.T) {
 	backend.TargetOS = "darwin"
 	t.Cleanup(func() { backend.TargetOS = "linux" })
 	art, d := backendtest.Build(t, Backend{}, "../../../examples/profile.yaml", backend.Options{Lists: backendtest.Lists})
-	if art != nil || !strings.Contains(d.Err().Error(), "xray 后端在 macOS 上不支持按应用分流（app:Telegram）") {
-		t.Errorf("diagnostics: %v", d)
+	if art == nil || !strings.Contains(string(art.Config), `"process": [`) {
+		t.Errorf("no process rules for macOS: %v", d)
+	}
+}
+
+// TestTUNGoldens keeps the TUN configs for macOS and Windows, where xray
+// routes the system into the device itself, beside Linux's in TestGolden.
+func TestTUNGoldens(t *testing.T) {
+	t.Cleanup(func() { backend.TargetOS = "linux" })
+	for _, goos := range []string{"darwin", "windows"} {
+		backend.TargetOS = goos
+		art, d := backendtest.Build(t, Backend{}, "../testdata/tun.profile.yaml", backend.Options{Lists: backendtest.Lists})
+		if art == nil {
+			t.Fatalf("%s: %v", goos, d)
+		}
+		backendtest.Check(t, "testdata/tun."+goos+".golden.json", art.Config)
+		var cfg config
+		if err := json.Unmarshal(art.Config, &cfg); err != nil {
+			t.Fatal(err)
+		}
+		i := slices.IndexFunc(cfg.Inbounds, func(in inbound) bool { return in.Protocol == "tun" })
+		raw, _ := json.Marshal(cfg.Inbounds[i].Settings)
+		var ts tunSettings
+		json.Unmarshal(raw, &ts)
+		if !slices.Equal(ts.AutoSystemRoutingTable, []string{"0.0.0.0/0", "::/0"}) || ts.AutoOutboundsInterface != "auto" {
+			t.Errorf("%s: xray does not route the system into the device: %+v", goos, ts)
+		}
+		if strings.Contains(string(art.Config), `"mark"`) {
+			t.Errorf("%s: outbounds carry Linux's fwmark", goos)
+		}
+		// The profile asks for strict routes: on Windows, no leaks.
+		if goos == "windows" && (!slices.Equal(ts.DNS, []string{tunDNS}) || !slices.Contains(ts.AutoSystemWfpBlockLeak, "dns")) {
+			t.Errorf("windows: DNS can leak around the device: %+v", ts)
+		}
 	}
 }
 
@@ -41,10 +73,9 @@ func TestGoldenAcceptedByXray(t *testing.T) {
 	}
 	for _, f := range backendtest.Configs(t, ".json") {
 		t.Run(f, func(t *testing.T) {
-			// conch makes xray TUN configs for Linux only; elsewhere xray
-			// wants other device names (utunN on macOS).
-			if strings.HasSuffix(f, "tun.golden.json") && runtime.GOOS != "linux" {
-				t.Logf("%s is a Linux config", f)
+			// Each OS has its own TUN config: tun.golden.json is Linux's.
+			if goos := tunOS(f); goos != "" && goos != runtime.GOOS {
+				t.Logf("%s is a config for %s", f, goos)
 				return
 			}
 			cmd := exec.Command(bin, "run", "-test", "-c", f)
@@ -52,7 +83,7 @@ func TestGoldenAcceptedByXray(t *testing.T) {
 			out, err := cmd.CombinedOutput()
 			// The test creates the TUN device, which takes root: failing
 			// there means the config was read; the TUN e2e test runs it.
-			if err != nil && os.Geteuid() != 0 && strings.Contains(string(out), "failed to create server > operation not permitted") {
+			if err != nil && os.Geteuid() != 0 && tunOS(f) != "" && (strings.Contains(string(out), "operation not permitted") || strings.Contains(string(out), "permission denied")) {
 				t.Logf("xray read %s; its TUN device needs root", f)
 				return
 			}
@@ -61,6 +92,17 @@ func TestGoldenAcceptedByXray(t *testing.T) {
 			}
 		})
 	}
+}
+
+// tunOS is the OS a TUN golden config is for, or "" for the others.
+func tunOS(f string) string {
+	switch base := filepath.Base(f); {
+	case base == "tun.golden.json":
+		return "linux"
+	case strings.HasPrefix(base, "tun."):
+		return strings.Split(base, ".")[1]
+	}
+	return ""
 }
 
 // Tags must be prefix-free: xray selects balancer members by tag prefix.

@@ -27,7 +27,11 @@ func TestXrayObserveLog(t *testing.T) {
 		internal bool
 		failure  bool
 	}{
-		{"2026/10/01 22:41:46 [Warning] core: Xray 26.3.27 started", "warning", false, false},
+		{"2026/10/01 22:41:46 [Warning] core: Xray 26.11.9 started", "warning", false, false},
+		// Nagging about protocols the provider picked is hidden; a setting
+		// conch writes going away is not.
+		{"2026/11/15 19:07:59.344586 [Warning] common/errors: The feature Shadowsocks (with no Forward Secrecy, etc.) is deprecated, not recommended for using and might be removed. Please migrate to VLESS Encryption as soon as possible.", "warning", true, false},
+		{`2026/11/15 19:07:59.635539 [Warning] infra/conf: The "freedom.domainStrategy" setting is deprecated and will be removed. For compatibility, its value has been automatically migrated to "sockopt.domainStrategy". Please update your config before removal.`, "warning", false, false},
 		{"2026/10/01 22:41:46.1 [Info] [11] proxy/http: request to Method [CONNECT] Host [chatgpt.com:443] with URL [//chatgpt.com:443]", "debug", false, false},
 		{"2026/10/01 22:41:46.2 [Info] [11] app/dispatcher: Hit route rule: [#3 openai.com] so taking detour [AI-Exit] for [tcp:chatgpt.com:443]", "debug", false, false},
 		{"2026/10/01 22:41:46.3 from 127.0.0.1:50312 accepted tcp:chatgpt.com:443 [›mixed -> AI-Exit]", "info", false, false},

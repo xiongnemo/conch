@@ -285,6 +285,12 @@ func (x *Xray) ObserveLog(line string) LogLine {
 		return LogLine{}
 	}
 	l := LogLine{Level: map[string]string{"Debug": "debug", "Info": "debug", "Warning": "warning", "Error": "error"}[m[1]]}
+	// xray urges moving off Shadowsocks, VMess, Trojan and WebSocket at
+	// every start; which protocol a node speaks is the provider's choice.
+	// (Settings conch writes that are deprecated say "will be removed".)
+	if strings.Contains(line, "is deprecated, not recommended for using and might be removed") {
+		l.Internal = true
+	}
 	if m[2] != "" {
 		l.Failure, l.Internal = x.sessions.observe(m[2], m[3], time.Now())
 	}
