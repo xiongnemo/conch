@@ -1,0 +1,1 @@
+警告 ../testdata/hysteria2.profile.yaml:12：节点 "跳一个端口"：sing-box 要用服务器的证书才能换算证书指纹（fingerprint），conch 还没取到，先按常规校验证书（自签证书会连不上）；取到后会自动换成按指纹校验

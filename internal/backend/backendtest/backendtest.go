@@ -15,6 +15,7 @@ import (
 	"testing"
 
 	"github.com/xiongnemo/conch/internal/backend"
+	"github.com/xiongnemo/conch/internal/certpin"
 	"github.com/xiongnemo/conch/internal/compile"
 	"github.com/xiongnemo/conch/internal/diag"
 	"github.com/xiongnemo/conch/internal/lists"
@@ -76,6 +77,28 @@ func Subscriptions(t *testing.T, p *model.Profile) map[string]*subscription.Snap
 	return snaps
 }
 
+// Pins the golden profiles use: one learned to be a leaf's, one a CA's
+// (../testdata/pin-ca.pem); any other is not learned yet.
+const (
+	LeafPin = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	CAPin   = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+)
+
+// Certs is what the golden profiles' certificate pins were learned to be.
+func Certs(pin string) (certpin.Pin, bool) {
+	switch key, _ := certpin.Normalize(pin); key {
+	case LeafPin:
+		return certpin.Pin{PublicKeySHA256: "47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU="}, true
+	case CAPin:
+		ca, err := os.ReadFile("../testdata/pin-ca.pem")
+		if err != nil {
+			panic(err)
+		}
+		return certpin.Pin{CA: string(ca)}, true
+	}
+	return certpin.Pin{}, false
+}
+
 // Build compiles a profile for a backend the way the CLI does.
 func Build(t *testing.T, b backend.Router, path string, opts backend.Options) (*backend.Artifact, diag.List) {
 	t.Helper()
@@ -101,7 +124,7 @@ func Build(t *testing.T, b backend.Router, path string, opts backend.Options) (*
 func Golden(t *testing.T, b backend.Router, ext string) {
 	for name, path := range Cases(t) {
 		t.Run(name, func(t *testing.T) {
-			art, diags := Build(t, b, path, backend.Options{Lists: Lists})
+			art, diags := Build(t, b, path, backend.Options{Lists: Lists, Certs: Certs})
 			var text strings.Builder
 			for _, d := range diags {
 				text.WriteString(d.String() + "\n")

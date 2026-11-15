@@ -164,7 +164,7 @@ conch compile --backend sing-box > $null
 预期：
 
 - mihomo 没有错误；
-- xray 和 sing-box 没有「错误」，只有几条「警告」，比如：订阅的出口组用了不同的测速地址；sing-box 无法使用 hysteria2 的证书指纹；sing-box 没有故障转移组和负载均衡组。
+- xray 和 sing-box 没有「错误」，只有几条「警告」，比如：订阅的出口组用了不同的测速地址；sing-box 还没取到 E 的服务器证书，先按常规校验（daemon 运行时会去取，取到以后再编译就没有这条警告了）；sing-box 没有故障转移组和负载均衡组。
 
 把警告抄下来。
 

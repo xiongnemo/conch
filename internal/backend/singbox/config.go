@@ -110,8 +110,12 @@ type tlsOptions struct {
 	ServerName string   `json:"server_name,omitempty"`
 	Insecure   bool     `json:"insecure,omitempty"`
 	ALPN       []string `json:"alpn,omitempty"`
-	UTLS       *utls    `json:"utls,omitempty"`
-	Reality    *reality `json:"reality,omitempty"`
+	// The two ways sing-box pins: the leaf's public key (base64
+	// SHA-256), or the only roots trusted, as PEM lines.
+	CertificatePublicKeySHA256 []string `json:"certificate_public_key_sha256,omitempty"`
+	Certificate                []string `json:"certificate,omitempty"`
+	UTLS                       *utls    `json:"utls,omitempty"`
+	Reality                    *reality `json:"reality,omitempty"`
 }
 
 type utls struct {

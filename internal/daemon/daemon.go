@@ -29,6 +29,7 @@ import (
 	"github.com/xiongnemo/conch/internal/backend/mihomo"
 	"github.com/xiongnemo/conch/internal/backend/singbox"
 	"github.com/xiongnemo/conch/internal/backend/xray"
+	"github.com/xiongnemo/conch/internal/certpin"
 	"github.com/xiongnemo/conch/internal/compile"
 	"github.com/xiongnemo/conch/internal/control"
 	"github.com/xiongnemo/conch/internal/diag"
@@ -81,6 +82,8 @@ type Daemon struct {
 	refreshing      atomic.Bool         // subscriptions are being refreshed
 	geodataTried    time.Time           // xray's geodata was last downloaded (refreshGeodata)
 	subRetry        map[string]subRetry // failed subscriptions, by name
+	certs           *certpin.Store      // certificate pins learned, for kernels that cannot check them
+	pinRetry        map[string]pinRetry // pins not learned yet, by pin (under mu)
 	backend         backend.Router
 	bin             string
 	kernelVersion   string // the installed release; empty for a kernel given by path
@@ -147,6 +150,8 @@ func New(opts Options) (*Daemon, error) {
 		subs:     &subscription.Store{Dir: filepath.Join(opts.DataDir, "subscriptions"), Offline: opts.Offline, Log: opts.Log},
 		subInfo:  map[string]*subscription.Info{},
 		subRetry: map[string]subRetry{},
+		certs:    certpin.Open(certsPath(opts.DataDir)),
+		pinRetry: map[string]pinRetry{},
 	}
 	d.lists.Proxy, d.subs.Proxy = d.kernelProxy, d.kernelProxy
 	if from := opts.SwitchedFrom; from != nil {
@@ -462,6 +467,7 @@ func (d *Daemon) build(ctx context.Context) (*compile.Result, *backend.Artifact,
 	if diags.HasErrors() {
 		return res, nil, diags, nil
 	}
+	d.learnPins(ctx, res)
 	// Nodes the kernel cannot speak run in sidecars it reaches over SOCKS5.
 	enc, forwards, err := d.planSidecars(ctx, res)
 	if err != nil {
@@ -472,7 +478,7 @@ func (d *Daemon) build(ctx context.Context) (*compile.Result, *backend.Artifact,
 	if diags.HasErrors() {
 		return res, nil, diags, nil
 	}
-	opts := backend.Options{ControllerUnix: d.socket, Lists: d.listLoader(ctx), Probes: d.probes, MinLogLevel: d.ctl.LogLevel(), Forwards: forwards}
+	opts := backend.Options{ControllerUnix: d.socket, Lists: d.listLoader(ctx), Probes: d.probes, MinLogLevel: d.ctl.LogLevel(), Forwards: forwards, Certs: d.certs.Lookup}
 	if d.controller != "" {
 		opts.ControllerUnix, opts.Controller, opts.Secret = "", d.controller, d.secret
 	}

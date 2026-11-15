@@ -53,8 +53,9 @@ func (d *Daemon) Run(ctx context.Context) error {
 }
 
 // periodic expires temporary routes and, in the background, refreshes
-// due subscriptions and rule lists, asking for a reconcile when they got
-// new content: a slow provider must not hold the daemon.
+// due subscriptions and rule lists and retries certificate pins, asking
+// for a reconcile when they got new content: a slow provider must not
+// hold the daemon.
 func (d *Daemon) periodic(ctx context.Context, changes chan<- struct{}) {
 	d.mu.Lock()
 	_, expired := d.state.prune(time.Now())
@@ -72,7 +73,8 @@ func (d *Daemon) periodic(ctx context.Context, changes chan<- struct{}) {
 		defer d.refreshing.Store(false)
 		subs := d.refreshSubscriptions(ctx, time.Now())
 		d.refreshGeodata(ctx, time.Now())
-		if lists := d.refreshLists(ctx, time.Now()); subs || lists {
+		pins := d.retryPins(ctx, time.Now())
+		if lists := d.refreshLists(ctx, time.Now()); subs || lists || pins {
 			select {
 			case changes <- struct{}{}:
 			default:

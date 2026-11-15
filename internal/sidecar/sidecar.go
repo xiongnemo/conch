@@ -6,13 +6,19 @@
 package sidecar
 
 import (
+	"cmp"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"net"
+	"strconv"
 	"strings"
 
 	"go.yaml.in/yaml/v3"
 
 	"github.com/xiongnemo/conch/internal/backend"
+	"github.com/xiongnemo/conch/internal/certpin"
 	"github.com/xiongnemo/conch/internal/compile"
 	"github.com/xiongnemo/conch/internal/diag"
 	"github.com/xiongnemo/conch/internal/model"
@@ -33,7 +39,20 @@ type Sidecar struct {
 	Proxy  string // the compiled proxy it stands in for
 	Ports  Ports
 	Config []byte
+	// Cert is the PEM file the config names CertFile(Proxy), when it
+	// pins a certificate: the roots trojan-go trusts.
+	Cert []byte
 }
+
+// FileBase names a sidecar's files, in a directory of their own.
+func FileBase(proxy string) string {
+	sum := sha256.Sum256([]byte(proxy))
+	return hex.EncodeToString(sum[:6])
+}
+
+// CertFile is the file a sidecar's pinned certificate is written to,
+// relative to the directory trojan-go runs in.
+func CertFile(proxy string) string { return FileBase(proxy) + ".pem" }
 
 // Needs reports whether a proxy is served by a sidecar.
 func Needs(p *compile.Proxy) bool {
@@ -43,8 +62,8 @@ func Needs(p *compile.Proxy) bool {
 // Plan replaces every proxy that needs a sidecar with a SOCKS5 node at its
 // local port, in a copy of res for the backend, and returns the sidecars
 // and the loopback inbounds the kernel must provide. ports must have an
-// entry for every such proxy.
-func Plan(res *compile.Result, ports map[string]Ports) (*compile.Result, []Sidecar, []backend.Forward, error) {
+// entry for every such proxy; certs has the certificate pins learned.
+func Plan(res *compile.Result, ports map[string]Ports, certs certpin.Lookup) (*compile.Result, []Sidecar, []backend.Forward, error) {
 	out := *res
 	out.Proxies = make([]*compile.Proxy, len(res.Proxies))
 	var cars []Sidecar
@@ -63,11 +82,11 @@ func Plan(res *compile.Result, ports map[string]Ports) (*compile.Result, []Sidec
 		} else {
 			forwards = append(forwards, backend.Forward{Name: compile.HopSep + "sidecar" + compile.HopSep + p.Name, Port: pp.Forward, Via: p.Upstream})
 		}
-		cfg, err := TrojanGoConfig(p.Node, pp)
+		cfg, cert, err := TrojanGoConfig(p.Node, pp, CertFile(p.Name), certs)
 		if err != nil {
 			return nil, nil, nil, fmt.Errorf("节点 %q：%w", p.Node.Name, err)
 		}
-		cars = append(cars, Sidecar{Proxy: p.Name, Ports: pp, Config: cfg})
+		cars = append(cars, Sidecar{Proxy: p.Name, Ports: pp, Config: cfg, Cert: cert})
 		local := *p
 		local.Upstream = "" // the sidecar dials through the previous hop itself
 		local.Node = socksNode(p.Node, pp.Local)
@@ -100,7 +119,8 @@ type trojanGoClient struct {
 		VerifyHostname bool     `json:"verify_hostname"`
 		SNI            string   `json:"sni,omitempty"`
 		ALPN           []string `json:"alpn,omitempty"`
-		Fingerprint    string   `json:"fingerprint,omitempty"`
+		Fingerprint    string   `json:"fingerprint,omitempty"` // uTLS: firefox, chrome or ios
+		Cert           string   `json:"cert,omitempty"`        // PEM file of the only roots trusted
 	} `json:"ssl"`
 	Mux struct {
 		Enabled bool `json:"enabled"`
@@ -126,25 +146,41 @@ type trojanGoClient struct {
 // the way Clash writes trojan nodes:
 //
 //	{ name, type: trojan-go, server, port, password, sni, alpn, skip-cert-verify,
-//	  client-fingerprint, network: ws, ws-opts: { path, headers: { Host } },
+//	  fingerprint, client-fingerprint, network: ws, ws-opts: { path, headers: { Host } },
 //	  ss-opts: { enabled, method, password }, mux: true }
-func TrojanGoConfig(n *model.Node, ports Ports) ([]byte, error) {
+//
+// fingerprint pins a certificate, as in mihomo. trojan-go cannot pin, but
+// trusts the roots in a file: with the pinned certificate learned (certpin),
+// it trusts that one alone, under the name certFile, and the PEM to write
+// there is returned. That says what a pinned CA does in mihomo; a pinned
+// leaf must then match the server name too. Until the pin is learned the
+// certificate is verified as usual.
+func TrojanGoConfig(n *model.Node, ports Ports, certFile string, certs certpin.Lookup) ([]byte, []byte, error) {
 	m := n.Raw
 	str := func(key string) string { return model.WeakString(model.Lookup(m, key)) }
 	flag := func(key string) bool { b, _ := model.WeakBool(model.Lookup(m, key)); return b }
 	c := trojanGoClient{RunType: "client", LocalAddr: "127.0.0.1", LocalPort: ports.Local, RemoteAddr: n.View.Server, RemotePort: n.View.Port, LogLevel: 2}
 	if c.RemoteAddr == "" || c.RemotePort == 0 {
-		return nil, fmt.Errorf("trojan-go 节点需要 server 和 port")
+		return nil, nil, fmt.Errorf("trojan-go 节点需要 server 和 port")
 	}
 	if pw := str("password"); pw != "" {
 		c.Password = []string{pw}
 	} else {
-		return nil, fmt.Errorf("trojan-go 节点需要 password")
+		return nil, nil, fmt.Errorf("trojan-go 节点需要 password")
 	}
 	c.SSL.Verify = !flag("skip-cert-verify")
-	c.SSL.VerifyHostname = c.SSL.Verify
 	c.SSL.SNI = cmpOr(str("sni"), str("servername"))
-	c.SSL.Fingerprint = cmpOr(str("client-fingerprint"), str("fingerprint"))
+	c.SSL.Fingerprint = str("client-fingerprint")
+	var cert []byte
+	if pin := str("fingerprint"); pin != "" {
+		c.SSL.Verify = true // a pin is checked whatever skip-cert-verify says
+		if certs != nil {
+			if p, ok := certs(pin); ok {
+				c.SSL.Cert, cert = certFile, []byte(cmp.Or(p.CA, p.Leaf))
+			}
+		}
+	}
+	c.SSL.VerifyHostname = c.SSL.Verify
 	if a := model.Lookup(m, "alpn"); a != nil && a.Kind == yaml.SequenceNode {
 		for _, v := range a.Content {
 			c.SSL.ALPN = append(c.SSL.ALPN, model.WeakString(v))
@@ -171,7 +207,24 @@ func TrojanGoConfig(n *model.Node, ports Ports) ([]byte, error) {
 	if ports.Forward != 0 {
 		c.ForwardProxy.Enabled, c.ForwardProxy.ProxyAddr, c.ForwardProxy.ProxyPort = true, "127.0.0.1", ports.Forward
 	}
-	return json.MarshalIndent(c, "", "  ")
+	b, err := json.MarshalIndent(c, "", "  ")
+	return b, cert, err
+}
+
+// PinTarget is where the certificate a trojan-go node pins is fetched.
+func PinTarget(n *model.Node) (certpin.Target, bool) {
+	str := func(key string) string { return model.WeakString(model.Lookup(n.Raw, key)) }
+	pin := str("fingerprint")
+	if pin == "" || n.View.Server == "" || n.View.Port == 0 {
+		return certpin.Target{}, false
+	}
+	t := certpin.Target{Pin: pin, Address: net.JoinHostPort(n.View.Server, strconv.Itoa(n.View.Port)), ServerName: cmp.Or(str("sni"), str("servername"), n.View.Server)}
+	if a := model.Lookup(n.Raw, "alpn"); a != nil && a.Kind == yaml.SequenceNode {
+		for _, v := range a.Content {
+			t.ALPN = append(t.ALPN, model.WeakString(v))
+		}
+	}
+	return t, true
 }
 
 func cmpOr(a, b string) string {

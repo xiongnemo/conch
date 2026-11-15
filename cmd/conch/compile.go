@@ -118,7 +118,7 @@ func newCompileCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			opts.Lists = pl.listLoader(cmd.Context())
+			opts.Lists, opts.Certs = pl.listLoader(cmd.Context()), daemon.LearnedCerts(paths.DataDir())
 			art, more := encode(res, b, opts, diags)
 			printDiags(cmd.ErrOrStderr(), more)
 			if art == nil {

@@ -36,14 +36,14 @@
       "rule": "DOMAIN-SUFFIX,a.example,跳一个端口",
       "tier": "domain",
       "key": "a.example",
-      "source": "../testdata/hysteria2.profile.yaml:17"
+      "source": "../testdata/hysteria2.profile.yaml:22"
     },
     {
       "index": 1,
       "rule": "DOMAIN-SUFFIX,b.example,经入口",
       "tier": "domain",
       "key": "b.example",
-      "source": "../testdata/hysteria2.profile.yaml:18"
+      "source": "../testdata/hysteria2.profile.yaml:23"
     },
     {
       "index": 2,
@@ -169,7 +169,7 @@
       "rule": "MATCH,端口跳跃",
       "tier": "default",
       "key": "default",
-      "source": "../testdata/hysteria2.profile.yaml:15"
+      "source": "../testdata/hysteria2.profile.yaml:20"
     }
   ]
 }

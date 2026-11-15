@@ -13,6 +13,8 @@ proxies:
     port: 443
     password: p
     sni: h.example.com
+    fingerprint: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+    skip-cert-verify: true
   - name: 端口跳跃
     type: hysteria2
     server: h.example.com
@@ -25,12 +27,15 @@ proxies:
     obfs-password: o
     up: 50
     down: 200
+    fingerprint: "BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB"
   - name: 跳一个端口
     type: hysteria2
     server: 192.0.2.9
     port: 8443
     password: p
     ports: "8443"
+    fingerprint: cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+    skip-cert-verify: true
   - name: 入口
     type: socks5
     server: 192.0.2.7
@@ -42,6 +47,8 @@ proxies:
     port: 443
     password: p
     sni: h.example.com
+    fingerprint: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+    skip-cert-verify: true
     dialer-proxy: 入口
 proxy-groups:
   - name: GLOBAL

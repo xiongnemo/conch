@@ -34,7 +34,7 @@ func (Backend) Capabilities() backend.Capabilities {
 	// xray finds processes, and routes the system into its TUN device (or
 	// conch does, on Linux), on Linux, macOS and Windows.
 	desktop := slices.Contains([]string{"linux", "darwin", "windows"}, backend.TargetOS)
-	return backend.Capabilities{ProcessMatch: desktop, KeywordMatch: true, Chains: true, TUN: desktop}
+	return backend.Capabilities{ProcessMatch: desktop, KeywordMatch: true, Chains: true, TUN: desktop, CertSHA256: true}
 }
 
 // RoutedByConch reports whether conch routes the system into xray's TUN

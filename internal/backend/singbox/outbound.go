@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/xiongnemo/conch/internal/certpin"
 	"github.com/xiongnemo/conch/internal/compile"
 	"github.com/xiongnemo/conch/internal/proto"
 )
@@ -77,7 +78,7 @@ func (e *encoder) nodeOutbound(p *compile.Proxy) (*outbound, *endpoint, []string
 		return nil, nil, nil, fmt.Errorf("sing-box 后端暂不支持 %s 协议", s.Type)
 	}
 	if s.TLS != nil {
-		t, w := tlsOf(s.TLS)
+		t, w := tlsOf(s.TLS, e.opts.Certs)
 		o.TLS = t
 		warns = append(warns, w...)
 	}
@@ -93,7 +94,7 @@ func (e *encoder) nodeOutbound(p *compile.Proxy) (*outbound, *endpoint, []string
 	return o, nil, warns, nil
 }
 
-func tlsOf(t *proto.TLS) (*tlsOptions, []string) {
+func tlsOf(t *proto.TLS, certs certpin.Lookup) (*tlsOptions, []string) {
 	o := &tlsOptions{Enabled: true, ServerName: t.SNI, Insecure: t.Insecure, ALPN: t.ALPN}
 	var warns []string
 	fp := strings.ToLower(t.Fingerprint)
@@ -109,10 +110,34 @@ func tlsOf(t *proto.TLS) (*tlsOptions, []string) {
 		o.UTLS = &utls{Enabled: true, Fingerprint: fp}
 	}
 	if t.PinSHA256 != "" {
-		// mihomo pins the certificate's hash; sing-box only the public key's.
-		warns = append(warns, "sing-box 只能固定证书公钥的 sha256，无法使用节点上的证书指纹（fingerprint），已忽略")
+		warns = append(warns, pin(o, t.PinSHA256, certs)...)
 	}
 	return o, warns
+}
+
+// pin says what a certificate pin says in sing-box's terms, which need
+// the certificate (certpin). A pin is checked whatever skip-cert-verify
+// says, as in mihomo; one not learned yet falls back on plain
+// verification rather than none.
+func pin(o *tlsOptions, sha string, certs certpin.Lookup) []string {
+	o.Insecure = false
+	if _, ok := certpin.Normalize(sha); !ok {
+		return []string{fmt.Sprintf("证书指纹（fingerprint）%q 不是 SHA-256，按常规校验证书", sha)}
+	}
+	var p certpin.Pin
+	ok := certs != nil
+	if ok {
+		p, ok = certs(sha)
+	}
+	switch {
+	case !ok:
+		return []string{"sing-box 要用服务器的证书才能换算证书指纹（fingerprint），conch 还没取到，先按常规校验证书（自签证书会连不上）；取到后会自动换成按指纹校验"}
+	case p.PublicKeySHA256 != "":
+		o.CertificatePublicKeySHA256 = []string{p.PublicKeySHA256}
+	default:
+		o.Certificate = strings.Split(strings.TrimSpace(p.CA), "\n")
+	}
+	return nil
 }
 
 func transportOf(t proto.Transport, warns *[]string) (*transport, error) {

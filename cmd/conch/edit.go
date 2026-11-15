@@ -145,7 +145,7 @@ func checkProfile(ctx context.Context, pl *pipeline, path string, content []byte
 	if err != nil {
 		return nil, err
 	}
-	_, diags = encode(res, b, backend.Options{Lists: pl.listLoader(ctx)}, diags)
+	_, diags = encode(res, b, backend.Options{Lists: pl.listLoader(ctx), Certs: daemon.LearnedCerts(paths.DataDir())}, diags)
 	return diags, nil
 }
 

@@ -3,8 +3,6 @@ package daemon
 import (
 	"bytes"
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"net"
@@ -29,8 +27,8 @@ type sidecarSet struct {
 }
 
 type sidecarProc struct {
-	sup    *kernel.Supervisor
-	config []byte
+	sup          *kernel.Supervisor
+	config, cert []byte
 }
 
 // planSidecars gives the backend a copy of res with sidecar nodes replaced
@@ -51,7 +49,7 @@ func (d *Daemon) planSidecars(ctx context.Context, res *compile.Result) (*compil
 	if err != nil {
 		return nil, nil, err
 	}
-	enc, cars, forwards, err := sidecar.Plan(res, d.sidecarPorts(res))
+	enc, cars, forwards, err := sidecar.Plan(res, d.sidecarPorts(res), d.certs.Lookup)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -137,7 +135,7 @@ func (d *Daemon) startSidecars() error {
 		want[c.Proxy] = c
 	}
 	for name, proc := range s.running {
-		if c, ok := want[name]; !ok || !bytes.Equal(c.Config, proc.config) {
+		if c, ok := want[name]; !ok || !bytes.Equal(c.Config, proc.config) || !bytes.Equal(c.Cert, proc.cert) {
 			proc.sup.Stop()
 			delete(s.running, name)
 		}
@@ -150,10 +148,14 @@ func (d *Daemon) startSidecars() error {
 		if _, ok := s.running[c.Proxy]; ok {
 			continue
 		}
-		sum := sha256.Sum256([]byte(c.Proxy))
-		path := filepath.Join(dir, hex.EncodeToString(sum[:6])+".json")
+		path := filepath.Join(dir, sidecar.FileBase(c.Proxy)+".json")
 		if err := os.WriteFile(path, c.Config, 0o600); err != nil {
 			return err
+		}
+		if c.Cert != nil {
+			if err := os.WriteFile(filepath.Join(dir, sidecar.CertFile(c.Proxy)), c.Cert, 0o600); err != nil {
+				return err
+			}
 		}
 		sup := kernel.NewSupervisor()
 		prefix := "[trojan-go " + c.Proxy + "] "
@@ -165,7 +167,7 @@ func (d *Daemon) startSidecars() error {
 		if err := sup.Start(kernel.Spec{Path: s.bin, Args: []string{"-config", path}, Dir: dir}); err != nil {
 			return fmt.Errorf("启动 %q 的 trojan-go：%w", c.Proxy, err)
 		}
-		s.running[c.Proxy] = &sidecarProc{sup: sup, config: c.Config}
+		s.running[c.Proxy] = &sidecarProc{sup: sup, config: c.Config, cert: c.Cert}
 	}
 	return nil
 }

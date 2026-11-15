@@ -8,6 +8,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/xiongnemo/conch/internal/certpin"
 	"github.com/xiongnemo/conch/internal/compile"
 	"github.com/xiongnemo/conch/internal/diag"
 	"github.com/xiongnemo/conch/internal/lists"
@@ -56,6 +57,9 @@ type Options struct {
 	// Forwards are loopback inbounds that send everything to an outbound,
 	// for sidecars in the middle of a chain.
 	Forwards []Forward
+	// Certs finds what certificate pins were learned to be, for kernels
+	// that cannot check a certificate's SHA-256 (Capabilities.CertSHA256).
+	Certs certpin.Lookup
 }
 
 // Forward is a SOCKS5 inbound on 127.0.0.1:Port whose traffic all goes
@@ -89,6 +93,7 @@ type Capabilities struct {
 	RawClash     bool // { clash: [...] } list items
 	Chains       bool
 	TUN          bool
+	CertSHA256   bool // checks a certificate pin as written; otherwise Options.Certs translates it
 }
 
 // Check reports profile features the backend cannot express, so users get

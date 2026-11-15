@@ -35,7 +35,8 @@
         "network": "hysteria",
         "security": "tls",
         "tlsSettings": {
-          "serverName": "h.example.com"
+          "serverName": "h.example.com",
+          "pinnedPeerCertSha256": "BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB"
         },
         "hysteriaSettings": {
           "version": 2,
@@ -90,7 +91,8 @@
         "network": "hysteria",
         "security": "tls",
         "tlsSettings": {
-          "serverName": "h.example.com"
+          "serverName": "h.example.com",
+          "pinnedPeerCertSha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
         },
         "hysteriaSettings": {
           "version": 2,
@@ -109,7 +111,9 @@
       "streamSettings": {
         "network": "hysteria",
         "security": "tls",
-        "tlsSettings": {},
+        "tlsSettings": {
+          "pinnedPeerCertSha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+        },
         "hysteriaSettings": {
           "version": 2,
           "auth": "p"
@@ -147,7 +151,8 @@
         "network": "hysteria",
         "security": "tls",
         "tlsSettings": {
-          "serverName": "h.example.com"
+          "serverName": "h.example.com",
+          "pinnedPeerCertSha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
         },
         "hysteriaSettings": {
           "version": 2,

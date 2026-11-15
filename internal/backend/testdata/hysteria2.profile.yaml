@@ -1,11 +1,16 @@
 # hysteria2 的常见写法，三个内核都要能编译，并交给各自的真实内核检查
 # （protocols.profile.yaml 里有 sing-box 不支持的节点，sing-box 不会为它生成配置）
 nodes:
-  - { name: 单端口, type: hysteria2, server: h.example.com, port: 443, password: p, sni: h.example.com }
+  # 证书指纹：sing-box 要换算成公钥指纹或信任的 CA（backendtest.Certs）；跳过校验的设置不再算数
+  - { name: 单端口, type: hysteria2, server: h.example.com, port: 443, password: p, sni: h.example.com,
+      fingerprint: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa, skip-cert-verify: true }
   # 分享链接 h.example.com:443,20000-30000 解析出的端口跳跃
   - { name: 端口跳跃, type: hysteria2, server: h.example.com, port: 443, password: p, sni: h.example.com,
-      ports: "443,20000-30000", hop-interval: 30, obfs: salamander, obfs-password: o, up: 50, down: 200 }
-  - { name: 跳一个端口, type: hysteria2, server: 192.0.2.9, port: 8443, password: p, ports: "8443" }
+      ports: "443,20000-30000", hop-interval: 30, obfs: salamander, obfs-password: o, up: 50, down: 200,
+      fingerprint: "BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB" }
+  # 还没取到证书的指纹：sing-box 先按常规校验
+  - { name: 跳一个端口, type: hysteria2, server: 192.0.2.9, port: 8443, password: p, ports: "8443",
+      fingerprint: cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc, skip-cert-verify: true }
   - { name: 入口, type: socks5, server: 192.0.2.7, port: 1080, udp: true }
 
 chains:

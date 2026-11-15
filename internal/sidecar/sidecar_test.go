@@ -8,10 +8,14 @@ import (
 	"strings"
 	"testing"
 
+	"go.yaml.in/yaml/v3"
+
 	"github.com/xiongnemo/conch/internal/backend"
 	"github.com/xiongnemo/conch/internal/backend/mihomo"
 	"github.com/xiongnemo/conch/internal/backend/xray"
+	"github.com/xiongnemo/conch/internal/certpin"
 	"github.com/xiongnemo/conch/internal/compile"
+	"github.com/xiongnemo/conch/internal/diag"
 	"github.com/xiongnemo/conch/internal/model"
 )
 
@@ -47,7 +51,7 @@ func plan(t *testing.T) (*compile.Result, []Sidecar, []backend.Forward) {
 	if err := res.Diags.Err(); err != nil {
 		t.Fatal(err)
 	}
-	enc, cars, fwd, err := Plan(res, map[string]Ports{"tg": {Local: 20001}, "经中转": {Local: 20002, Forward: 20003}})
+	enc, cars, fwd, err := Plan(res, map[string]Ports{"tg": {Local: 20001}, "经中转": {Local: 20002, Forward: 20003}}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -82,9 +86,45 @@ func TestPlan(t *testing.T) {
 	if c.ForwardProxy.Enabled {
 		t.Error("a sidecar that is not in a chain must dial directly")
 	}
-	if _, _, _, err := Plan(enc, nil); err != nil {
+	if _, _, _, err := Plan(enc, nil, nil); err != nil {
 		t.Errorf("planning a planned result again: %v", err)
 	}
+}
+
+// A certificate pin is checked whatever skip-cert-verify says: by trusting
+// the pinned certificate alone once it is learned, as usual until then.
+// It is not the uTLS fingerprint, which client-fingerprint is.
+func TestTrojanGoPins(t *testing.T) {
+	pin := strings.Repeat("ab", 32)
+	n := model.NewNode(mapping(t, `{ name: tg, type: trojan-go, server: tg.example.com, port: 443, password: p, skip-cert-verify: true,
+  fingerprint: "`+pin+`", client-fingerprint: chrome }`), diag.Pos{})
+	learned := func(p string) (certpin.Pin, bool) {
+		return certpin.Pin{CA: "-----BEGIN CERTIFICATE-----\n...\n"}, p == pin
+	}
+	for _, c := range []struct {
+		certs    certpin.Lookup
+		wantCert bool
+	}{{nil, false}, {func(string) (certpin.Pin, bool) { return certpin.Pin{}, false }, false}, {learned, true}} {
+		b, cert, err := TrojanGoConfig(n, Ports{Local: 20001}, "x.pem", c.certs)
+		var cfg trojanGoClient
+		json.Unmarshal(b, &cfg)
+		if err != nil || !cfg.SSL.Verify || cfg.SSL.Fingerprint != "chrome" || (cfg.SSL.Cert == "x.pem") != c.wantCert || (cert != nil) != c.wantCert {
+			t.Errorf("learned %v: %v\n%s\ncert %q", c.wantCert, err, b, cert)
+		}
+	}
+	target, ok := PinTarget(n)
+	if !ok || target.Pin != pin || target.Address != "tg.example.com:443" || target.ServerName != "tg.example.com" {
+		t.Errorf("pin target %+v", target)
+	}
+}
+
+func mapping(t *testing.T, text string) *yaml.Node {
+	t.Helper()
+	var doc yaml.Node
+	if err := yaml.Unmarshal([]byte(text), &doc); err != nil {
+		t.Fatal(err)
+	}
+	return doc.Content[0]
 }
 
 // Both kernels accept the configs with sidecars in them.
