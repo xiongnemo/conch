@@ -1,0 +1,187 @@
+{
+  "backend": "sing-box",
+  "proxies": [
+    {
+      "name": "单端口",
+      "kind": "node",
+      "node": "单端口"
+    },
+    {
+      "name": "端口跳跃",
+      "kind": "node",
+      "node": "端口跳跃"
+    },
+    {
+      "name": "跳一个端口",
+      "kind": "node",
+      "node": "跳一个端口"
+    },
+    {
+      "name": "入口",
+      "kind": "node",
+      "node": "入口"
+    },
+    {
+      "name": "经入口",
+      "kind": "chain-exit",
+      "node": "单端口",
+      "chain": "经入口",
+      "hop": 1,
+      "upstream": "入口"
+    }
+  ],
+  "rules": [
+    {
+      "index": 0,
+      "rule": "{\"domain_suffix\":[\"a.example\"],\"action\":\"route\",\"outbound\":\"跳一个端口\"}",
+      "tag": "domain_suffix=a.example",
+      "tier": "domain",
+      "key": "a.example",
+      "source": "../testdata/hysteria2.profile.yaml:17"
+    },
+    {
+      "index": 1,
+      "rule": "{\"domain_suffix\":[\"b.example\"],\"action\":\"route\",\"outbound\":\"经入口\"}",
+      "tag": "domain_suffix=b.example",
+      "tier": "domain",
+      "key": "b.example",
+      "source": "../testdata/hysteria2.profile.yaml:18"
+    },
+    {
+      "index": 2,
+      "rule": "{\"domain_suffix\":[\"home.arpa\"],\"action\":\"route\",\"outbound\":\"DIRECT\"}",
+      "tag": "domain_suffix=home.arpa",
+      "tier": "domain",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 3,
+      "rule": "{\"domain_suffix\":[\"lan\"],\"action\":\"route\",\"outbound\":\"DIRECT\"}",
+      "tag": "domain_suffix=lan",
+      "tier": "domain",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 4,
+      "rule": "{\"domain_suffix\":[\"local\"],\"action\":\"route\",\"outbound\":\"DIRECT\"}",
+      "tag": "domain_suffix=local",
+      "tier": "domain",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 5,
+      "rule": "{\"domain_suffix\":[\"localhost\"],\"action\":\"route\",\"outbound\":\"DIRECT\"}",
+      "tag": "domain_suffix=localhost",
+      "tier": "domain",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 6,
+      "rule": "{\"ip_cidr\":[\"::1/128\"],\"action\":\"route\",\"outbound\":\"DIRECT\"}",
+      "tag": "ip_cidr=::1/128",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 7,
+      "rule": "{\"ip_cidr\":[\"255.255.255.255/32\"],\"action\":\"route\",\"outbound\":\"DIRECT\"}",
+      "tag": "ip_cidr=255.255.255.255/32",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 8,
+      "rule": "{\"ip_cidr\":[\"169.254.0.0/16\"],\"action\":\"route\",\"outbound\":\"DIRECT\"}",
+      "tag": "ip_cidr=169.254.0.0/16",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 9,
+      "rule": "{\"ip_cidr\":[\"192.168.0.0/16\"],\"action\":\"route\",\"outbound\":\"DIRECT\"}",
+      "tag": "ip_cidr=192.168.0.0/16",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 10,
+      "rule": "{\"ip_cidr\":[\"172.16.0.0/12\"],\"action\":\"route\",\"outbound\":\"DIRECT\"}",
+      "tag": "ip_cidr=172.16.0.0/12",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 11,
+      "rule": "{\"ip_cidr\":[\"100.64.0.0/10\"],\"action\":\"route\",\"outbound\":\"DIRECT\"}",
+      "tag": "ip_cidr=100.64.0.0/10",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 12,
+      "rule": "{\"ip_cidr\":[\"fe80::/10\"],\"action\":\"route\",\"outbound\":\"DIRECT\"}",
+      "tag": "ip_cidr=fe80::/10",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 13,
+      "rule": "{\"ip_cidr\":[\"0.0.0.0/8\"],\"action\":\"route\",\"outbound\":\"DIRECT\"}",
+      "tag": "ip_cidr=0.0.0.0/8",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 14,
+      "rule": "{\"ip_cidr\":[\"10.0.0.0/8\"],\"action\":\"route\",\"outbound\":\"DIRECT\"}",
+      "tag": "ip_cidr=10.0.0.0/8",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 15,
+      "rule": "{\"ip_cidr\":[\"127.0.0.0/8\"],\"action\":\"route\",\"outbound\":\"DIRECT\"}",
+      "tag": "ip_cidr=127.0.0.0/8",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 16,
+      "rule": "{\"ip_cidr\":[\"ff00::/8\"],\"action\":\"route\",\"outbound\":\"DIRECT\"}",
+      "tag": "ip_cidr=ff00::/8",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 17,
+      "rule": "{\"ip_cidr\":[\"fc00::/7\"],\"action\":\"route\",\"outbound\":\"DIRECT\"}",
+      "tag": "ip_cidr=fc00::/7",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 18,
+      "rule": "{\"ip_cidr\":[\"224.0.0.0/4\"],\"action\":\"route\",\"outbound\":\"DIRECT\"}",
+      "tag": "ip_cidr=224.0.0.0/4",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    }
+  ]
+}

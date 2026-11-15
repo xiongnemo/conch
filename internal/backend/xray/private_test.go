@@ -53,3 +53,24 @@ func TestNodesXrayNoLongerTakes(t *testing.T) {
 		}
 	}
 }
+
+// A chain may end in hysteria2, but not in hysteria2 that hops ports:
+// xray loses the server's address on the first hop.
+func TestHoppingHysteria2NotInChain(t *testing.T) {
+	for ports, ok := range map[string]bool{"": true, `, ports: "20000-30000"`: false} {
+		profile := filepath.Join(t.TempDir(), "profile.yaml")
+		os.WriteFile(profile, []byte(`nodes:
+  - { name: s, type: socks5, server: 192.0.2.7, port: 1080, udp: true }
+  - { name: h, type: hysteria2, server: 203.0.114.1, port: 443, password: p`+ports+` }
+routes: { default: [s, h] }
+`), 0o644)
+		art, d := backendtest.Build(t, Backend{}, profile, backend.Options{})
+		text := ""
+		for _, x := range d {
+			text += x.String() + "\n"
+		}
+		if ok != (art != nil) || !ok && !strings.Contains(text, "不能放在链里") {
+			t.Errorf("ports %q: config made: %v\n%s", ports, art != nil, text)
+		}
+	}
+}

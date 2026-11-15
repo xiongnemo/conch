@@ -1,0 +1,247 @@
+{
+  "log": {
+    "level": "info",
+    "timestamp": true
+  },
+  "dns": {
+    "servers": [
+      {
+        "type": "local",
+        "tag": "local"
+      }
+    ],
+    "final": "local",
+    "strategy": "ipv4_only"
+  },
+  "inbounds": [
+    {
+      "type": "mixed",
+      "tag": "›mixed",
+      "listen": "127.0.0.1",
+      "listen_port": 7890
+    }
+  ],
+  "outbounds": [
+    {
+      "type": "direct",
+      "tag": "DIRECT"
+    },
+    {
+      "type": "hysteria2",
+      "tag": "单端口",
+      "server": "h.example.com",
+      "server_port": 443,
+      "password": "p",
+      "tls": {
+        "enabled": true,
+        "server_name": "h.example.com"
+      }
+    },
+    {
+      "type": "hysteria2",
+      "tag": "端口跳跃",
+      "server": "h.example.com",
+      "password": "p",
+      "server_ports": [
+        "443:443",
+        "20000:30000"
+      ],
+      "hop_interval": "30s",
+      "up_mbps": 50,
+      "down_mbps": 200,
+      "obfs": {
+        "type": "salamander",
+        "password": "o"
+      },
+      "tls": {
+        "enabled": true,
+        "server_name": "h.example.com"
+      }
+    },
+    {
+      "type": "hysteria2",
+      "tag": "跳一个端口",
+      "server": "192.0.2.9",
+      "password": "p",
+      "server_ports": [
+        "8443:8443"
+      ],
+      "tls": {
+        "enabled": true
+      }
+    },
+    {
+      "type": "socks",
+      "tag": "入口",
+      "server": "192.0.2.7",
+      "server_port": 1080,
+      "version": "5"
+    },
+    {
+      "type": "hysteria2",
+      "tag": "经入口",
+      "server": "h.example.com",
+      "server_port": 443,
+      "password": "p",
+      "tls": {
+        "enabled": true,
+        "server_name": "h.example.com"
+      },
+      "detour": "入口"
+    },
+    {
+      "type": "selector",
+      "tag": "GLOBAL",
+      "outbounds": [
+        "端口跳跃",
+        "经入口",
+        "单端口",
+        "跳一个端口",
+        "入口",
+        "DIRECT"
+      ]
+    }
+  ],
+  "route": {
+    "rules": [
+      {
+        "action": "sniff"
+      },
+      {
+        "domain_suffix": [
+          "a.example"
+        ],
+        "action": "route",
+        "outbound": "跳一个端口"
+      },
+      {
+        "domain_suffix": [
+          "b.example"
+        ],
+        "action": "route",
+        "outbound": "经入口"
+      },
+      {
+        "domain_suffix": [
+          "home.arpa"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "domain_suffix": [
+          "lan"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "domain_suffix": [
+          "local"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "domain_suffix": [
+          "localhost"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "ip_cidr": [
+          "::1/128"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "ip_cidr": [
+          "255.255.255.255/32"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "ip_cidr": [
+          "169.254.0.0/16"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "ip_cidr": [
+          "192.168.0.0/16"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "ip_cidr": [
+          "172.16.0.0/12"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "ip_cidr": [
+          "100.64.0.0/10"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "ip_cidr": [
+          "fe80::/10"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "ip_cidr": [
+          "0.0.0.0/8"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "ip_cidr": [
+          "10.0.0.0/8"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "ip_cidr": [
+          "127.0.0.0/8"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "ip_cidr": [
+          "ff00::/8"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "ip_cidr": [
+          "fc00::/7"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "ip_cidr": [
+          "224.0.0.0/4"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      }
+    ],
+    "final": "端口跳跃",
+    "default_domain_resolver": "local"
+  }
+}

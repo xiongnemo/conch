@@ -1,0 +1,76 @@
+# 由 conch 生成，请不要手动修改；需要改动时请编辑 profile.yaml
+
+mixed-port: 7890
+allow-lan: false
+mode: rule
+log-level: info
+profile:
+  store-selected: true
+proxies:
+  - name: 单端口
+    type: hysteria2
+    server: h.example.com
+    port: 443
+    password: p
+    sni: h.example.com
+  - name: 端口跳跃
+    type: hysteria2
+    server: h.example.com
+    port: 443
+    password: p
+    sni: h.example.com
+    ports: "443,20000-30000"
+    hop-interval: 30
+    obfs: salamander
+    obfs-password: o
+    up: 50
+    down: 200
+  - name: 跳一个端口
+    type: hysteria2
+    server: 192.0.2.9
+    port: 8443
+    password: p
+    ports: "8443"
+  - name: 入口
+    type: socks5
+    server: 192.0.2.7
+    port: 1080
+    udp: true
+  - name: 经入口
+    type: hysteria2
+    server: h.example.com
+    port: 443
+    password: p
+    sni: h.example.com
+    dialer-proxy: 入口
+proxy-groups:
+  - name: GLOBAL
+    type: select
+    proxies:
+      - 端口跳跃
+      - 经入口
+      - 单端口
+      - 跳一个端口
+      - 入口
+      - DIRECT
+rules:
+  - DOMAIN-SUFFIX,a.example,跳一个端口
+  - DOMAIN-SUFFIX,b.example,经入口
+  - DOMAIN-SUFFIX,home.arpa,DIRECT
+  - DOMAIN-SUFFIX,lan,DIRECT
+  - DOMAIN-SUFFIX,local,DIRECT
+  - DOMAIN-SUFFIX,localhost,DIRECT
+  - IP-CIDR6,::1/128,DIRECT,no-resolve
+  - IP-CIDR,255.255.255.255/32,DIRECT,no-resolve
+  - IP-CIDR,169.254.0.0/16,DIRECT,no-resolve
+  - IP-CIDR,192.168.0.0/16,DIRECT,no-resolve
+  - IP-CIDR,172.16.0.0/12,DIRECT,no-resolve
+  - IP-CIDR,100.64.0.0/10,DIRECT,no-resolve
+  - IP-CIDR6,fe80::/10,DIRECT,no-resolve
+  - IP-CIDR,0.0.0.0/8,DIRECT,no-resolve
+  - IP-CIDR,10.0.0.0/8,DIRECT,no-resolve
+  - IP-CIDR,127.0.0.0/8,DIRECT,no-resolve
+  - IP-CIDR6,ff00::/8,DIRECT,no-resolve
+  - IP-CIDR6,fc00::/7,DIRECT,no-resolve
+  - IP-CIDR,224.0.0.0/4,DIRECT,no-resolve
+  - MATCH,端口跳跃

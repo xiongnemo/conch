@@ -56,10 +56,7 @@ func (e *encoder) nodeOutbound(p *compile.Proxy) (*outbound, *endpoint, []string
 			}
 			o.UpMbps, o.DownMbps = mbps(h.Up), mbps(h.Down)
 			if h.Ports != "" {
-				// sing-box writes ranges as "start:end" and wants no server_port then.
-				for _, r := range strings.Split(h.Ports, ",") {
-					o.ServerPorts = append(o.ServerPorts, strings.Replace(strings.TrimSpace(r), "-", ":", 1))
-				}
+				o.ServerPorts = serverPorts(h.Ports)
 				o.ServerPort = 0
 				if h.HopInterval > 0 {
 					o.HopInterval = strconv.Itoa(h.HopInterval) + "s"
@@ -181,6 +178,23 @@ func (e *encoder) dial(upstream string, s proto.Sockopt) dial {
 		d = dial{Detour: upstream} // the other dial fields are ignored with a detour
 	}
 	return d
+}
+
+// serverPorts writes hopping ports ("443,20000-30000") the way sing-box
+// wants them: every entry a "start:end" range, a single port included.
+func serverPorts(ports string) []string {
+	var out []string
+	for _, r := range strings.Split(ports, ",") {
+		r = strings.Replace(strings.TrimSpace(r), "-", ":", 1)
+		if r == "" {
+			continue
+		}
+		if !strings.Contains(r, ":") {
+			r += ":" + r
+		}
+		out = append(out, r)
+	}
+	return out
 }
 
 // mbps reads a bandwidth like "100 Mbps" or "100" as megabits per second.

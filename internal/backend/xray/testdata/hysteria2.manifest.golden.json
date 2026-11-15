@@ -1,0 +1,72 @@
+{
+  "backend": "xray",
+  "proxies": [
+    {
+      "name": "单端口",
+      "kind": "node",
+      "node": "单端口"
+    },
+    {
+      "name": "端口跳跃",
+      "kind": "node",
+      "node": "端口跳跃"
+    },
+    {
+      "name": "跳一个端口",
+      "kind": "node",
+      "node": "跳一个端口"
+    },
+    {
+      "name": "入口",
+      "kind": "node",
+      "node": "入口"
+    },
+    {
+      "name": "经入口",
+      "kind": "chain-exit",
+      "node": "单端口",
+      "chain": "经入口",
+      "hop": 1,
+      "upstream": "入口"
+    }
+  ],
+  "rules": [
+    {
+      "index": 0,
+      "rule": "{\"domain\":[\"domain:a.example\"],\"outboundTag\":\"跳一个端口\",\"ruleTag\":\"#0 a.example\"}",
+      "tag": "#0 a.example",
+      "tier": "domain",
+      "key": "a.example",
+      "source": "../testdata/hysteria2.profile.yaml:17"
+    },
+    {
+      "index": 1,
+      "rule": "{\"domain\":[\"domain:b.example\"],\"outboundTag\":\"经入口\",\"ruleTag\":\"#1 b.example\"}",
+      "tag": "#1 b.example",
+      "tier": "domain",
+      "key": "b.example",
+      "source": "../testdata/hysteria2.profile.yaml:18"
+    },
+    {
+      "index": 2,
+      "last": 5,
+      "rule": "{\"domain\":[\"domain:home.arpa\",\"domain:lan\",\"domain:local\",\"domain:localhost\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#2-5 lan\"}",
+      "tag": "#2-5 lan",
+      "tier": "domain",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 6,
+      "last": 18,
+      "rule": "{\"ip\":[\"::1/128\",\"255.255.255.255/32\",\"169.254.0.0/16\",\"192.168.0.0/16\",\"172.16.0.0/12\",\"100.64.0.0/10\",\"fe80::/10\",\"0.0.0.0/8\",\"10.0.0.0/8\",\"127.0.0.0/8\",\"ff00::/8\",\"fc00::/7\",\"224.0.0.0/4\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#6-18 lan\"}",
+      "tag": "#6-18 lan",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    }
+  ],
+  "tags": {
+    "REJECT": "REJECT»"
+  }
+}

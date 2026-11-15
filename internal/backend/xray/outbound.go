@@ -64,7 +64,10 @@ func (e *encoder) nodeOutbound(p *compile.Proxy) (outbound, []string, error) {
 		o.Settings = userPassSettings{serverSettings: srv, User: s.Username, Pass: s.Password, Headers: s.Headers}
 	case "hysteria2":
 		if p.Upstream != "" && s.Hysteria.Ports != "" {
-			return o, nil, fmt.Errorf("xray 还不能把带端口跳跃（ports）的 hysteria2 节点放在链里")
+			// Through a dialerProxy, xray v26.11.9's udphop sends to
+			// 0.0.0.0:<port> after its first hop, and the chain goes dead
+			// (seen with a real server; sing-box hops through chains fine).
+			return o, nil, fmt.Errorf("xray 跳端口后，在链里会连不上：带端口跳跃（ports）的 hysteria2 节点不能放在链里。去掉 ports，或者换用 mihomo、sing-box 内核")
 		}
 		o.Protocol = "hysteria"
 		o.Settings = hysteriaOutSettings{Version: 2, serverSettings: srv}
