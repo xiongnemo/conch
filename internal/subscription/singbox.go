@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"maps"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -227,6 +228,19 @@ func singBoxSpec(o obj) (*proto.Spec, []string, error) {
 			h.HopMax = max(seconds(o.str("hop_interval_max")), h.HopMin)
 		}
 		h.BBRProfile = o.str("bbr_profile")
+		if rl := o.sub("realm"); rl != nil {
+			h.Realm = &proto.Realm{ServerURL: rl.str("server_url"), Token: rl.str("token"), RealmID: rl.str("realm_id"), STUN: rl.strs("stun_servers")}
+			if t := rl.sub("http_client").sub("tls"); t != nil && t.flag("enabled") {
+				tls, w := singBoxTLS(t)
+				h.Realm.TLS, warns = tls, append(warns, w...)
+			}
+			// mihomo wants a server and port, which the realm overrides.
+			if s.Server == "" {
+				if u, err := url.Parse(h.Realm.ServerURL); err == nil {
+					s.Server, s.Port = u.Hostname(), 443
+				}
+			}
+		}
 		h.MaxStreamWindow, h.MaxConnWindow = uint64(o.num("stream_receive_window")), uint64(o.num("connection_receive_window"))
 	case "tuic":
 		s.Type, s.UUID, s.Password = "tuic", o.str("uuid"), o.str("password")

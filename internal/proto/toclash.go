@@ -110,6 +110,30 @@ func ToClash(name string, s *Spec) *yaml.Node {
 				m.int("obfs-max-packet-size", h.ObfsMaxPacket)
 			}
 			m.str("bbr-profile", h.BBRProfile)
+			if rl := h.Realm; rl != nil {
+				o := &mapping{n: &yaml.Node{Kind: yaml.MappingNode}}
+				o.bool("enable", true)
+				o.str("server-url", rl.ServerURL)
+				o.str("token", rl.Token)
+				o.str("realm-id", rl.RealmID)
+				if len(rl.STUN) > 0 {
+					o.strs("stun-servers", rl.STUN)
+				}
+				if t := rl.TLS; t != nil {
+					o.str("sni", t.SNI)
+					if t.Insecure {
+						o.bool("skip-cert-verify", true)
+					}
+					o.str("name-cert-verify", t.VerifyName)
+					o.str("fingerprint", t.PinSHA256)
+					o.str("certificate", t.Certificate)
+					o.str("private-key", t.PrivateKey)
+					if len(t.ALPN) > 0 {
+						o.strs("alpn", t.ALPN)
+					}
+				}
+				m.node("realm-opts", o.n)
+			}
 			for _, w := range []struct {
 				key string
 				v   uint64

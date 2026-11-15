@@ -357,3 +357,10 @@ type observatory struct {
 	ProbeInterval     string   `json:"probeInterval"`
 	EnableConcurrency bool     `json:"enableConcurrency"`
 }
+
+// realmSettings: a Hysteria realm, the rendezvous that finds the server.
+type realmSettings struct {
+	URL         string       `json:"url"`
+	STUNServers []string     `json:"stunServers"`
+	TLSConfig   *tlsSettings `json:"tlsConfig,omitempty"`
+}

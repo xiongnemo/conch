@@ -105,6 +105,16 @@ func (e *encoder) nodeOutbound(p *compile.Proxy) (*outbound, *endpoint, []string
 				return nil, nil, nil, fmt.Errorf("sing-box 不认识 hysteria2 混淆 %q", h.Obfs)
 			}
 			o.UpMbps, o.DownMbps = mbps(h.Up), mbps(h.Down)
+			if rl := h.Realm; rl != nil {
+				// The realm finds the server; sing-box takes no address with it.
+				o.Realm = &realm{ServerURL: rl.ServerURL, Token: rl.Token, RealmID: rl.RealmID, STUNServers: rl.STUN}
+				if rl.TLS != nil && strings.HasPrefix(rl.ServerURL, "https") {
+					t, w := tlsOf(rl.TLS, e.opts.Certs)
+					o.Realm.HTTPClient = &httpClient{TLS: t}
+					warns = append(warns, w...)
+				}
+				o.Server, o.ServerPort, h.Ports = "", 0, ""
+			}
 			// sing-box sets one window of each kind, which quic-go grows to.
 			o.BBRProfile, o.StreamWindow, o.ConnWindow = h.BBRProfile, cmp.Or(h.MaxStreamWindow, h.InitStreamWindow), cmp.Or(h.MaxConnWindow, h.InitConnWindow)
 			if h.Ports != "" {

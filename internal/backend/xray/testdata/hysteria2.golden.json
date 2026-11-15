@@ -171,6 +171,42 @@
       }
     },
     {
+      "tag": "realm",
+      "protocol": "hysteria",
+      "settings": {
+        "version": 2,
+        "address": "192.0.2.12",
+        "port": 443
+      },
+      "streamSettings": {
+        "network": "hysteria",
+        "security": "tls",
+        "tlsSettings": {
+          "serverName": "h.example.com"
+        },
+        "hysteriaSettings": {
+          "version": 2,
+          "auth": "p"
+        },
+        "finalmask": {
+          "udp": [
+            {
+              "type": "realm",
+              "settings": {
+                "url": "realm://t@realm.example.com/r1",
+                "stunServers": [
+                  "stun.example.com:3478"
+                ],
+                "tlsConfig": {
+                  "serverName": "realm.example.com"
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
       "tag": "入口",
       "protocol": "socks",
       "settings": {
@@ -242,13 +278,20 @@
       },
       {
         "domain": [
+          "domain:d.example"
+        ],
+        "outboundTag": "realm",
+        "ruleTag": "#3 d.example"
+      },
+      {
+        "domain": [
           "domain:home.arpa",
           "domain:lan",
           "domain:local",
           "domain:localhost"
         ],
         "outboundTag": "DIRECT",
-        "ruleTag": "#3-6 lan"
+        "ruleTag": "#4-7 lan"
       },
       {
         "ip": [
@@ -267,7 +310,7 @@
           "224.0.0.0/4"
         ],
         "outboundTag": "DIRECT",
-        "ruleTag": "#7-19 lan"
+        "ruleTag": "#8-20 lan"
       }
     ],
     "balancers": [

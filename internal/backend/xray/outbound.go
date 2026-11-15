@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"fmt"
 	"net"
+	"net/url"
 	"slices"
 	"strconv"
 	"strings"
@@ -90,6 +91,21 @@ func (e *encoder) nodeOutbound(p *compile.Proxy) (outbound, []string, error) {
 		st.Network = "hysteria"
 		st.HysteriaSettings = &hysteriaSettings{Version: 2, Auth: s.Password}
 		st.FinalMask = hysteriaMask(s.Hysteria, &warns)
+		if rl := s.Hysteria.Realm; rl != nil {
+			m, err := realmMask(rl, &warns)
+			if err != nil {
+				return o, nil, err
+			}
+			if st.FinalMask == nil {
+				st.FinalMask = &finalMask{}
+			}
+			// The realm finds the server: it comes first, and port hopping,
+			// which would pick another server port, has no place with it.
+			if len(st.FinalMask.UDP) > 0 && st.FinalMask.UDP[0].Type == "udphop" {
+				st.FinalMask.UDP = st.FinalMask.UDP[1:]
+			}
+			st.FinalMask.UDP = append([]mask{m}, st.FinalMask.UDP...)
+		}
 	case "direct":
 		o.Protocol = "freedom" // with the node's socket options, below
 	case "reject":
@@ -496,4 +512,29 @@ func (e *encoder) download(st *streamSettings, d *proto.XHTTPDownload, warns *[]
 	}
 	st.XHTTPSettings.Download = ds
 	return nil
+}
+
+// realmMask is a Hysteria realm as xray's realm mask: the rendezvous
+// server as realm://token@host:port/id (realm+http:// over plain HTTP).
+func realmMask(rl *proto.Realm, warns *[]string) (mask, error) {
+	u, err := url.Parse(rl.ServerURL)
+	if err != nil || u.Host == "" {
+		return mask{}, fmt.Errorf("realm 的 server-url %q 不是网址", rl.ServerURL)
+	}
+	scheme := "realm"
+	if u.Scheme == "http" {
+		scheme = "realm+http"
+	}
+	ru := url.URL{Scheme: scheme, User: url.User(rl.Token), Host: u.Host, Path: "/" + rl.RealmID}
+	settings := realmSettings{URL: ru.String(), STUNServers: rl.STUN}
+	if t := rl.TLS; t != nil && scheme == "realm" {
+		if t.Certificate != "" || t.PrivateKey != "" {
+			return mask{}, fmt.Errorf("xray 连 realm 服务器时不能出示客户端证书")
+		}
+		if t.Insecure && t.PinSHA256 == "" {
+			*warns = append(*warns, "xray 连 realm 服务器时不能跳过证书校验，按常规校验")
+		}
+		settings.TLSConfig = &tlsSettings{ServerName: t.SNI, ALPN: t.ALPN, PinnedPeerCertSha256: t.PinSHA256, VerifyPeerCertByName: t.VerifyName}
+	}
+	return mask{Type: "realm", Settings: settings}, nil
 }

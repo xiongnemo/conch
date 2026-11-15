@@ -108,6 +108,29 @@
       }
     },
     {
+      "type": "hysteria2",
+      "tag": "realm",
+      "password": "p",
+      "realm": {
+        "server_url": "https://realm.example.com",
+        "token": "t",
+        "realm_id": "r1",
+        "stun_servers": [
+          "stun.example.com:3478"
+        ],
+        "http_client": {
+          "tls": {
+            "enabled": true,
+            "server_name": "realm.example.com"
+          }
+        }
+      },
+      "tls": {
+        "enabled": true,
+        "server_name": "h.example.com"
+      }
+    },
+    {
       "type": "socks",
       "tag": "入口",
       "server": "192.0.2.7",
@@ -138,6 +161,7 @@
         "单端口",
         "跳一个端口",
         "gecko",
+        "realm",
         "入口",
         "DIRECT"
       ]
@@ -168,6 +192,13 @@
         ],
         "action": "route",
         "outbound": "gecko"
+      },
+      {
+        "domain_suffix": [
+          "d.example"
+        ],
+        "action": "route",
+        "outbound": "realm"
       },
       {
         "domain_suffix": [

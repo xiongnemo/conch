@@ -167,8 +167,17 @@ type Hysteria struct {
 	// gecko obfuscation pads packets to sizes in this range.
 	ObfsMinPacket, ObfsMaxPacket int
 	BBRProfile                   string
+	Realm                        *Realm // reach the server through a Hysteria realm
 	// QUIC flow-control windows, bytes; 0 is the kernel's default.
 	InitStreamWindow, MaxStreamWindow, InitConnWindow, MaxConnWindow uint64
+}
+
+// Realm is a Hysteria 2 realm: a rendezvous server that brings client and
+// server together through NAT, with STUN; TLS is the realm server's.
+type Realm struct {
+	ServerURL, Token, RealmID string
+	STUN                      []string
+	TLS                       *TLS
 }
 
 // TUIC v5 (UUID and Password), or v4 with a token.

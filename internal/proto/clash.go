@@ -97,6 +97,15 @@ func FromClash(m *yaml.Node) *Spec {
 			InitConnWindow:   uint64(r.int("initial-connection-receive-window")),
 			MaxConnWindow:    uint64(r.int("max-connection-receive-window")),
 		}
+		if o := r.sub("realm-opts"); o != nil {
+			if o.bool("enable") {
+				s.Hysteria.Realm = &Realm{ServerURL: o.str("server-url"), Token: o.str("token"), RealmID: o.str("realm-id"), STUN: o.strs("stun-servers"),
+					TLS: &TLS{SNI: o.str("sni"), Insecure: o.bool("skip-cert-verify"), VerifyName: o.str("name-cert-verify"), PinSHA256: o.str("fingerprint"),
+						Certificate: o.str("certificate"), PrivateKey: o.str("private-key"), ALPN: o.strs("alpn")}}
+			} else {
+				o.ignoreAll()
+			}
+		}
 		if v := r.str("hop-interval"); v != "" {
 			lo, hi, ok := IntRange(v)
 			if !ok {

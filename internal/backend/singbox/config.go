@@ -86,6 +86,7 @@ type outbound struct {
 	DownMbps       int      `json:"down_mbps,omitempty"`
 	Obfs           any      `json:"obfs,omitempty"` // hysteria2: *obfs; hysteria: the password
 	BBRProfile     string   `json:"bbr_profile,omitempty"`
+	Realm          *realm   `json:"realm,omitempty"`
 	StreamWindow   uint64   `json:"stream_receive_window,omitempty"`
 	ConnWindow     uint64   `json:"connection_receive_window,omitempty"`
 
@@ -132,6 +133,15 @@ type dial struct {
 type domainResolver struct {
 	Server   string `json:"server"`
 	Strategy string `json:"strategy,omitempty"`
+}
+
+// realm: a Hysteria realm, the rendezvous that finds the server.
+type realm struct {
+	ServerURL   string      `json:"server_url"`
+	Token       string      `json:"token,omitempty"`
+	RealmID     string      `json:"realm_id"`
+	STUNServers []string    `json:"stun_servers"`
+	HTTPClient  *httpClient `json:"http_client,omitempty"`
 }
 
 type udpOverTCP struct {
@@ -269,9 +279,11 @@ type ruleSet struct {
 	UpdateInterval string     `json:"update_interval,omitempty"`
 }
 
-// httpClient downloads remote rule sets; with a detour, through the proxy.
+// httpClient: rule sets downloaded with a detour, through the proxy; a
+// realm server reached with its own TLS.
 type httpClient struct {
-	Detour string `json:"detour,omitempty"`
+	Detour string      `json:"detour,omitempty"`
+	TLS    *tlsOptions `json:"tls,omitempty"`
 }
 
 type experimental struct {

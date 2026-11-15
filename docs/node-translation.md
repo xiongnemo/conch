@@ -33,6 +33,7 @@ profile 是 conch 统一的配置，节点用 mihomo（Clash Meta）的写法。
 | `smux`（sing-mux，含 Brutal） | ≈ 不用多路复用 | ✓ |
 | hysteria2 端口跳跃 | ✓，但不能放在链里 | ✓ |
 | hysteria2 跳跃间隔范围、gecko 混淆、BBR、QUIC 窗口 | ✓ | ✓ |
+| hysteria2 经由 realm 找到服务器（`realm-opts`） | ✓（realm 掩码） | ✓ |
 | hysteria2 `cwnd`、`udp-mtu` | ✗（警告后忽略） | ✗（警告后忽略） |
 | wireguard `persistent-keepalive` | ✓ | ✓ |
 | wireguard `workers` | ≈ 用 xray 自己的 | ✓ |
