@@ -121,13 +121,13 @@ func (d *Daemon) compileNode(n *yaml.Node) (errs, warns []string) {
 	diags := res.Diags
 	switch {
 	case diags.HasErrors():
-	case len(res.Proxies) > 0 && slices.ContainsFunc(res.Proxies, sidecar.Needs):
-		for _, p := range res.Proxies {
-			if sidecar.Needs(p) {
-				if _, _, err := sidecar.TrojanGoConfig(p.Node, sidecar.Ports{Local: 1}, "", nil); err != nil {
-					diags.Errorf(diag.Pos{}, "%v", err)
-				}
-			}
+	case len(res.Proxies) > 0 && sidecar.Needs(res.Proxies[0], d.backend.Capabilities().TrojanSS):
+		_, _, warns, err := sidecar.TrojanGoConfig(res.Proxies[0].Node, sidecar.Ports{Local: 1}, "", nil)
+		if err != nil {
+			diags.Errorf(diag.Pos{}, "%v", err)
+		}
+		for _, w := range warns {
+			diags.Warnf(diag.Pos{}, "%s", w)
 		}
 	default:
 		diags = append(diags, backend.Check(res, d.backend.Capabilities(), d.backend.Name())...)

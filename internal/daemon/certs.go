@@ -42,7 +42,7 @@ func (d *Daemon) pinTargets(res *compile.Result) ([]certpin.Target, map[string]s
 		var t certpin.Target
 		ok := false
 		switch {
-		case sidecar.Needs(p):
+		case sidecar.Needs(p, d.backend.Capabilities().TrojanSS):
 			t, ok = sidecar.PinTarget(p.Node)
 		case all:
 			t, ok = certpin.TargetOf(proto.FromClash(p.Node.Raw))

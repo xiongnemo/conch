@@ -94,6 +94,7 @@ type Capabilities struct {
 	Chains       bool
 	TUN          bool
 	CertSHA256   bool // checks a certificate pin as written; otherwise Options.Certs translates it
+	TrojanSS     bool // Trojan with an inner shadowsocks layer (ss-opts); otherwise a trojan-go sidecar serves it
 }
 
 // Check reports profile features the backend cannot express, so users get

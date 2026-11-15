@@ -13,6 +13,7 @@ import (
 
 	"github.com/xiongnemo/conch/internal/backend"
 	"github.com/xiongnemo/conch/internal/compile"
+	"github.com/xiongnemo/conch/internal/diag"
 	"github.com/xiongnemo/conch/internal/kernel"
 	"github.com/xiongnemo/conch/internal/kernels"
 	"github.com/xiongnemo/conch/internal/sidecar"
@@ -34,29 +35,30 @@ type sidecarProc struct {
 // planSidecars gives the backend a copy of res with sidecar nodes replaced
 // by SOCKS5 nodes at their local ports, and remembers the sidecars to
 // start once the config is applied.
-func (d *Daemon) planSidecars(ctx context.Context, res *compile.Result) (*compile.Result, []backend.Forward, error) {
+func (d *Daemon) planSidecars(ctx context.Context, res *compile.Result) (*compile.Result, []backend.Forward, diag.List, error) {
 	needed := false
+	trojanSS := d.backend.Capabilities().TrojanSS
 	for _, p := range res.Proxies {
-		needed = needed || sidecar.Needs(p)
+		needed = needed || sidecar.Needs(p, trojanSS)
 	}
 	if !needed {
 		d.sidecars.mu.Lock()
 		d.sidecars.next = nil
 		d.sidecars.mu.Unlock()
-		return res, nil, nil
+		return res, nil, nil, nil
 	}
 	bin, err := d.sidecarBin(ctx)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
-	enc, cars, forwards, err := sidecar.Plan(res, d.sidecarPorts(res), d.certs.Lookup)
+	enc, cars, forwards, diags, err := sidecar.Plan(res, d.sidecarPorts(res), d.certs.Lookup, trojanSS)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	d.sidecars.mu.Lock()
 	d.sidecars.next, d.sidecars.bin = cars, bin
 	d.sidecars.mu.Unlock()
-	return enc, forwards, nil
+	return enc, forwards, diags, nil
 }
 
 // sidecarBin finds trojan-go, downloading it the first time it is needed.
@@ -86,8 +88,9 @@ func (d *Daemon) sidecarPorts(res *compile.Result) map[string]sidecar.Ports {
 	}
 	ports := map[string]sidecar.Ports{}
 	changed := false
+	trojanSS := d.backend.Capabilities().TrojanSS
 	for _, p := range res.Proxies {
-		if !sidecar.Needs(p) {
+		if !sidecar.Needs(p, trojanSS) {
 			continue
 		}
 		pp := d.state.Sidecars[p.Name]

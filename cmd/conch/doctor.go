@@ -50,10 +50,14 @@ func newDoctorCmd() *cobra.Command {
 				default:
 					d.ok("profile 没有问题（%s）", pl.profilePath)
 					port, tunWanted = res.Settings.MixedPort, res.Settings.TUN.Enable
+					trojanSS := false
+					if b, err := lookupBackend(cmpOr(daemon.LastBackend(paths.DataDir()), "mihomo")); err == nil {
+						trojanSS = b.Capabilities().TrojanSS
+					}
 					for _, p := range res.Proxies {
-						if sidecar.Needs(p) {
+						if sidecar.Needs(p, trojanSS) {
 							if _, err := kernels.Current(paths.DataDir(), sidecar.Kernel, kernels.Host().OS); err != nil {
-								d.bad("节点 %q 是 trojan-go，需要 trojan-go 程序：运行 conch kernel install trojan-go", p.Node.Name)
+								d.bad("节点 %q 要用 trojan-go 程序：运行 conch kernel install trojan-go", p.Node.Name)
 							}
 							break
 						}

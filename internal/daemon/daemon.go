@@ -469,11 +469,12 @@ func (d *Daemon) build(ctx context.Context) (*compile.Result, *backend.Artifact,
 	}
 	d.learnPins(ctx, res)
 	// Nodes the kernel cannot speak run in sidecars it reaches over SOCKS5.
-	enc, forwards, err := d.planSidecars(ctx, res)
+	enc, forwards, sidecarDiags, err := d.planSidecars(ctx, res)
 	if err != nil {
 		diags.Errorf(diag.Pos{}, "%v", err)
 		return res, nil, diags, nil
 	}
+	diags = append(diags, sidecarDiags...)
 	diags = append(diags, backend.Check(enc, d.backend.Capabilities(), d.backend.Name())...)
 	if diags.HasErrors() {
 		return res, nil, diags, nil

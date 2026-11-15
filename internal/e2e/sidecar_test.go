@@ -38,10 +38,10 @@ func TestTrojanGoSidecar(t *testing.T) {
 }
 
 func testTrojanGo(t *testing.T, tg, hopBin string, c client) {
-	// Two sites, so each can be routed on its own.
+	// Sites, so each can be routed on its own.
 	var sites []string
 	var fallback *net.TCPAddr // trojan-go servers insist on a working fallback
-	for _, ip := range []string{"127.0.0.2", "127.0.0.3"} {
+	for _, ip := range []string{"127.0.0.2", "127.0.0.3", "127.0.0.4"} {
 		srv := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { fmt.Fprint(w, "ok") })}
 		ln, err := net.Listen("tcp", ip+":0")
 		if err != nil {
@@ -91,6 +91,10 @@ nodes:
     ws-opts: { path: /ws, headers: { Host: tg.test } }
     ss-opts: { enabled: true, method: aes-128-gcm, password: ss-pass }
     mux: true
+  # mihomo's Trojan with an inner shadowsocks layer: trojan-go serves it
+  # for xray and sing-box, which have no such layer.
+  - { name: ts, type: trojan, server: 127.0.0.1, port: %d, password: tg-pass, sni: tg.test, skip-cert-verify: true,
+      network: ws, ws-opts: { path: /ws, headers: { Host: tg.test } }, ss-opts: { enabled: true, method: aes-128-gcm, password: ss-pass } }
 chains:
   经中转: [hop, tg]
 routes:
@@ -98,8 +102,9 @@ routes:
   entries:
     127.0.0.2: tg
     127.0.0.3: 经中转
+    127.0.0.4: ts
 inbound: { mixed-port: %d }
-`, hopPort, tgPort, mixed)), 0o644)
+`, hopPort, tgPort, tgPort, mixed)), 0o644)
 	d, err := daemon.New(daemon.Options{ProfilePath: profile, DataDir: filepath.Join(dir, "data"), Backend: c.name, KernelBin: c.bin, SidecarBin: tg, Offline: true})
 	if err != nil {
 		t.Fatal(err)

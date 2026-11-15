@@ -23,7 +23,7 @@ type Backend struct{}
 func (Backend) Name() string { return "mihomo" }
 
 func (Backend) Capabilities() backend.Capabilities {
-	return backend.Capabilities{ProcessMatch: true, KeywordMatch: true, RawClash: true, Chains: true, TUN: true, CertSHA256: true}
+	return backend.Capabilities{ProcessMatch: true, KeywordMatch: true, RawClash: true, Chains: true, TUN: true, CertSHA256: true, TrojanSS: true}
 }
 
 // corsNobody is an origin no page can have. mihomo treats an empty

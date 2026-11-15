@@ -51,7 +51,7 @@ func plan(t *testing.T) (*compile.Result, []Sidecar, []backend.Forward) {
 	if err := res.Diags.Err(); err != nil {
 		t.Fatal(err)
 	}
-	enc, cars, fwd, err := Plan(res, map[string]Ports{"tg": {Local: 20001}, "经中转": {Local: 20002, Forward: 20003}}, nil)
+	enc, cars, fwd, _, err := Plan(res, map[string]Ports{"tg": {Local: 20001}, "经中转": {Local: 20002, Forward: 20003}}, nil, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -86,7 +86,7 @@ func TestPlan(t *testing.T) {
 	if c.ForwardProxy.Enabled {
 		t.Error("a sidecar that is not in a chain must dial directly")
 	}
-	if _, _, _, err := Plan(enc, nil, nil); err != nil {
+	if _, _, _, _, err := Plan(enc, nil, nil, false); err != nil {
 		t.Errorf("planning a planned result again: %v", err)
 	}
 }
@@ -105,7 +105,7 @@ func TestTrojanGoPins(t *testing.T) {
 		certs    certpin.Lookup
 		wantCert bool
 	}{{nil, false}, {func(string) (certpin.Pin, bool) { return certpin.Pin{}, false }, false}, {learned, true}} {
-		b, cert, err := TrojanGoConfig(n, Ports{Local: 20001}, "x.pem", c.certs)
+		b, cert, _, err := TrojanGoConfig(n, Ports{Local: 20001}, "x.pem", c.certs)
 		var cfg trojanGoClient
 		json.Unmarshal(b, &cfg)
 		if err != nil || !cfg.SSL.Verify || cfg.SSL.Fingerprint != "chrome" || (cfg.SSL.Cert == "x.pem") != c.wantCert || (cert != nil) != c.wantCert {
@@ -153,5 +153,70 @@ func TestKernelsAcceptSidecars(t *testing.T) {
 		if out, err := cmd.CombinedOutput(); err != nil {
 			t.Errorf("%s rejected the config: %v\n%s\n%s", name, err, out, art.Config)
 		}
+	}
+}
+
+// A node in trojan-go's terms: what it has, the nearest of what it lacks
+// (said), and errors for what would silently be another transport.
+func TestTrojanGoTranslation(t *testing.T) {
+	for _, c := range []struct {
+		node, said, err string
+		check           func(trojanGoClient) bool
+	}{
+		{node: `{ name: a, type: trojan-go, server: s, port: 443, password: p, client-fingerprint: safari }`, said: "改用 ios",
+			check: func(c trojanGoClient) bool { return c.SSL.Fingerprint == "ios" }},
+		{node: `{ name: a, type: trojan-go, server: s, port: 443, password: p, client-fingerprint: none }`,
+			check: func(c trojanGoClient) bool { return c.SSL.Fingerprint == "" }},
+		{node: `{ name: a, type: trojan-go, server: s, port: 443, password: p, alpn: [h2] }`, said: "不发送 ALPN"},
+		{node: `{ name: a, type: trojan-go, server: s, port: 443, password: p, network: ws, ws-opts: { path: ws, max-early-data: 2048 } }`, said: "没有 early data",
+			check: func(c trojanGoClient) bool { return c.Websocket.Path == "/ws" }},
+		{node: `{ name: a, type: trojan-go, server: s, port: 443, password: p, network: grpc }`, err: "没有 grpc 传输"},
+		{node: `{ name: a, type: trojan-go, server: s, port: 443, password: p, network: ws, ws-opts: { v2ray-http-upgrade: true } }`, err: "没有 HTTPUpgrade"},
+		{node: `{ name: a, type: trojan-go, server: s, port: 443, password: p, mux: { enabled: true, concurrency: 4 } }`,
+			check: func(c trojanGoClient) bool { return c.Mux.Enabled && c.Mux.Concurrency == 4 }},
+		{node: `{ name: a, type: trojan, server: s, port: 443, password: p, smux: { enabled: true }, ss-opts: { enabled: true, password: x } }`,
+			check: func(c trojanGoClient) bool {
+				return c.Mux.Enabled && c.Shadowsocks.Enabled && c.Shadowsocks.Method == "AES-128-GCM"
+			}},
+		{node: `{ name: a, type: trojan-go, server: s, port: 443, password: p, ip-version: ipv4, tfo: true }`, said: "trojan-go 没有 tfo",
+			check: func(c trojanGoClient) bool { return c.TCP.PreferIPv4 }},
+	} {
+		n := model.NewNode(mapping(t, c.node), diag.Pos{})
+		b, _, warns, err := TrojanGoConfig(n, Ports{Local: 1}, "", nil)
+		if c.err != "" {
+			if err == nil || !strings.Contains(err.Error(), c.err) {
+				t.Errorf("%s: err %v, want %q", c.node, err, c.err)
+			}
+			continue
+		}
+		var cfg trojanGoClient
+		json.Unmarshal(b, &cfg)
+		if err != nil || !strings.Contains(strings.Join(warns, "\n"), c.said) || c.check != nil && !c.check(cfg) {
+			t.Errorf("%s: %v %q\n%s", c.node, err, warns, b)
+		}
+	}
+}
+
+// Trojan with an inner shadowsocks layer goes to trojan-go for kernels
+// without one; its udp setting reaches the SOCKS5 node the kernel uses.
+func TestTrojanSSInSidecar(t *testing.T) {
+	p, err := model.Parse([]byte(`
+nodes:
+  - { name: ts, type: trojan, server: s, port: 443, password: p, udp: false, ss-opts: { enabled: true, method: aes-128-gcm, password: x } }
+routes: { default: ts }
+`), "profile.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	res := compile.Compile(p)
+	if Needs(res.Proxies[0], true) || !Needs(res.Proxies[0], false) {
+		t.Fatal("trojan ss-opts: only kernels without it need the sidecar")
+	}
+	enc, cars, _, _, err := Plan(res, map[string]Ports{"ts": {Local: 20001}}, nil, false)
+	if err != nil || len(cars) != 1 {
+		t.Fatalf("plan: %v %v", cars, err)
+	}
+	if udp := model.Lookup(enc.Proxies[0].Node.Raw, "udp"); udp == nil || udp.Value != "false" {
+		t.Errorf("the SOCKS5 node relays UDP the node does not: %v", udp)
 	}
 }
