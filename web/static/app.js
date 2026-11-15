@@ -373,11 +373,264 @@ $("#node-form").addEventListener("submit", async (e) => {
 });
 
 // Ctrl+Enter (⌘+Enter) adds; Enter alone is a new line, for pasting many.
-$("#node-link").addEventListener("keydown", (e) => {
-  if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
-    e.preventDefault();
-    $("#node-form").requestSubmit();
+for (const [box, form] of [["#node-link", "#node-form"], ["#node-yaml", "#node-yaml-form"]]) {
+  $(box).addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+      e.preventDefault();
+      $(form).requestSubmit();
+    }
+  });
+}
+
+// ---- nodes written by hand ----
+//
+// The form is the daemon's (GET /nodeform): which fields each protocol
+// has and when they show. It edits the node's mapping as profile.yaml
+// has it, so keys it has no field for are kept. The daemon checks what
+// is typed, for the running kernel, and writes the YAML; the "profile
+// 写法" tab edits that YAML directly.
+
+const editor = { schema: null, node: null, editing: "", more: false, tab: "", checked: 0 };
+
+const getPath = (m, key) => key.split(".").reduce((v, k) => (v && typeof v === "object" ? v[k] : undefined), m);
+
+function setPath(m, key, v) {
+  const parts = key.split(".");
+  const chain = [m];
+  for (const k of parts.slice(0, -1)) {
+    const cur = chain[chain.length - 1];
+    if (cur[k] == null || typeof cur[k] !== "object") {
+      if (v == null) return;
+      cur[k] = {};
+    }
+    chain.push(cur[k]);
   }
+  const last = parts[parts.length - 1];
+  if (v == null) delete chain[chain.length - 1][last];
+  else chain[chain.length - 1][last] = v;
+  // mappings left empty go too
+  for (let i = chain.length - 1; i > 0; i--) {
+    if (Object.keys(chain[i]).length) break;
+    delete chain[i - 1][parts[i - 1]];
+  }
+}
+
+const textOf = (v) => (v == null ? "" : Array.isArray(v) ? v.join(", ") : String(v));
+
+function valueOf(f, text) {
+  text = String(text).trim();
+  if (text === "") return null;
+  if (f.kind === "number") return /^\d+$/.test(text) ? Number(text) : text;
+  if (f.kind === "list") {
+    const items = text.split(/[,，]/).map((x) => x.trim()).filter(Boolean);
+    return items.length ? items.map((x) => (f.key === "reserved" && /^\d+$/.test(x) ? Number(x) : x)) : null;
+  }
+  return text;
+}
+
+function visible(f, m) {
+  if (f.types?.length && !f.types.includes(textOf(m.type))) return false;
+  return Object.entries(f.when || {}).every(([k, vals]) => vals.includes(textOf(getPath(m, k))));
+}
+
+function newNode(type) {
+  const m = { type };
+  for (const f of editor.schema.fields) if (f.default !== undefined && visible(f, m)) setPath(m, f.key, f.default);
+  return m;
+}
+
+// Fields others depend on: a change to them shows and hides fields.
+const deciders = () => new Set(["type", ...editor.schema.fields.flatMap((f) => Object.keys(f.when || {}))]);
+
+// dropHidden takes out the values of fields that do not show, such as
+// the uuid of a node that became trojan.
+function dropHidden(m) {
+  const shown = new Set(editor.schema.fields.filter((f) => visible(f, m)).map((f) => f.key));
+  for (const f of editor.schema.fields) if (!shown.has(f.key) && getPath(m, f.key) !== undefined) setPath(m, f.key, null);
+}
+
+function fieldInput(f) {
+  const id = "nf-" + f.key.replace(/[^a-z0-9]/gi, "-");
+  const cur = getPath(editor.node, f.key);
+  const changed = (v) => {
+    setPath(editor.node, f.key, v);
+    if (f.key === "type") {
+      for (const d of editor.schema.fields) {
+        if (d.default !== undefined && getPath(editor.node, d.key) === undefined && visible(d, editor.node)) setPath(editor.node, d.key, d.default);
+      }
+    }
+    if (deciders().has(f.key)) {
+      dropHidden(editor.node);
+      renderFields();
+    }
+    checkSoon();
+  };
+  let input;
+  if (f.kind === "bool") {
+    input = h("input", { type: "checkbox", id });
+    input.checked = cur === true || cur === "true";
+    input.addEventListener("change", () => changed(input.checked ? true : null));
+  } else if (f.kind === "select") {
+    const options = [...f.options];
+    if (cur != null && !options.some((o) => o.value === textOf(cur))) options.push({ value: textOf(cur), label: textOf(cur) });
+    input = h("select", { id }, options.map((o) => h("option", { value: o.value }, o.label)));
+    input.value = textOf(cur);
+    input.addEventListener("change", () => changed(input.value === "" ? null : input.value));
+  } else {
+    input = h("input", { id, type: f.kind === "secret" ? "password" : f.kind === "number" ? "number" : "text", placeholder: f.hint || "", autocomplete: "off", spellcheck: "false" });
+    input.value = textOf(cur);
+    input.addEventListener("input", () => changed(valueOf(f, input.value)));
+    if (f.kind === "secret") {
+      const show = h("button", { type: "button", class: "link", title: "显示或隐藏" }, "显示");
+      show.addEventListener("click", () => {
+        input.type = input.type === "password" ? "text" : "password";
+        show.textContent = input.type === "password" ? "显示" : "隐藏";
+      });
+      input = h("span", { class: "secret" }, input, show);
+    }
+  }
+  return [h("label", { for: id, class: f.required ? "required" : "" }, f.label), input];
+}
+
+function renderFields() {
+  const shown = editor.schema.fields.filter((f) => visible(f, editor.node));
+  const folded = shown.filter((f) => f.more && getPath(editor.node, f.key) === undefined);
+  const rows = shown.filter((f) => editor.more || !folded.includes(f));
+  fill($("#node-field-list"), rows.map(fieldInput));
+  $("#node-more").hidden = !folded.length;
+  $("#node-more").textContent = editor.more ? "收起更多选项" : `更多选项（${folded.length}）`;
+}
+
+$("#node-more").addEventListener("click", () => {
+  editor.more = !editor.more;
+  renderFields();
+});
+
+// check asks the daemon what it makes of what is typed, and shows it;
+// answers to older questions are dropped.
+async function check(body) {
+  const n = ++editor.checked;
+  try {
+    const c = await api("POST", "/nodes/check", { ...body, editing: editor.editing });
+    if (n === editor.checked) showCheck(c);
+    return c;
+  } catch (err) {
+    if (n === editor.checked) showCheck({ errors: [err.message] });
+    return null;
+  }
+}
+
+function showCheck(c) {
+  fill($("#node-check"),
+    (c.errors || []).map((e) => h("p", { class: "err" }, e)),
+    (c.warnings || []).map((w) => h("p", { class: "warn" }, "注意：" + w)),
+    editor.tab === "form" && c.yaml ? h("div", { class: "preview", title: "保存后在 managed.yaml 里是这样" }, c.yaml.trim()) : null);
+}
+
+let checkTimer;
+function checkSoon() {
+  clearTimeout(checkTimer);
+  checkTimer = setTimeout(() => {
+    if (editor.tab === "form") check({ node: editor.node });
+    else if (editor.tab === "yaml" && $("#node-yaml").value.trim()) check({ yaml: $("#node-yaml").value });
+    else fill($("#node-check"));
+  }, 400);
+}
+
+$("#node-yaml").addEventListener("input", checkSoon);
+
+async function switchTab(tab) {
+  if (tab === editor.tab) return;
+  if (tab !== "link") {
+    if (!editor.schema) editor.schema = await api("GET", "/nodeform");
+    if (!editor.node) editor.node = newNode(editor.schema.types[0].value);
+  }
+  // What the form has goes along, unless it is untouched.
+  const untouched = editor.node && JSON.stringify(editor.node) === JSON.stringify(newNode(editor.node.type));
+  if (editor.tab === "form" && tab === "yaml" && !untouched) {
+    const c = await check({ node: editor.node });
+    if (c?.yaml) $("#node-yaml").value = c.yaml;
+  }
+  if (editor.tab === "yaml" && tab === "form" && $("#node-yaml").value.trim()) {
+    const c = await check({ yaml: $("#node-yaml").value });
+    if (!c?.nodes?.length) return; // the errors show; stay on the YAML
+    if (c.nodes.length > 1) {
+      showCheck({ errors: [`这里写了 ${c.nodes.length} 个节点，表单一次只能填一个；请在这里保存`] });
+      return;
+    }
+    editor.node = c.nodes[0];
+  }
+  editor.tab = tab;
+  for (const b of document.querySelectorAll("#nodes-card [data-editor]")) {
+    if (b.tagName === "BUTTON") b.classList.toggle("active", b.dataset.editor === tab);
+    else b.hidden = b.dataset.editor !== tab;
+  }
+  if (tab === "form") renderFields();
+  fill($("#node-check"));
+  checkSoon();
+}
+
+for (const b of document.querySelectorAll(".tabs [data-editor]")) b.addEventListener("click", () => switchTab(b.dataset.editor).catch(showError));
+switchTab("link");
+
+function setEditing(name) {
+  editor.editing = name;
+  $("#node-editing").hidden = !name;
+  $("#node-editing-name").textContent = name;
+  $(".tabs [data-editor=link]").disabled = !!name;
+  for (const b of document.querySelectorAll(".save-node")) b.textContent = name ? "保存修改" : "添加节点";
+}
+
+async function editNode(name) {
+  try {
+    const v = await api("GET", `/nodes/${encodeURIComponent(name)}`);
+    if (!editor.schema) editor.schema = await api("GET", "/nodeform");
+    setEditing(name);
+    editor.node = v.node;
+    $("#node-yaml").value = v.yaml;
+    if (editor.tab === "link") await switchTab("form");
+    else if (editor.tab === "form") renderFields();
+    checkSoon();
+    $("#nodes-card").scrollIntoView({ behavior: "smooth", block: "start" });
+  } catch (err) {
+    showError(err);
+  }
+}
+
+function resetEditor() {
+  setEditing("");
+  editor.node = editor.schema ? newNode(editor.schema.types[0].value) : null;
+  editor.more = false;
+  $("#node-yaml").value = "";
+  if (editor.tab === "form") renderFields();
+}
+
+$("#node-cancel-edit").addEventListener("click", () => {
+  resetEditor();
+  fill($("#node-check"));
+});
+
+async function saveNodes(body) {
+  try {
+    const path = editor.editing ? `/nodes/${encodeURIComponent(editor.editing)}` : "/nodes";
+    const saved = await api(editor.editing ? "PUT" : "POST", path, body);
+    const verb = editor.editing ? "已保存" : "已添加";
+    resetEditor();
+    await loadOutbounds();
+    fill($("#node-check"), h("p", { class: "ok" }, `${verb}节点 ${saved.names.join("、")}`));
+  } catch (err) {
+    showCheck({ errors: [err.message, ...(err.body?.diagnostics || []), err.body?.where ? "位置：" + err.body.where : null].filter(Boolean) });
+  }
+}
+
+$("#node-fields").addEventListener("submit", (e) => {
+  e.preventDefault();
+  saveNodes({ node: editor.node });
+});
+
+$("#node-yaml-form").addEventListener("submit", (e) => {
+  e.preventDefault();
+  saveNodes({ yaml: $("#node-yaml").value });
 });
 
 function renderOutbounds(list) {
@@ -399,7 +652,9 @@ function renderOutbounds(list) {
   const chains = list.filter((o) => o.kind === "chain");
   fill($("#chains"), ...(chains.length ? chains.map(chainRow) : ["没有链"]));
   const nodes = list.filter((o) => o.kind === "node");
-  fill($("#nodes"), h("div", { class: "chips" }, nodes.map((n) => h("span", { class: "chip" }, nameSpan(n.name, `${n.name}\n${n.type} ${n.server}${n.udp ? "，支持 UDP" : ""}`), delayButton(n.name), n.managed ? removeButton("nodes", n.name) : null))));
+  fill($("#nodes"), h("div", { class: "chips" }, nodes.map((n) => h("span", { class: "chip" }, nameSpan(n.name, `${n.name}\n${n.type} ${n.server}${n.udp ? "，支持 UDP" : ""}`), delayButton(n.name),
+    n.managed ? h("button", { class: "link edit", title: "修改", onclick: (e) => { e.stopPropagation(); editNode(n.name); } }, "✎") : null,
+    n.managed ? removeButton("nodes", n.name) : null))));
   if (!document.querySelector("#chain-hops select")) resetChainForm();
   renderMembers(list);
   fill($("#add-via"), ...list.map((o) => h("option", { value: o.name }, o.kind === "builtin" ? { DIRECT: "直连", REJECT: "屏蔽" }[o.name] : o.name)));

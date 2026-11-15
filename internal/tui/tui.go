@@ -31,6 +31,9 @@ type Client interface {
 	SetChain(ctx context.Context, name string, hops []string) error
 	DeleteChain(ctx context.Context, name string) error
 	AddNodes(ctx context.Context, text string) (daemon.AddedNodes, error)
+	CheckNodes(ctx context.Context, in daemon.NodeInput, editing string) (daemon.NodeCheck, error)
+	SaveNodes(ctx context.Context, in daemon.NodeInput, editing string) ([]string, error)
+	Node(ctx context.Context, name string) (daemon.NodeView, error)
 	DeleteNode(ctx context.Context, name string) error
 	Delay(ctx context.Context, name string) (api.Delay, error)
 	SetMode(ctx context.Context, mode string) error
@@ -366,6 +369,18 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			cmd = m.loadConns()
 		}
 		return m, tea.Batch(cmd, tick())
+	case nodeLoadedMsg:
+		if msg.err != nil {
+			m.note(errText(msg.err), true)
+		} else {
+			m.dialog = editNodeDialog(msg.name, msg.v)
+		}
+		return m, nil
+	case nodeCheckTick, nodeCheckMsg, nodeSavedMsg:
+		if d, ok := m.dialog.(*nodeDialog); ok {
+			return m, d.update(m, msg)
+		}
+		return m, nil
 	}
 	return m, nil
 }
@@ -612,7 +627,7 @@ func (m *Model) pageHints() string {
 	case pageOverview:
 		return "m 切换模式 · s 系统代理 · t TUN · K 切换内核 · u 更新订阅 · R 重启内核"
 	case pageOutbounds:
-		return "enter 展开/选择 · t 测速 · n 添加节点 · c 新建链 · e 改链 · d 删除"
+		return "enter 展开/选择 · t 测速 · n 添加节点 · c 新建链 · e 修改 · d 删除"
 	case pageRoutes:
 		return "/ 这个地址怎么走 · a 添加 · e 改出口 · d 删除"
 	case pageConns:
@@ -639,7 +654,7 @@ func (m *Model) helpView(h int) string {
 		"  m 切换分流模式 · s 开关系统代理 · t 开关 TUN · K 切换内核 · u 更新选中的订阅 · R 重启内核",
 		titleStyle.Render("出口"),
 		"  enter 展开出口组或选择成员 · t 测速（出口组：测所有成员；链：逐跳测速）",
-		"  n 粘贴分享链接添加节点 · c 新建链 · e 修改选中的链 · d 删除用 conch 添加的节点或链",
+		"  n 添加节点：粘贴分享链接、填表单或写 profile · c 新建链 · e 修改选中的链或节点 · d 删除用 conch 添加的节点或链",
 		titleStyle.Render("路由"),
 		"  / 查询一个地址会怎么走 · a 添加条目 · e 修改选中条目的出口 · d 删除选中的条目",
 		titleStyle.Render("连接"),

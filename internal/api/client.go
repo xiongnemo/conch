@@ -184,6 +184,39 @@ func (c *Client) AddNodes(ctx context.Context, text string) (daemon.AddedNodes, 
 	return v, err
 }
 
+// CheckNodes says what is wrong with nodes being written, and how they
+// will be written, without saving them. editing is the node they replace.
+func (c *Client) CheckNodes(ctx context.Context, in daemon.NodeInput, editing string) (daemon.NodeCheck, error) {
+	var v daemon.NodeCheck
+	body := struct {
+		daemon.NodeInput
+		Editing string `json:"editing,omitempty"`
+	}{in, editing}
+	err := c.do(ctx, http.MethodPost, "/api/v1/nodes/check", body, &v)
+	return v, err
+}
+
+// SaveNodes adds nodes written by hand or, with editing set, puts the
+// one node in place of that one. It returns their names.
+func (c *Client) SaveNodes(ctx context.Context, in daemon.NodeInput, editing string) ([]string, error) {
+	var v struct {
+		Names []string `json:"names"`
+	}
+	method, path := http.MethodPost, "/api/v1/nodes"
+	if editing != "" {
+		method, path = http.MethodPut, path+"/"+url.PathEscape(editing)
+	}
+	err := c.do(ctx, method, path, in, &v)
+	return v.Names, err
+}
+
+// Node is a node as written, for editing.
+func (c *Client) Node(ctx context.Context, name string) (daemon.NodeView, error) {
+	var v daemon.NodeView
+	err := c.do(ctx, http.MethodGet, "/api/v1/nodes/"+url.PathEscape(name), nil, &v)
+	return v, err
+}
+
 func (c *Client) DeleteNode(ctx context.Context, name string) error {
 	return c.do(ctx, http.MethodDelete, "/api/v1/nodes/"+url.PathEscape(name), nil, nil)
 }

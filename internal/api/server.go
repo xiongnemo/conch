@@ -15,6 +15,7 @@ import (
 	"github.com/xiongnemo/conch/internal/daemon"
 	"github.com/xiongnemo/conch/internal/diag"
 	"github.com/xiongnemo/conch/internal/explain"
+	"github.com/xiongnemo/conch/internal/nodeform"
 	"github.com/xiongnemo/conch/internal/view"
 )
 
@@ -100,10 +101,15 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /api/v1/nodes", func(w http.ResponseWriter, r *http.Request) {
 		var body struct {
 			// Share links: vmess://, vless://, ss://, trojan://, …, one or
-			// many, one per line.
+			// many, one per line. Or nodes written by hand.
 			Link string `json:"link"`
+			daemon.NodeInput
 		}
 		if !decode(w, r, &body) {
+			return
+		}
+		if body.Link == "" && (len(body.Node) > 0 || body.YAML != "") {
+			s.saveNodes(w, r, body.NodeInput, "")
 			return
 		}
 		added, err := s.d().AddNodes(r.Context(), body.Link)
@@ -112,6 +118,41 @@ func (s *Server) Handler() http.Handler {
 			return
 		}
 		writeJSON(w, map[string]any{"name": added.Names[0], "names": added.Names, "skipped": added.Skipped})
+	})
+	mux.HandleFunc("GET /api/v1/nodes/{name}", func(w http.ResponseWriter, r *http.Request) {
+		v, err := s.d().Node(r.PathValue("name"))
+		if err != nil {
+			fail(w, err)
+			return
+		}
+		writeJSON(w, v)
+	})
+	// Replaces a node added with conch, by hand or from a share link.
+	mux.HandleFunc("PUT /api/v1/nodes/{name}", func(w http.ResponseWriter, r *http.Request) {
+		var body daemon.NodeInput
+		if decode(w, r, &body) {
+			s.saveNodes(w, r, body, r.PathValue("name"))
+		}
+	})
+	// What nodes being written will look like, and what is wrong with
+	// them, without saving: for the form and the YAML box as they change.
+	mux.HandleFunc("POST /api/v1/nodes/check", func(w http.ResponseWriter, r *http.Request) {
+		var body struct {
+			daemon.NodeInput
+			Editing string `json:"editing"`
+		}
+		if !decode(w, r, &body) {
+			return
+		}
+		nodes, err := body.Parse()
+		if err != nil {
+			writeJSON(w, daemon.NodeCheck{Errors: []string{err.Error()}})
+			return
+		}
+		writeJSON(w, s.d().CheckNodes(nodes, body.Editing))
+	})
+	mux.HandleFunc("GET /api/v1/nodeform", func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, nodeform.Schema())
 	})
 	mux.HandleFunc("DELETE /api/v1/nodes/{name}", func(w http.ResponseWriter, r *http.Request) {
 		s.done(w, s.d().DeleteNode(r.Context(), r.PathValue("name")))
@@ -478,4 +519,18 @@ func fail(w http.ResponseWriter, err error) {
 func writeJSON(w http.ResponseWriter, v any) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(v)
+}
+
+func (s *Server) saveNodes(w http.ResponseWriter, r *http.Request, in daemon.NodeInput, editing string) {
+	nodes, err := in.Parse()
+	if err != nil {
+		fail(w, err)
+		return
+	}
+	names, err := s.d().SaveNodes(r.Context(), nodes, editing)
+	if err != nil {
+		fail(w, err)
+		return
+	}
+	writeJSON(w, map[string]any{"name": names[0], "names": names})
 }

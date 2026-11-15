@@ -16,6 +16,7 @@ import (
 	"github.com/xiongnemo/conch/internal/control"
 	"github.com/xiongnemo/conch/internal/daemon"
 	"github.com/xiongnemo/conch/internal/kernel"
+	"github.com/xiongnemo/conch/internal/nodeform"
 	"github.com/xiongnemo/conch/internal/subscription"
 	"github.com/xiongnemo/conch/internal/view"
 )
@@ -123,6 +124,39 @@ func (f *fake) SetKernel(_ context.Context, name string) error {
 func (f *fake) AddNodes(_ context.Context, text string) (daemon.AddedNodes, error) {
 	f.record("add node %s", text)
 	return daemon.AddedNodes{Names: []string{"JP 02"}}, nil
+}
+
+func (f *fake) CheckNodes(_ context.Context, in daemon.NodeInput, editing string) (daemon.NodeCheck, error) {
+	f.record("check %s%s (editing %q)", in.Node, in.YAML, editing)
+	nodes, err := in.Parse()
+	if err != nil {
+		return daemon.NodeCheck{Errors: []string{err.Error()}}, nil
+	}
+	c := daemon.NodeCheck{YAML: nodeform.Line(nodeform.Tidy(nodes[0]))}
+	if missing := nodeform.Missing(nodes[0]); len(missing) > 0 {
+		c.Errors = []string{"节点还要填：" + strings.Join(missing, "、")}
+	}
+	return c, nil
+}
+
+func (f *fake) SaveNodes(_ context.Context, in daemon.NodeInput, editing string) ([]string, error) {
+	nodes, err := in.Parse()
+	if err != nil {
+		return nil, err
+	}
+	var names, lines []string
+	for _, n := range nodes {
+		names = append(names, nodeform.Name(n))
+		lines = append(lines, nodeform.Line(nodeform.Tidy(n)))
+	}
+	f.record("save %s (editing %q)", strings.Join(lines, " "), editing)
+	return names, nil
+}
+
+func (f *fake) Node(_ context.Context, name string) (daemon.NodeView, error) {
+	f.record("node %s", name)
+	return daemon.NodeView{Node: map[string]any{"name": name, "type": "socks5", "server": "5.6.7.8", "port": 1080, "udp": true},
+		YAML: "{name: " + name + ", type: socks5, server: 5.6.7.8, port: 1080, udp: true}\n", Managed: true}, nil
 }
 
 func (f *fake) DeleteNode(_ context.Context, name string) error {
@@ -265,8 +299,8 @@ func (h *harness) keys(keys ...string) {
 			h.send(tea.KeyPressMsg{Code: code})
 			continue
 		}
-		if k == "ctrl+s" {
-			h.send(tea.KeyPressMsg{Code: 's', Mod: tea.ModCtrl})
+		if letter, ok := strings.CutPrefix(k, "ctrl+"); ok && len(letter) == 1 {
+			h.send(tea.KeyPressMsg{Code: rune(letter[0]), Mod: tea.ModCtrl})
 			continue
 		}
 		for _, r := range k {
@@ -459,4 +493,75 @@ func TestNotRunning(t *testing.T) {
 	h.send(tea.WindowSizeMsg{Width: 100, Height: 20})
 	h.run(h.m.Init())
 	h.see("未连接", "conch daemon 没有在运行")
+}
+
+// onRow moves the cursor down to the row with text.
+func (h *harness) onRow(text string) {
+	h.t.Helper()
+	for range 40 {
+		for _, l := range strings.Split(h.m.View().Content, "\n") {
+			if strings.Contains(l, "\x1b[7m") && strings.Contains(ansi.Strip(l), text) {
+				return
+			}
+		}
+		h.keys("down")
+	}
+	h.t.Fatalf("no row with %q:\n%s", text, h.screen())
+}
+
+// checkNow runs the check the node dialog asks for after typing stops.
+func (h *harness) checkNow() {
+	if d, ok := h.m.dialog.(*nodeDialog); ok {
+		h.send(nodeCheckTick{d.seq})
+	}
+}
+
+func TestNodeForm(t *testing.T) {
+	h := start(t)
+	h.keys("2", "n")
+	h.see("添加节点", "分享链接", "表单", "profile 写法")
+
+	// The form: the fields follow the protocol.
+	h.keys("ctrl+t")
+	h.see("名字", "加密方式", "aes-128-gcm")
+	h.keys("表单节点", "down", "right", "right", "right", "right", "right")
+	h.see("‹ SOCKS5 ›", "用户名")
+	if strings.Contains(h.screen(), "加密方式") {
+		t.Error("a SOCKS5 node shows a cipher")
+	}
+	h.keys("down", "127.0.0.1")
+	h.checkNow()
+	h.see("节点还要填：端口")
+	h.keys("down", "1083")
+	h.checkNow()
+	h.see("{name: 表单节点, type: socks5, server: 127.0.0.1, port: 1083, udp: true}")
+	h.keys("ctrl+s")
+	h.wantCall(`save {name: 表单节点, type: socks5, server: 127.0.0.1, port: 1083, udp: true} (editing "")`)
+	h.see("已添加节点 表单节点")
+
+	// What the form has goes along to the YAML.
+	h.keys("n", "ctrl+t", "Z", "ctrl+t")
+	h.see("{name: Z, type: ss, cipher: aes-128-gcm, udp: true}")
+	h.keys("esc")
+
+	// YAML, two nodes at once; the form cannot hold them.
+	h.keys("n", "ctrl+t", "ctrl+t", "- { name: Y1, type: http, server: 1.2.3.4, port: 80 }", "enter", "- { name: Y2, type: http, server: 1.2.3.4, port: 81 }")
+	h.keys("ctrl+t", "ctrl+t") // by the share links, past the form, back here
+	h.see("profile 写法里有 2 个节点，表单一次只能填一个", "- { name: Y2")
+	h.keys("ctrl+s")
+	h.wantCall(`save {name: Y1, type: http, server: 1.2.3.4, port: 80} {name: Y2, type: http, server: 1.2.3.4, port: 81} (editing "")`)
+	h.see("已添加节点 Y1、Y2")
+
+	// A node conch added is edited in the form; others say where they are.
+	h.onRow("HK 01  vmess")
+	h.keys("e")
+	h.see("写在 profile.yaml:3，请在那里修改")
+	h.onRow("home  socks5")
+	h.keys("e")
+	h.wantCall("node home")
+	h.see("修改节点 home", "5.6.7.8")
+	h.keys("down", "down", "down", "backspace", "1")
+	h.keys("ctrl+s")
+	h.wantCall(`save {name: home, type: socks5, server: 5.6.7.8, port: 1081, udp: true} (editing "home")`)
+	h.see("已保存节点 home")
 }

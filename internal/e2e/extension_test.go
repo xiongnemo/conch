@@ -336,12 +336,16 @@ func (b *browser) open(t *testing.T, url string) *tab {
 
 // shot saves a screenshot of the tab into $CONCH_SCREENSHOTS, if set,
 // for looking at the popup the way users see it.
-func (tb *tab) shot(t *testing.T, name string) {
+func (tb *tab) shot(t *testing.T, name string) { tb.shotAt(t, name, 380, 600) }
+
+// shotAt takes a screenshot at a window size: 380 wide is the
+// extension's popup, and a phone.
+func (tb *tab) shotAt(t *testing.T, name string, width, height int) {
 	dir := os.Getenv("CONCH_SCREENSHOTS")
 	if dir == "" {
 		return
 	}
-	tb.b.call(tb.session, "Emulation.setDeviceMetricsOverride", map[string]any{"width": 380, "height": 600, "deviceScaleFactor": 2, "mobile": false}, nil)
+	tb.b.call(tb.session, "Emulation.setDeviceMetricsOverride", map[string]any{"width": width, "height": height, "deviceScaleFactor": 2, "mobile": false}, nil)
 	var shot struct {
 		Data []byte `json:"data"`
 	}

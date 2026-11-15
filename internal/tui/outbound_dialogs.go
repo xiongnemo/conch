@@ -13,51 +13,6 @@ import (
 	"github.com/xiongnemo/conch/internal/daemon"
 )
 
-// linkDialog adds nodes from share links. Pasted lines arrive joined by
-// spaces, which the daemon splits again.
-type linkDialog struct {
-	input textinput.Model
-}
-
-func newLinkDialog() *linkDialog {
-	d := &linkDialog{input: textinput.New()}
-	d.input.Prompt = ""
-	d.input.Focus()
-	return d
-}
-
-func (d *linkDialog) key(m *Model, k tea.KeyPressMsg) tea.Cmd {
-	switch k.String() {
-	case "esc":
-		m.dialog = nil
-		return nil
-	case "enter":
-		link := strings.TrimSpace(d.input.Value())
-		if link == "" {
-			return nil
-		}
-		m.dialog = nil
-		return m.call(func(ctx context.Context) tea.Msg {
-			added, err := m.c.AddNodes(ctx, link)
-			return doneMsg{ok: added.Summary(), err: err}
-		})
-	}
-	var cmd tea.Cmd
-	d.input, cmd = d.input.Update(k)
-	return cmd
-}
-
-func (d *linkDialog) view(_ *Model, w, h int) string {
-	inner := max(30, min(76, w-6))
-	return centered(strings.Join([]string{
-		bold.Render("添加节点"), "",
-		inputView(&d.input, "粘贴分享链接，可以一次粘贴多条：vmess://、vless://、ss://、trojan://……", inner),
-		"", muted.Render(d.hints()),
-	}, "\n"), w, h)
-}
-
-func (d *linkDialog) hints() string { return "enter 添加 · esc 取消" }
-
 // chainDialog builds a chain hop by hop from the outbounds there are.
 type chainDialog struct {
 	editing bool // the name is fixed

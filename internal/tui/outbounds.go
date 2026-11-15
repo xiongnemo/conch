@@ -138,17 +138,32 @@ func (m *Model) outboundRows(w int) []row {
 func (m *Model) outboundsKey(key string, item any) tea.Cmd {
 	switch key {
 	case "n":
-		m.dialog = newLinkDialog()
+		m.dialog = newNodeDialog()
 		return nil
 	case "c":
 		m.dialog = newChainDialog(m, "", nil)
 		return nil
 	case "e":
-		if it, ok := item.(chainItem); ok {
+		switch it := item.(type) {
+		case chainItem:
 			if c := m.outbound(it.name); c != nil && c.Managed {
 				m.dialog = newChainDialog(m, c.Name, c.Hops)
 			} else if c != nil {
 				m.note(fmt.Sprintf("链 %s 写在 %s，请在那里修改", c.Name, shortSource(c.Source)), true)
+			}
+		case nodeItem:
+			n := m.outbound(it.name)
+			switch {
+			case n == nil:
+			case !n.Managed && n.Source != "":
+				m.note(fmt.Sprintf("节点 %s 写在 %s，请在那里修改", n.Name, shortSource(n.Source)), true)
+			case !n.Managed:
+				m.note(fmt.Sprintf("节点 %s 来自订阅，不能在这里修改", n.Name), true)
+			default:
+				return m.call(func(ctx context.Context) tea.Msg {
+					v, err := m.c.Node(ctx, it.name)
+					return nodeLoadedMsg{it.name, v, err}
+				})
 			}
 		}
 		return nil

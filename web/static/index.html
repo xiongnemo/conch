@@ -100,13 +100,33 @@
           </form>
           <p class="muted small">流量从第一跳进去，依次经过每一跳，从最后一跳出来。第一跳可以是出口组，后面的跳需要是节点。</p>
         </div>
-        <div class="card">
+        <div class="card" id="nodes-card">
           <h2>节点</h2>
           <div id="nodes"></div>
-          <form id="node-form" class="row top">
+          <div class="tabs" role="tablist">
+            <button type="button" role="tab" data-editor="link">粘贴分享链接</button>
+            <button type="button" role="tab" data-editor="form">手动填写</button>
+            <button type="button" role="tab" data-editor="yaml">profile 写法</button>
+          </div>
+          <p id="node-editing" class="editing" hidden>正在修改节点 <b id="node-editing-name"></b> <button type="button" class="link" id="node-cancel-edit">取消修改</button></p>
+          <form id="node-form" class="row top" data-editor="link">
             <textarea id="node-link" rows="3" placeholder="粘贴分享链接添加节点，一行一条，可以一次粘贴多条：vmess://、vless://、ss://、trojan://、hysteria2://……" required></textarea>
             <button type="submit" title="Ctrl+Enter">添加节点</button>
           </form>
+          <form id="node-fields" data-editor="form" hidden>
+            <div id="node-field-list" class="fields"></div>
+            <div class="row">
+              <button type="button" class="link" id="node-more">更多选项</button>
+              <span class="spacer"></span>
+              <button type="submit" class="save-node">添加节点</button>
+            </div>
+          </form>
+          <form id="node-yaml-form" data-editor="yaml" hidden>
+            <textarea id="node-yaml" rows="4" spellcheck="false" placeholder="{ name: 香港 01, type: ss, server: hk.example.com, port: 8388, cipher: aes-128-gcm, password: … }"></textarea>
+            <p class="muted small">和 profile.yaml 里 nodes: 下的写法一样；可以一次写多个节点（每个一行，前面加 - ）。</p>
+            <div class="row"><span class="spacer"></span><button type="submit" class="save-node" title="Ctrl+Enter">添加节点</button></div>
+          </form>
+          <div id="node-check" class="check"></div>
         </div>
       </section>
 

@@ -108,3 +108,24 @@ td .actions { display: flex; gap: 6px; flex-wrap: wrap; }
 .members { display: flex; flex-wrap: wrap; gap: 4px 14px; max-height: 12em; overflow: auto; margin-top: 8px; }
 .members label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 #node-form { margin-top: 10px; }
+.spacer { flex: 1; }
+.tabs { display: flex; flex-wrap: wrap; gap: 4px; margin: 14px 0 10px; border-bottom: 1px solid var(--line); }
+.tabs button { border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: none; color: var(--muted); padding: 6px 10px; margin-bottom: -1px; }
+.tabs button.active { color: var(--accent); border-bottom-color: var(--accent); }
+.tabs button:disabled { opacity: .4; cursor: default; }
+.fields { display: grid; grid-template-columns: max-content minmax(0, 28em); gap: 8px 12px; align-items: center; margin-bottom: 8px; }
+.fields > label { color: var(--muted); }
+.fields > label.required::after { content: " *"; color: var(--bad); }
+.fields .secret { display: flex; gap: 6px; }
+.fields .secret input { flex: 1; }
+.fields input[type="checkbox"] { justify-self: start; }
+.check { margin-top: 8px; font-size: 12px; }
+.check p { margin: 2px 0; }
+.check .err { color: var(--bad); }
+.check .warn { color: var(--warn); }
+.check .ok { color: var(--ok); }
+.check .preview { white-space: pre-wrap; word-break: break-all; color: var(--muted); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--bg); padding: 6px 8px; border-radius: 6px; margin-top: 6px; }
+.editing { background: var(--accent-soft); padding: 6px 10px; border-radius: 6px; }
+.chip .edit { padding: 0 4px; color: var(--muted); }
+.chip .edit:hover { color: var(--accent); }
+@media (max-width: 640px) { .fields { grid-template-columns: minmax(0, 1fr); gap: 4px; } }
