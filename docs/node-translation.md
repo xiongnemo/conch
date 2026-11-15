@@ -80,6 +80,8 @@ xray 和 sing-box 需要写明的，conch 按 mihomo 的行为补上：
 
 ## 订阅
 
+订阅可以是 Clash 配置、分享链接、sing-box 配置（JSON）或 SIP008。sing-box 配置里的出站按上面的对应关系反过来读成 mihomo 的写法（shadow-tls 前置出站读成 shadow-tls 插件）；只有 sing-box 的公钥指纹或信任的证书读不回来，会提示。出口组的 `filter`、`exclude-filter` 和 proxy-provider 的过滤用 mihomo 一样的正则（regexp2，支持前瞻）。
+
 proxy-provider 的 `filter`、`exclude-filter`、`exclude-type`、`dialer-proxy` 和 `override`（设置项、`proxy-name` 改名、前后缀）照 mihomo 的顺序处理；`override-expr` 是 mihomo 自己的表达式，conch 做不到，会提示。分享链接里 conch 不认识的参数，添加时会提示。
 
 ## 各内核刻意保留的差别

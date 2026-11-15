@@ -222,7 +222,7 @@ func shadowsocks(link string) (string, *proto.Spec, error) {
 		s.UDPOverTCP = true
 	}
 	if p := u.Query().Get("plugin"); p != "" {
-		s.Plugin = ssPlugin(p)
+		s.Plugin = SSPlugin(p)
 		if s.Plugin == nil {
 			s.Unknown = append(s.Unknown, "plugin: "+strings.SplitN(p, ";", 2)[0])
 		}
@@ -230,10 +230,10 @@ func shadowsocks(link string) (string, *proto.Spec, error) {
 	return name, s, nil
 }
 
-// ssPlugin reads a SIP002 plugin ("name;key=value;flag", with \ escapes)
+// SSPlugin reads a SIP002 plugin ("name;key=value;flag", with \ escapes)
 // in mihomo's terms: obfs-local (simple-obfs) and v2ray-plugin, whose mux
 // is on unless mux=0. Others it does not know.
-func ssPlugin(p string) *proto.Plugin {
+func SSPlugin(p string) *proto.Plugin {
 	var parts []string
 	var cur strings.Builder
 	for i := 0; i < len(p); i++ {

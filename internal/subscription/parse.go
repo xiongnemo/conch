@@ -31,8 +31,8 @@ type Snapshot struct {
 // FetchFunc downloads a proxy-provider referenced by a subscription.
 type FetchFunc func(url string) ([]byte, error)
 
-// Parse decodes a subscription body: a Clash/mihomo config, or a list of
-// share links, optionally base64-encoded.
+// Parse decodes a subscription body: a Clash/mihomo config, a sing-box
+// config, SIP008, or a list of share links, optionally base64-encoded.
 func Parse(body []byte, fetch FetchFunc) (*Snapshot, error) {
 	body = bytes.TrimPrefix(bytes.TrimSpace(body), []byte("\ufeff"))
 	if len(body) == 0 {
@@ -40,6 +40,11 @@ func Parse(body []byte, fetch FetchFunc) (*Snapshot, error) {
 	}
 	if bytes.HasPrefix(bytes.TrimSpace(body), []byte("<")) {
 		return nil, fmt.Errorf("订阅返回的是网页而不是订阅内容")
+	}
+	if body[0] == '{' {
+		if s, ok, err := parseJSON(body); ok {
+			return s, err
+		}
 	}
 	var doc yaml.Node
 	if err := yaml.Unmarshal(body, &doc); err == nil && len(doc.Content) > 0 && doc.Content[0].Kind == yaml.MappingNode {
