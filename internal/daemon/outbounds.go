@@ -162,6 +162,8 @@ func (d *Daemon) DeleteChain(ctx context.Context, name string) error {
 type AddedNodes struct {
 	Names   []string `json:"names"`
 	Skipped []string `json:"skipped,omitempty"`
+	// What links had that the nodes could not keep.
+	Warnings []string `json:"warnings,omitempty"`
 }
 
 // Summary says it in a line, as the UIs show it.
@@ -172,6 +174,9 @@ func (a AddedNodes) Summary() string {
 	}
 	if len(a.Skipped) > 0 {
 		s += fmt.Sprintf("；%d 条无法识别，已跳过：%s", len(a.Skipped), strings.Join(a.Skipped, "；"))
+	}
+	if len(a.Warnings) > 0 {
+		s += "；注意：" + strings.Join(a.Warnings, "；")
 	}
 	return s
 }
@@ -220,6 +225,9 @@ func (d *Daemon) AddNodes(ctx context.Context, text string) (AddedNodes, error) 
 			unique = fmt.Sprintf("%s (%d)", n.name, i)
 		}
 		res.Names = append(res.Names, unique)
+		if len(n.spec.Unknown) > 0 {
+			res.Warnings = append(res.Warnings, fmt.Sprintf("节点 %q 的链接里有 conch 不认识的参数，没有用：%s", unique, strings.Join(n.spec.Unknown, "、")))
+		}
 	}
 	err := d.changeManaged(ctx, func(m *managed) error {
 		for i, n := range nodes {

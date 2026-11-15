@@ -245,3 +245,46 @@ func TestDialerProxyFollowsRename(t *testing.T) {
 		t.Error(res.Diags)
 	}
 }
+
+// A proxy-provider's override sets node settings and renames, as mihomo's
+// does, after types and names are filtered on the names as given.
+func TestProviderOverride(t *testing.T) {
+	snap, err := Parse([]byte(`
+proxies: []
+proxy-providers:
+  p:
+    type: inline
+    exclude-type: http|socks5
+    filter: "HK"
+    dialer-proxy: 中转
+    override:
+      tfo: true
+      udp: false
+      skip-cert-verify: true
+      ip-version: ipv4
+      up: "50 Mbps"
+      proxy-name: [{ pattern: "^HK-(\\d+)$", target: "香港 $1" }]
+      additional-prefix: "[P] "
+      override-expr: [".tfo = false"]
+    payload:
+      - { name: HK-01, type: trojan, server: 192.0.2.1, port: 443, password: p }
+      - { name: HK-02, type: socks5, server: 192.0.2.2, port: 1080 }
+      - { name: JP-01, type: trojan, server: 192.0.2.3, port: 443, password: p }
+`), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(snap.Nodes) != 1 {
+		t.Fatalf("nodes %d, want HK-01 alone", len(snap.Nodes))
+	}
+	n := snap.Nodes[0]
+	for key, want := range map[string]string{"name": "[P] 香港 01", "tfo": "true", "udp": "false", "skip-cert-verify": "true",
+		"ip-version": "ipv4", "up": "50 Mbps", "dialer-proxy": "中转"} {
+		if got := model.WeakString(model.Lookup(n, key)); got != want {
+			t.Errorf("%s = %q, want %q", key, got, want)
+		}
+	}
+	if !strings.Contains(strings.Join(snap.Warnings, "\n"), "override-expr") {
+		t.Errorf("override-expr not said: %q", snap.Warnings)
+	}
+}

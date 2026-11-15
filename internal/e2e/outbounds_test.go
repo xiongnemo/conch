@@ -218,6 +218,11 @@ inbound: { mixed-port: %d }
 	if _, err := c.SaveNodes(ctx, form(`{"name": "Hand 2", "type": "socks5", "server": "127.0.0.1", "port": 1}`), ""); err == nil || !strings.Contains(err.Error(), "已经有") {
 		t.Errorf("a second Hand 2: %v", err)
 	}
+	// What a link had that the node cannot keep is said.
+	if added, err := c.AddNodes(ctx, "vless://11111111-2222-3333-4444-555555555555@127.0.0.1:1090?security=none&custom=1#V1"); err != nil ||
+		len(added.Warnings) != 1 || !strings.Contains(added.Warnings[0], "custom") {
+		t.Errorf("a link with an unknown parameter: %+v, %v", added, err)
+	}
 	// Two at once, as YAML.
 	if names, err := c.SaveNodes(ctx, daemon.NodeInput{YAML: "- { name: Y1, type: http, server: 127.0.0.1, port: 2 }\n- { name: Y2, type: http, server: 127.0.0.1, port: 3 }\n"}, ""); err != nil || strings.Join(names, ",") != "Y1,Y2" {
 		t.Errorf("two nodes = %v, %v", names, err)

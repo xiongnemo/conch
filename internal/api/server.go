@@ -117,7 +117,7 @@ func (s *Server) Handler() http.Handler {
 			fail(w, err)
 			return
 		}
-		writeJSON(w, map[string]any{"name": added.Names[0], "names": added.Names, "skipped": added.Skipped})
+		writeJSON(w, map[string]any{"name": added.Names[0], "names": added.Names, "skipped": added.Skipped, "warnings": added.Warnings})
 	})
 	mux.HandleFunc("GET /api/v1/nodes/{name}", func(w http.ResponseWriter, r *http.Request) {
 		v, err := s.d().Node(r.PathValue("name"))

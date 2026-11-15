@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"fmt"
 	"regexp"
+	"slices"
 	"strings"
 
 	"go.yaml.in/yaml/v3"
@@ -187,22 +188,78 @@ func (s *Snapshot) addProvider(name string, m *yaml.Node, fetch FetchFunc, f *fl
 		return
 	}
 
+	// As mihomo does (adapter/provider): types and names filtered on the
+	// names as given, then the provider's dialer-proxy, then override.
 	keep, drop := compileOrWarn(s, str("filter")), compileOrWarn(s, str("exclude-filter"))
-	var prefix, suffix string
-	if o := model.Lookup(m, "override"); o != nil {
-		prefix = model.WeakString(model.Lookup(o, "additional-prefix"))
-		suffix = model.WeakString(model.Lookup(o, "additional-suffix"))
+	var excludeTypes []string
+	for t := range strings.SplitSeq(str("exclude-type"), "|") {
+		if t = strings.TrimSpace(t); t != "" {
+			excludeTypes = append(excludeTypes, strings.ToLower(t))
+		}
 	}
+	over := model.Lookup(m, "override")
+	renames := s.proxyNameRules(name, over)
+	if e := model.Lookup(over, "override-expr"); e != nil {
+		s.Warnings = append(s.Warnings, fmt.Sprintf("proxy-provider %q 的 override-expr 是 mihomo 自己的表达式，conch 做不到，没有用", name))
+	}
+	seen := map[string]bool{}
 	for _, n := range nodes {
 		nodeName := model.WeakString(model.Lookup(n, "name"))
-		if (keep != nil && !keep.MatchString(nodeName)) || (drop != nil && drop.MatchString(nodeName)) {
+		typ := strings.ToLower(model.WeakString(model.Lookup(n, "type")))
+		if slices.Contains(excludeTypes, typ) || (drop != nil && drop.MatchString(nodeName)) || (keep != nil && !keep.MatchString(nodeName)) || seen[nodeName] {
 			continue
 		}
-		nodeName = prefix + nodeName + suffix
+		seen[nodeName] = true
+		if dp := str("dialer-proxy"); dp != "" {
+			model.SetKey(n, "dialer-proxy", model.Str(dp))
+		}
+		if over != nil && over.Kind == yaml.MappingNode {
+			for _, key := range overrideKeys {
+				if v := model.Lookup(over, key); v != nil {
+					c := *v
+					model.SetKey(n, key, &c)
+				}
+			}
+			for _, r := range renames {
+				nodeName = r.re.ReplaceAllString(nodeName, r.to)
+			}
+			nodeName = model.WeakString(model.Lookup(over, "additional-prefix")) + nodeName + model.WeakString(model.Lookup(over, "additional-suffix"))
+		}
 		model.SetKey(n, "name", model.Str(nodeName))
 		s.Nodes = append(s.Nodes, n)
 		s.Providers[name] = append(s.Providers[name], nodeName)
 	}
+}
+
+// overrideKeys are the node settings a proxy-provider's override sets on
+// every node it has, as in mihomo.
+var overrideKeys = []string{"tfo", "mptcp", "udp", "udp-over-tcp", "up", "down", "dialer-proxy",
+	"skip-cert-verify", "name-cert-verify", "interface-name", "routing-mark", "ip-version"}
+
+type rename struct {
+	re *regexp.Regexp
+	to string
+}
+
+// proxyNameRules reads override.proxy-name: patterns replaced in names.
+// mihomo's are .NET-style; ones Go cannot read are reported.
+func (s *Snapshot) proxyNameRules(provider string, over *yaml.Node) []rename {
+	list := model.Lookup(over, "proxy-name")
+	if list == nil || list.Kind != yaml.SequenceNode {
+		return nil
+	}
+	var out []rename
+	for _, item := range list.Content {
+		pattern := model.WeakString(model.Lookup(item, "pattern"))
+		re, err := regexp.Compile(pattern)
+		if err != nil {
+			s.Warnings = append(s.Warnings, fmt.Sprintf("proxy-provider %q 的 proxy-name 规则 %q 用了 conch 读不了的正则写法，没有用", provider, pattern))
+			continue
+		}
+		// .NET writes groups $1 and ${name}; so does Go.
+		out = append(out, rename{re, model.WeakString(model.Lookup(item, "target"))})
+	}
+	return out
 }
 
 func ruleProvider(name string, m *yaml.Node) (*model.RuleProvider, error) {

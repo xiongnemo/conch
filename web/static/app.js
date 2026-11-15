@@ -366,6 +366,7 @@ $("#node-form").addEventListener("submit", async (e) => {
     const names = added.names || [added.name];
     const lines = [names.length > 1 ? `已添加 ${names.length} 个节点：` + names.join("、") : `已添加节点 ${names[0]}`];
     if (added.skipped?.length) lines.push("", `${added.skipped.length} 条无法识别，已跳过：`, ...added.skipped);
+    if (added.warnings?.length) lines.push("", "注意：", ...added.warnings);
     alert(lines.join("\n"));
   } catch (err) {
     showError(err);

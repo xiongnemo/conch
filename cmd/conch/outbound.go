@@ -33,6 +33,9 @@ func newNodeCmd() *cobra.Command {
 			for _, s := range added.Skipped {
 				fmt.Fprintln(cmd.ErrOrStderr(), "已跳过："+s)
 			}
+			for _, w := range added.Warnings {
+				fmt.Fprintln(cmd.ErrOrStderr(), "注意："+w)
+			}
 			return nil
 		},
 	}, &cobra.Command{
