@@ -68,7 +68,11 @@
       "server_port": 443,
       "password": "x",
       "tls": {
-        "enabled": true
+        "enabled": true,
+        "alpn": [
+          "h2",
+          "http/1.1"
+        ]
       }
     },
     {

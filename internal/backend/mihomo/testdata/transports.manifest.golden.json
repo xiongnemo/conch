@@ -1,0 +1,210 @@
+{
+  "backend": "mihomo",
+  "proxies": [
+    {
+      "name": "HTTP伪装",
+      "kind": "node",
+      "node": "HTTP伪装"
+    },
+    {
+      "name": "ws无SNI",
+      "kind": "node",
+      "node": "ws无SNI"
+    },
+    {
+      "name": "trojan-tcp",
+      "kind": "node",
+      "node": "trojan-tcp"
+    },
+    {
+      "name": "trojan-ws",
+      "kind": "node",
+      "node": "trojan-ws"
+    },
+    {
+      "name": "不用uTLS",
+      "kind": "node",
+      "node": "不用uTLS"
+    },
+    {
+      "name": "chrome120",
+      "kind": "node",
+      "node": "chrome120"
+    },
+    {
+      "name": "只要IPv4",
+      "kind": "node",
+      "node": "只要IPv4"
+    }
+  ],
+  "rules": [
+    {
+      "index": 0,
+      "rule": "DOMAIN-SUFFIX,a.example,ws无SNI",
+      "tier": "domain",
+      "key": "a.example",
+      "source": "../testdata/transports.profile.yaml:21"
+    },
+    {
+      "index": 1,
+      "rule": "DOMAIN-SUFFIX,b.example,trojan-tcp",
+      "tier": "domain",
+      "key": "b.example",
+      "source": "../testdata/transports.profile.yaml:22"
+    },
+    {
+      "index": 2,
+      "rule": "DOMAIN-SUFFIX,c.example,trojan-ws",
+      "tier": "domain",
+      "key": "c.example",
+      "source": "../testdata/transports.profile.yaml:23"
+    },
+    {
+      "index": 3,
+      "rule": "DOMAIN-SUFFIX,d.example,不用uTLS",
+      "tier": "domain",
+      "key": "d.example",
+      "source": "../testdata/transports.profile.yaml:24"
+    },
+    {
+      "index": 4,
+      "rule": "DOMAIN-SUFFIX,e.example,chrome120",
+      "tier": "domain",
+      "key": "e.example",
+      "source": "../testdata/transports.profile.yaml:25"
+    },
+    {
+      "index": 5,
+      "rule": "DOMAIN-SUFFIX,f.example,只要IPv4",
+      "tier": "domain",
+      "key": "f.example",
+      "source": "../testdata/transports.profile.yaml:26"
+    },
+    {
+      "index": 6,
+      "rule": "DOMAIN-SUFFIX,home.arpa,DIRECT",
+      "tier": "domain",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 7,
+      "rule": "DOMAIN-SUFFIX,lan,DIRECT",
+      "tier": "domain",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 8,
+      "rule": "DOMAIN-SUFFIX,local,DIRECT",
+      "tier": "domain",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 9,
+      "rule": "DOMAIN-SUFFIX,localhost,DIRECT",
+      "tier": "domain",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 10,
+      "rule": "IP-CIDR6,::1/128,DIRECT,no-resolve",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 11,
+      "rule": "IP-CIDR,255.255.255.255/32,DIRECT,no-resolve",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 12,
+      "rule": "IP-CIDR,169.254.0.0/16,DIRECT,no-resolve",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 13,
+      "rule": "IP-CIDR,192.168.0.0/16,DIRECT,no-resolve",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 14,
+      "rule": "IP-CIDR,172.16.0.0/12,DIRECT,no-resolve",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 15,
+      "rule": "IP-CIDR,100.64.0.0/10,DIRECT,no-resolve",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 16,
+      "rule": "IP-CIDR6,fe80::/10,DIRECT,no-resolve",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 17,
+      "rule": "IP-CIDR,0.0.0.0/8,DIRECT,no-resolve",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 18,
+      "rule": "IP-CIDR,10.0.0.0/8,DIRECT,no-resolve",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 19,
+      "rule": "IP-CIDR,127.0.0.0/8,DIRECT,no-resolve",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 20,
+      "rule": "IP-CIDR6,ff00::/8,DIRECT,no-resolve",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 21,
+      "rule": "IP-CIDR6,fc00::/7,DIRECT,no-resolve",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 22,
+      "rule": "IP-CIDR,224.0.0.0/4,DIRECT,no-resolve",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 23,
+      "rule": "MATCH,HTTP伪装",
+      "tier": "default",
+      "key": "default",
+      "source": "../testdata/transports.profile.yaml:19"
+    }
+  ]
+}

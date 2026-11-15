@@ -1,0 +1,300 @@
+{
+  "log": {
+    "loglevel": "info"
+  },
+  "inbounds": [
+    {
+      "tag": "›mixed",
+      "protocol": "mixed",
+      "listen": "127.0.0.1",
+      "port": 7890,
+      "settings": {
+        "udp": true
+      },
+      "sniffing": {
+        "enabled": true,
+        "destOverride": [
+          "http",
+          "tls",
+          "quic"
+        ],
+        "routeOnly": true
+      }
+    }
+  ],
+  "outbounds": [
+    {
+      "tag": "HTTP伪装",
+      "protocol": "vmess",
+      "settings": {
+        "address": "192.0.2.20",
+        "port": 80,
+        "id": "00000000-0000-0000-0000-000000000020",
+        "security": "auto"
+      },
+      "streamSettings": {
+        "network": "raw",
+        "rawSettings": {
+          "header": {
+            "type": "http",
+            "request": {
+              "method": "POST",
+              "path": [
+                "/a",
+                "/b"
+              ],
+              "headers": {
+                "Host": [
+                  "a.example.com",
+                  "b.example.com"
+                ],
+                "User-Agent": [
+                  "conch"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "tag": "DIRECT",
+      "protocol": "freedom"
+    },
+    {
+      "tag": "REJECT»",
+      "protocol": "blackhole"
+    },
+    {
+      "tag": "REJECT-DROP",
+      "protocol": "blackhole"
+    },
+    {
+      "tag": "ws无SNI",
+      "protocol": "vless",
+      "settings": {
+        "address": "192.0.2.21",
+        "port": 443,
+        "id": "00000000-0000-0000-0000-000000000021",
+        "encryption": "none"
+      },
+      "streamSettings": {
+        "network": "ws",
+        "security": "tls",
+        "tlsSettings": {
+          "serverName": "cdn.example.com",
+          "alpn": [
+            "http/1.1"
+          ]
+        },
+        "wsSettings": {
+          "host": "cdn.example.com",
+          "path": "/ray?ed=2048"
+        }
+      }
+    },
+    {
+      "tag": "trojan-tcp",
+      "protocol": "trojan",
+      "settings": {
+        "address": "192.0.2.22",
+        "port": 443,
+        "password": "p"
+      },
+      "streamSettings": {
+        "security": "tls",
+        "tlsSettings": {
+          "serverName": "t.example.com",
+          "alpn": [
+            "h2",
+            "http/1.1"
+          ]
+        }
+      }
+    },
+    {
+      "tag": "trojan-ws",
+      "protocol": "trojan",
+      "settings": {
+        "address": "192.0.2.23",
+        "port": 443,
+        "password": "p"
+      },
+      "streamSettings": {
+        "network": "ws",
+        "security": "tls",
+        "tlsSettings": {
+          "serverName": "t.example.com",
+          "alpn": [
+            "http/1.1"
+          ]
+        },
+        "wsSettings": {
+          "host": "t.example.com",
+          "path": "/ws"
+        }
+      }
+    },
+    {
+      "tag": "不用uTLS",
+      "protocol": "trojan",
+      "settings": {
+        "address": "192.0.2.24",
+        "port": 443,
+        "password": "p"
+      },
+      "streamSettings": {
+        "security": "tls",
+        "tlsSettings": {
+          "serverName": "t.example.com",
+          "alpn": [
+            "h2",
+            "http/1.1"
+          ],
+          "fingerprint": "unsafe"
+        }
+      }
+    },
+    {
+      "tag": "chrome120",
+      "protocol": "trojan",
+      "settings": {
+        "address": "192.0.2.25",
+        "port": 443,
+        "password": "p"
+      },
+      "streamSettings": {
+        "security": "tls",
+        "tlsSettings": {
+          "serverName": "t.example.com",
+          "alpn": [
+            "h2",
+            "http/1.1"
+          ],
+          "fingerprint": "hellochrome_120"
+        }
+      }
+    },
+    {
+      "tag": "只要IPv4",
+      "protocol": "trojan",
+      "settings": {
+        "address": "t.example.com",
+        "port": 443,
+        "password": "p"
+      },
+      "streamSettings": {
+        "security": "tls",
+        "tlsSettings": {
+          "alpn": [
+            "h2",
+            "http/1.1"
+          ]
+        },
+        "sockopt": {
+          "domainStrategy": "ForceIPv4"
+        }
+      }
+    },
+    {
+      "tag": "GLOBAL",
+      "protocol": "loopback",
+      "settings": {
+        "inboundTag": "›group›GLOBAL"
+      }
+    }
+  ],
+  "routing": {
+    "domainStrategy": "IPIfNonMatch",
+    "rules": [
+      {
+        "inboundTag": [
+          "›group›GLOBAL"
+        ],
+        "balancerTag": "GLOBAL"
+      },
+      {
+        "domain": [
+          "domain:a.example"
+        ],
+        "outboundTag": "ws无SNI",
+        "ruleTag": "#0 a.example"
+      },
+      {
+        "domain": [
+          "domain:b.example"
+        ],
+        "outboundTag": "trojan-tcp",
+        "ruleTag": "#1 b.example"
+      },
+      {
+        "domain": [
+          "domain:c.example"
+        ],
+        "outboundTag": "trojan-ws",
+        "ruleTag": "#2 c.example"
+      },
+      {
+        "domain": [
+          "domain:d.example"
+        ],
+        "outboundTag": "不用uTLS",
+        "ruleTag": "#3 d.example"
+      },
+      {
+        "domain": [
+          "domain:e.example"
+        ],
+        "outboundTag": "chrome120",
+        "ruleTag": "#4 e.example"
+      },
+      {
+        "domain": [
+          "domain:f.example"
+        ],
+        "outboundTag": "只要IPv4",
+        "ruleTag": "#5 f.example"
+      },
+      {
+        "domain": [
+          "domain:home.arpa",
+          "domain:lan",
+          "domain:local",
+          "domain:localhost"
+        ],
+        "outboundTag": "DIRECT",
+        "ruleTag": "#6-9 lan"
+      },
+      {
+        "ip": [
+          "::1/128",
+          "255.255.255.255/32",
+          "169.254.0.0/16",
+          "192.168.0.0/16",
+          "172.16.0.0/12",
+          "100.64.0.0/10",
+          "fe80::/10",
+          "0.0.0.0/8",
+          "10.0.0.0/8",
+          "127.0.0.0/8",
+          "ff00::/8",
+          "fc00::/7",
+          "224.0.0.0/4"
+        ],
+        "outboundTag": "DIRECT",
+        "ruleTag": "#10-22 lan"
+      }
+    ],
+    "balancers": [
+      {
+        "tag": "GLOBAL",
+        "selector": [
+          "HTTP伪装"
+        ],
+        "strategy": {
+          "type": "random"
+        }
+      }
+    ]
+  }
+}

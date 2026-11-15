@@ -58,7 +58,10 @@
         "network": "ws",
         "security": "tls",
         "tlsSettings": {
-          "serverName": "v.example.com"
+          "serverName": "v.example.com",
+          "alpn": [
+            "http/1.1"
+          ]
         },
         "wsSettings": {
           "host": "cdn.example.com",
@@ -73,7 +76,7 @@
         "address": "r.example.com",
         "port": 443,
         "id": "00000000-0000-0000-0000-000000000002",
-        "flow": "xtls-rprx-vision",
+        "flow": "xtls-rprx-vision-udp443",
         "encryption": "none"
       },
       "streamSettings": {
@@ -140,7 +143,11 @@
       "streamSettings": {
         "network": "httpupgrade",
         "security": "tls",
-        "tlsSettings": {},
+        "tlsSettings": {
+          "alpn": [
+            "http/1.1"
+          ]
+        },
         "httpupgradeSettings": {
           "path": "/up"
         }
@@ -157,6 +164,10 @@
       "streamSettings": {
         "security": "tls",
         "tlsSettings": {
+          "alpn": [
+            "h2",
+            "http/1.1"
+          ],
           "pinnedPeerCertSha256": "0f1e2d3c4b5a69788796a5b4c3d2e1f00f1e2d3c4b5a69788796a5b4c3d2e1f0"
         }
       }
@@ -266,7 +277,7 @@
         "security": "tls",
         "tlsSettings": {},
         "sockopt": {
-          "domainStrategy": "UseIPv4",
+          "domainStrategy": "ForceIPv4",
           "tcpFastOpen": true,
           "interface": "eth0",
           "mark": 255

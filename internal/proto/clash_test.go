@@ -40,7 +40,7 @@ func TestFromClash(t *testing.T) {
 		{"hysteria2", `{ name: a, type: hysteria2, server: s, port: 443, password: p, up: 50, down: "200 Mbps",
 			obfs: salamander, obfs-password: o, ports: 20000-30000, hop-interval: 30, sni: h.example, fingerprint: AA:BB }`,
 			Spec{Type: "hysteria2", Server: "s", Port: 443, UDP: true, Password: "p", TLS: &TLS{SNI: "h.example", PinSHA256: "AA:BB"},
-				Hysteria: &Hysteria{Obfs: "salamander", ObfsPassword: "o", Up: 50_000_000, Down: 200_000_000, Ports: "20000-30000", HopInterval: 30}}},
+				Hysteria: &Hysteria{Obfs: "salamander", ObfsPassword: "o", Up: 50_000_000, Down: 200_000_000, Ports: "20000-30000", HopMin: 30, HopMax: 30}}},
 		{"wireguard", `{ name: a, type: wireguard, server: 1.2.3.4, port: 51820, ip: 172.16.0.2, ipv6: "fd01::2",
 			private-key: k, public-key: pk, reserved: "AQID", mtu: 1280 }`,
 			Spec{Type: "wireguard", Server: "1.2.3.4", Port: 51820, UDP: true, WireGuard: &WireGuard{
@@ -64,7 +64,7 @@ func TestFromClash(t *testing.T) {
 }
 
 func TestNestedUnknownFields(t *testing.T) {
-	s := decode(t, `{ name: a, type: vless, server: s, port: 1, uuid: u, network: grpc,
+	s := decode(t, `{ name: a, type: vless, server: s, port: 1, uuid: u, network: grpc, tls: true,
 		grpc-opts: { grpc-service-name: svc, ping-interval: 5 }, reality-opts: { public-key: k, future: 1 } }`)
 	want := []string{"grpc-opts.ping-interval", "reality-opts.future"}
 	if !reflect.DeepEqual(s.Unknown, want) {
@@ -72,6 +72,10 @@ func TestNestedUnknownFields(t *testing.T) {
 	}
 	if s.Transport.ServiceName != "svc" || s.TLS == nil || s.TLS.Reality == nil {
 		t.Errorf("spec = %+v", s)
+	}
+	// Without tls, mihomo takes REALITY's options for nothing.
+	if s := decode(t, `{ name: a, type: vless, server: s, port: 1, uuid: u, reality-opts: { public-key: k } }`); s.TLS != nil {
+		t.Errorf("REALITY without tls: %+v", s.TLS)
 	}
 }
 
@@ -89,7 +93,7 @@ func TestClashRoundTrip(t *testing.T) {
 		{Type: "socks5", Server: "s", Port: 1080, Username: "u", Password: "p", TLS: &TLS{Insecure: true}},
 		{Type: "http", Server: "s", Port: 8080, Username: "u", Password: "p", Headers: map[string]string{"User-Agent": "x"}},
 		{Type: "hysteria2", Server: "s", Port: 443, UDP: true, Password: "p", TLS: &TLS{SNI: "a"},
-			Hysteria: &Hysteria{Obfs: "salamander", ObfsPassword: "o", Up: 50_000_000, Down: 1_000_000_000, Ports: "1000-2000", HopInterval: 30}},
+			Hysteria: &Hysteria{Obfs: "salamander", ObfsPassword: "o", Up: 50_000_000, Down: 1_000_000_000, Ports: "1000-2000", HopMin: 30, HopMax: 30}},
 		{Type: "wireguard", Server: "1.2.3.4", Port: 51820, UDP: true, WireGuard: &WireGuard{PrivateKey: "k", MTU: 1280,
 			Address: []string{"10.0.0.2/32", "fd00::2/128"}, Peers: []WireGuardPeer{{Server: "1.2.3.4", Port: 51820, PublicKey: "pk", Reserved: []int{1, 2, 3}}}}},
 		{Type: "wireguard", Server: "1.2.3.4", Port: 51820, UDP: true, WireGuard: &WireGuard{PrivateKey: "k", Address: []string{"10.0.0.0/24"},

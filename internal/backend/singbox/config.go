@@ -68,16 +68,18 @@ type outbound struct {
 	Password       string            `json:"password,omitempty"`
 	UUID           string            `json:"uuid,omitempty"`
 	Security       string            `json:"security,omitempty"` // vmess
-	Flow           string            `json:"flow,omitempty"`     // vless
+	AlterID        int               `json:"alter_id,omitempty"`
+	Flow           string            `json:"flow,omitempty"` // vless
 	PacketEncoding string            `json:"packet_encoding,omitempty"`
 	UDPOverTCP     bool              `json:"udp_over_tcp,omitempty"`
 	Headers        map[string]string `json:"headers,omitempty"` // http
 
-	ServerPorts []string `json:"server_ports,omitempty"` // hysteria2
-	HopInterval string   `json:"hop_interval,omitempty"`
-	UpMbps      int      `json:"up_mbps,omitempty"`
-	DownMbps    int      `json:"down_mbps,omitempty"`
-	Obfs        *obfs    `json:"obfs,omitempty"`
+	ServerPorts    []string `json:"server_ports,omitempty"` // hysteria2
+	HopInterval    string   `json:"hop_interval,omitempty"`
+	HopIntervalMax string   `json:"hop_interval_max,omitempty"`
+	UpMbps         int      `json:"up_mbps,omitempty"`
+	DownMbps       int      `json:"down_mbps,omitempty"`
+	Obfs           *obfs    `json:"obfs,omitempty"`
 
 	Outbounds   []string `json:"outbounds,omitempty"` // selector, urltest
 	Default     string   `json:"default,omitempty"`
@@ -98,11 +100,20 @@ type dial struct {
 	RoutingMark   int    `json:"routing_mark,omitempty"`
 	TCPFastOpen   bool   `json:"tcp_fast_open,omitempty"`
 	TCPMultiPath  bool   `json:"tcp_multi_path,omitempty"`
+	// How the server's name is resolved: mihomo's ip-version.
+	DomainResolver *domainResolver `json:"domain_resolver,omitempty"`
+}
+
+type domainResolver struct {
+	Server   string `json:"server"`
+	Strategy string `json:"strategy,omitempty"`
 }
 
 type obfs struct {
-	Type     string `json:"type"`
-	Password string `json:"password"`
+	Type          string `json:"type"`
+	Password      string `json:"password"`
+	MinPacketSize int    `json:"min_packet_size,omitempty"` // gecko
+	MaxPacketSize int    `json:"max_packet_size,omitempty"`
 }
 
 type tlsOptions struct {
@@ -133,6 +144,7 @@ type transport struct {
 	Type                string            `json:"type"`
 	Host                any               `json:"host,omitempty"` // a list for http, a string for httpupgrade
 	Path                string            `json:"path,omitempty"`
+	Method              string            `json:"method,omitempty"` // http
 	Headers             map[string]string `json:"headers,omitempty"`
 	ServiceName         string            `json:"service_name,omitempty"`
 	MaxEarlyData        int               `json:"max_early_data,omitempty"`

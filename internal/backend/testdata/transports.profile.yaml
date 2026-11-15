@@ -1,0 +1,26 @@
+# mihomo 对传输和 TLS 的隐含规则（proto.Resolve），三个内核都要能编译，并交给各自的真实内核检查
+nodes:
+  # TCP 上的 HTTP 伪装：方法、几个路径和 Host、别的头
+  - { name: HTTP伪装, type: vmess, server: 192.0.2.20, port: 80, uuid: 00000000-0000-0000-0000-000000000020, alterId: 0, cipher: auto,
+      network: http, http-opts: { method: POST, path: [/a, /b], headers: { Host: [a.example.com, b.example.com], User-Agent: [conch] } } }
+  # ws 加 TLS、没写 servername：SNI 用 Host；路径里的 ?ed= 是 early data
+  - { name: ws无SNI, type: vless, server: 192.0.2.21, port: 443, uuid: 00000000-0000-0000-0000-000000000021, tls: true,
+      network: ws, ws-opts: { path: "/ray?ed=2048", headers: { Host: cdn.example.com } } }
+  # trojan：TCP 默认 ALPN 是 h2、http/1.1；ws 的 Host 用 SNI
+  - { name: trojan-tcp, type: trojan, server: 192.0.2.22, port: 443, password: p, sni: t.example.com }
+  - { name: trojan-ws, type: trojan, server: 192.0.2.23, port: 443, password: p, sni: t.example.com, network: ws, ws-opts: { path: /ws } }
+  # uTLS 指纹：none 是不用；chrome120 是带版本的 chrome
+  - { name: 不用uTLS, type: trojan, server: 192.0.2.24, port: 443, password: p, sni: t.example.com, client-fingerprint: none }
+  - { name: chrome120, type: trojan, server: 192.0.2.25, port: 443, password: p, sni: t.example.com, client-fingerprint: chrome120 }
+  # 只用 IPv4 解析服务器的名字
+  - { name: 只要IPv4, type: trojan, server: t.example.com, port: 443, password: p, ip-version: ipv4 }
+
+routes:
+  default: HTTP伪装
+  entries:
+    a.example: ws无SNI
+    b.example: trojan-tcp
+    c.example: trojan-ws
+    d.example: 不用uTLS
+    e.example: chrome120
+    f.example: 只要IPv4

@@ -48,7 +48,8 @@ type encoder struct {
 	d    diag.List
 
 	groups      map[string]bool
-	needsReject bool // a group lists REJECT, which only a block outbound can be
+	needsReject bool   // a group lists REJECT, which only a block outbound can be
+	resolver    string // the DNS server outbounds resolve their servers with
 	manifest    *backend.Manifest
 	ruleSets    []ruleSet
 }
@@ -64,6 +65,8 @@ func (Backend) Encode(r *compile.Result, opts backend.Options) (*backend.Artifac
 	}
 
 	cfg := config{Log: e.log()}
+	cfg.DNS, cfg.Route.DefaultDomainResolver = e.dns()
+	e.resolver = cfg.Route.DefaultDomainResolver
 	cfg.Outbounds = append(cfg.Outbounds, outbound{Type: "direct", Tag: "DIRECT"})
 	warned := map[*model.Node]bool{}
 	for _, p := range r.Proxies {
@@ -92,7 +95,6 @@ func (Backend) Encode(r *compile.Result, opts backend.Options) (*backend.Artifac
 	if e.needsReject {
 		cfg.Outbounds = append(cfg.Outbounds, outbound{Type: "block", Tag: "REJECT"})
 	}
-	cfg.DNS, cfg.Route.DefaultDomainResolver = e.dns()
 	cfg.Inbounds = e.inbounds()
 	cfg.Route.Rules = e.rules()
 	cfg.Route.RuleSet = e.ruleSets

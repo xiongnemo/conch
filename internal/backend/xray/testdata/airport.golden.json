@@ -72,7 +72,12 @@
       "streamSettings": {
         "network": "ws",
         "security": "tls",
-        "tlsSettings": {},
+        "tlsSettings": {
+          "serverName": "hk2.airport.example",
+          "alpn": [
+            "http/1.1"
+          ]
+        },
         "wsSettings": {
           "host": "hk2.airport.example",
           "path": "/hk2"
@@ -90,7 +95,11 @@
       "streamSettings": {
         "security": "tls",
         "tlsSettings": {
-          "serverName": "jp1.airport.example"
+          "serverName": "jp1.airport.example",
+          "alpn": [
+            "h2",
+            "http/1.1"
+          ]
         }
       }
     },
@@ -104,7 +113,12 @@
       },
       "streamSettings": {
         "security": "tls",
-        "tlsSettings": {}
+        "tlsSettings": {
+          "alpn": [
+            "h2",
+            "http/1.1"
+          ]
+        }
       }
     },
     {
@@ -117,7 +131,12 @@
       },
       "streamSettings": {
         "security": "tls",
-        "tlsSettings": {}
+        "tlsSettings": {
+          "alpn": [
+            "h2",
+            "http/1.1"
+          ]
+        }
       }
     },
     {
@@ -144,7 +163,11 @@
       "streamSettings": {
         "security": "tls",
         "tlsSettings": {
-          "serverName": "jp1.airport.example"
+          "serverName": "jp1.airport.example",
+          "alpn": [
+            "h2",
+            "http/1.1"
+          ]
         },
         "sockopt": {
           "dialerProxy": "🇭🇰 香港 01"

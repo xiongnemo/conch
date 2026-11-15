@@ -42,7 +42,11 @@
       "password": "pass",
       "tls": {
         "enabled": true,
-        "server_name": "hk2.example.com"
+        "server_name": "hk2.example.com",
+        "alpn": [
+          "h2",
+          "http/1.1"
+        ]
       }
     },
     {

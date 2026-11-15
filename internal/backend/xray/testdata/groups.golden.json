@@ -52,7 +52,12 @@
       },
       "streamSettings": {
         "security": "tls",
-        "tlsSettings": {}
+        "tlsSettings": {
+          "alpn": [
+            "h2",
+            "http/1.1"
+          ]
+        }
       }
     },
     {
@@ -65,7 +70,12 @@
       },
       "streamSettings": {
         "security": "tls",
-        "tlsSettings": {}
+        "tlsSettings": {
+          "alpn": [
+            "h2",
+            "http/1.1"
+          ]
+        }
       }
     },
     {
@@ -78,7 +88,12 @@
       },
       "streamSettings": {
         "security": "tls",
-        "tlsSettings": {}
+        "tlsSettings": {
+          "alpn": [
+            "h2",
+            "http/1.1"
+          ]
+        }
       }
     },
     {

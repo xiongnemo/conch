@@ -22,11 +22,35 @@ var ssMethods = []string{
 // uTLS fingerprints sing-box accepts.
 var fingerprints = []string{"chrome", "firefox", "edge", "safari", "360", "qq", "ios", "android", "random", "randomized"}
 
+// fingerprint is mihomo's client-fingerprint in sing-box's names; ""
+// means no uTLS, as "none" and names mihomo does not know do in mihomo.
+func fingerprint(name string) (string, []string) {
+	name = strings.ToLower(name)
+	switch {
+	case name == "" || name == "none" || slices.Contains(fingerprints, name):
+		if name == "none" {
+			name = ""
+		}
+		return name, nil
+	case name == "chrome120" || strings.HasPrefix(name, "chrome_"):
+		return "chrome", []string{fmt.Sprintf("sing-box 没有 %s 指纹，改用 chrome", name)}
+	case name == "firefox120":
+		return "firefox", []string{"sing-box 没有 firefox120 指纹，改用 firefox"}
+	case name == "safari16":
+		return "safari", []string{"sing-box 没有 safari16 指纹，改用 safari"}
+	}
+	return "", []string{fmt.Sprintf("mihomo 不认识 uTLS 指纹 %q，不会用 uTLS；sing-box 也不用", name)}
+}
+
+// ipStrategy is mihomo's ip-version as sing-box's resolve strategy.
+var ipStrategy = map[string]string{"ipv4": "ipv4_only", "ipv6": "ipv6_only", "ipv4-prefer": "prefer_ipv4", "ipv6-prefer": "prefer_ipv6"}
+
 // nodeOutbound translates one proxy. WireGuard nodes become endpoints.
 // Problems that make the node unusable are errors; lossy translations
 // are reported as warnings.
 func (e *encoder) nodeOutbound(p *compile.Proxy) (*outbound, *endpoint, []string, error) {
 	s := proto.FromClash(p.Node.Raw)
+	s.Resolve()
 	o := &outbound{Tag: p.Name, Server: s.Server, ServerPort: s.Port}
 	var warns []string
 	switch s.Type {
@@ -37,30 +61,41 @@ func (e *encoder) nodeOutbound(p *compile.Proxy) (*outbound, *endpoint, []string
 		}
 		o.Type, o.Method, o.Password, o.UDPOverTCP = "shadowsocks", method, s.Password, s.UDPOverTCP
 	case "vmess":
-		o.Type, o.UUID, o.Security = "vmess", s.UUID, cmp.Or(strings.ToLower(s.Cipher), "auto")
-		if s.AlterID != 0 {
-			warns = append(warns, "sing-box 只支持 alterId 为 0 的 VMess（AEAD），这个节点很可能连不上")
-		}
+		o.Type, o.UUID, o.Security, o.AlterID = "vmess", s.UUID, cmp.Or(strings.ToLower(s.Cipher), "auto"), s.AlterID
 	case "vless":
-		o.Type, o.UUID, o.Flow = "vless", s.UUID, s.Flow
+		// mihomo takes vision-udp443 for vision, which relays UDP/443 anyway.
+		o.Type, o.UUID, o.Flow = "vless", s.UUID, strings.TrimSuffix(s.Flow, "-udp443")
 	case "trojan":
 		o.Type, o.Password = "trojan", s.Password
 	case "socks5":
+		if s.TLS != nil {
+			return nil, nil, nil, fmt.Errorf("sing-box 的 SOCKS5 出站不能套 TLS")
+		}
 		o.Type, o.Version, o.Username, o.Password = "socks", "5", s.Username, s.Password
 	case "http":
 		o.Type, o.Username, o.Password, o.Headers = "http", s.Username, s.Password, nonEmpty(s.Headers)
 	case "hysteria2":
 		o.Type, o.Password = "hysteria2", s.Password
 		if h := s.Hysteria; h != nil {
-			if h.Obfs != "" {
+			switch h.Obfs {
+			case "":
+			case "salamander", "gecko":
 				o.Obfs = &obfs{Type: h.Obfs, Password: h.ObfsPassword}
+				if h.Obfs == "gecko" {
+					o.Obfs.MinPacketSize, o.Obfs.MaxPacketSize = h.ObfsMinPacket, h.ObfsMaxPacket
+				}
+			default:
+				return nil, nil, nil, fmt.Errorf("sing-box 不认识 hysteria2 混淆 %q", h.Obfs)
 			}
 			o.UpMbps, o.DownMbps = mbps(h.Up), mbps(h.Down)
 			if h.Ports != "" {
 				o.ServerPorts = serverPorts(h.Ports)
 				o.ServerPort = 0
-				if h.HopInterval > 0 {
-					o.HopInterval = strconv.Itoa(h.HopInterval) + "s"
+				if h.HopMin > 0 {
+					o.HopInterval = strconv.Itoa(h.HopMin) + "s"
+				}
+				if h.HopMax > h.HopMin {
+					o.HopIntervalMax = strconv.Itoa(h.HopMax) + "s" // a random time in the range, as mihomo
 				}
 			}
 		}
@@ -82,7 +117,7 @@ func (e *encoder) nodeOutbound(p *compile.Proxy) (*outbound, *endpoint, []string
 		o.TLS = t
 		warns = append(warns, w...)
 	}
-	t, err := transportOf(s.Transport, &warns)
+	t, err := transportOf(s.Transport, s.TLS != nil, &warns)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -96,12 +131,7 @@ func (e *encoder) nodeOutbound(p *compile.Proxy) (*outbound, *endpoint, []string
 
 func tlsOf(t *proto.TLS, certs certpin.Lookup) (*tlsOptions, []string) {
 	o := &tlsOptions{Enabled: true, ServerName: t.SNI, Insecure: t.Insecure, ALPN: t.ALPN}
-	var warns []string
-	fp := strings.ToLower(t.Fingerprint)
-	if fp != "" && !slices.Contains(fingerprints, fp) {
-		warns = append(warns, fmt.Sprintf("sing-box 不认识 uTLS 指纹 %q，改用 chrome", t.Fingerprint))
-		fp = "chrome"
-	}
+	fp, warns := fingerprint(t.Fingerprint)
 	if t.Reality != nil {
 		fp = cmp.Or(fp, "chrome") // REALITY requires uTLS
 		o.Reality = &reality{Enabled: true, PublicKey: t.Reality.PublicKey, ShortID: t.Reality.ShortID}
@@ -140,7 +170,7 @@ func pin(o *tlsOptions, sha string, certs certpin.Lookup) []string {
 	return nil
 }
 
-func transportOf(t proto.Transport, warns *[]string) (*transport, error) {
+func transportOf(t proto.Transport, tls bool, warns *[]string) (*transport, error) {
 	headers := map[string]string{}
 	for k, v := range t.Headers {
 		headers[k] = v
@@ -152,12 +182,12 @@ func transportOf(t proto.Transport, warns *[]string) (*transport, error) {
 		if t.Host != "" {
 			headers["Host"] = t.Host // sing-box has no ws host field
 		}
-		o := &transport{Type: "ws", Path: t.Path, Headers: nonEmpty(headers), MaxEarlyData: t.EarlyData}
-		if t.EarlyData > 0 {
-			o.EarlyDataHeaderName = cmp.Or(t.EarlyDataHeader, "Sec-WebSocket-Protocol")
-		}
-		return o, nil
+		// An empty header name puts early data in the path, as in mihomo.
+		return &transport{Type: "ws", Path: t.Path, Headers: nonEmpty(headers), MaxEarlyData: t.EarlyData, EarlyDataHeaderName: t.EarlyDataHeader}, nil
 	case "httpupgrade":
+		if t.EarlyData > 0 {
+			*warns = append(*warns, "sing-box 的 HTTPUpgrade 不支持 early data，这个节点不用 early data")
+		}
 		o := &transport{Type: "httpupgrade", Path: t.Path, Headers: nonEmpty(headers)}
 		if t.Host != "" {
 			o.Host = t.Host
@@ -165,13 +195,29 @@ func transportOf(t proto.Transport, warns *[]string) (*transport, error) {
 		return o, nil
 	case "grpc":
 		return &transport{Type: "grpc", ServiceName: t.ServiceName}, nil
-	case "h2", "http":
-		o := &transport{Type: "http", Path: t.Path, Headers: nonEmpty(headers)}
-		if t.Host != "" {
-			o.Host = []string{t.Host}
+	case "h2":
+		// sing-box's HTTP transport is HTTP/2 over TLS, and HTTP/1.1 without.
+		if !tls {
+			return nil, fmt.Errorf("h2 传输需要 TLS")
 		}
-		if t.Network == "http" {
-			*warns = append(*warns, "sing-box 没有 TCP 上的 HTTP 头部伪装，改用 HTTP 传输，服务器也需要是 HTTP 传输")
+		o := &transport{Type: "http", Path: t.Path, Headers: nonEmpty(headers)}
+		if hosts := orOne(t.Hosts, t.Host); len(hosts) > 0 {
+			o.Host = hosts
+		}
+		return o, nil
+	case "http":
+		// TCP with HTTP request headers: sing-box's HTTP transport without
+		// TLS writes them the same way. Over TLS it would be HTTP/2.
+		if tls {
+			return nil, fmt.Errorf("sing-box 不能在 TLS 里做 HTTP 头部伪装（它的 HTTP 传输在 TLS 上是 HTTP/2）")
+		}
+		delete(headers, "Host")
+		o := &transport{Type: "http", Path: t.Path, Method: t.Method, Headers: nonEmpty(headers)}
+		if len(t.Hosts) > 0 {
+			o.Host = t.Hosts
+		}
+		if len(t.Paths) > 1 {
+			*warns = append(*warns, fmt.Sprintf("sing-box 的 HTTP 伪装只能用一个路径，用 %s", t.Path))
 		}
 		return o, nil
 	case "xhttp":
@@ -199,6 +245,9 @@ func wireguardEndpoint(tag string, w *proto.WireGuard) (*endpoint, error) {
 // chain, or with the node's own socket options.
 func (e *encoder) dial(upstream string, s proto.Sockopt) dial {
 	d := dial{BindInterface: s.Interface, RoutingMark: s.Mark, TCPFastOpen: s.TFO, TCPMultiPath: s.MPTCP}
+	if strategy := ipStrategy[s.IPVersion]; strategy != "" {
+		d.DomainResolver = &domainResolver{Server: e.resolver, Strategy: strategy}
+	}
 	if upstream != "" {
 		d = dial{Detour: upstream} // the other dial fields are ignored with a detour
 	}
@@ -236,4 +285,15 @@ func nonEmpty(m map[string]string) map[string]string {
 		return nil
 	}
 	return m
+}
+
+// orOne is a list, or the one value when there is no list.
+func orOne(list []string, one string) []string {
+	if len(list) > 0 {
+		return list
+	}
+	if one != "" {
+		return []string{one}
+	}
+	return nil
 }

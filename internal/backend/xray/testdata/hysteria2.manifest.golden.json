@@ -17,6 +17,11 @@
       "node": "跳一个端口"
     },
     {
+      "name": "gecko",
+      "kind": "node",
+      "node": "gecko"
+    },
+    {
       "name": "入口",
       "kind": "node",
       "node": "入口"
@@ -37,7 +42,7 @@
       "tag": "#0 a.example",
       "tier": "domain",
       "key": "a.example",
-      "source": "../testdata/hysteria2.profile.yaml:22"
+      "source": "../testdata/hysteria2.profile.yaml:25"
     },
     {
       "index": 1,
@@ -45,22 +50,30 @@
       "tag": "#1 b.example",
       "tier": "domain",
       "key": "b.example",
-      "source": "../testdata/hysteria2.profile.yaml:23"
+      "source": "../testdata/hysteria2.profile.yaml:26"
     },
     {
       "index": 2,
-      "last": 5,
-      "rule": "{\"domain\":[\"domain:home.arpa\",\"domain:lan\",\"domain:local\",\"domain:localhost\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#2-5 lan\"}",
-      "tag": "#2-5 lan",
+      "rule": "{\"domain\":[\"domain:c.example\"],\"outboundTag\":\"gecko\",\"ruleTag\":\"#2 c.example\"}",
+      "tag": "#2 c.example",
+      "tier": "domain",
+      "key": "c.example",
+      "source": "../testdata/hysteria2.profile.yaml:27"
+    },
+    {
+      "index": 3,
+      "last": 6,
+      "rule": "{\"domain\":[\"domain:home.arpa\",\"domain:lan\",\"domain:local\",\"domain:localhost\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#3-6 lan\"}",
+      "tag": "#3-6 lan",
       "tier": "domain",
       "key": "lan",
       "builtin": true
     },
     {
-      "index": 6,
-      "last": 18,
-      "rule": "{\"ip\":[\"::1/128\",\"255.255.255.255/32\",\"169.254.0.0/16\",\"192.168.0.0/16\",\"172.16.0.0/12\",\"100.64.0.0/10\",\"fe80::/10\",\"0.0.0.0/8\",\"10.0.0.0/8\",\"127.0.0.0/8\",\"ff00::/8\",\"fc00::/7\",\"224.0.0.0/4\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#6-18 lan\"}",
-      "tag": "#6-18 lan",
+      "index": 7,
+      "last": 19,
+      "rule": "{\"ip\":[\"::1/128\",\"255.255.255.255/32\",\"169.254.0.0/16\",\"192.168.0.0/16\",\"172.16.0.0/12\",\"100.64.0.0/10\",\"fe80::/10\",\"0.0.0.0/8\",\"10.0.0.0/8\",\"127.0.0.0/8\",\"ff00::/8\",\"fc00::/7\",\"224.0.0.0/4\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#7-19 lan\"}",
+      "tag": "#7-19 lan",
       "tier": "ip",
       "key": "lan",
       "builtin": true

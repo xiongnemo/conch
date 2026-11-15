@@ -59,15 +59,24 @@ type Transport struct {
 	ServiceName     string // grpc
 	Mode            string // xhttp
 	EarlyData       int    // ws: max early data bytes
-	EarlyDataHeader string // ws: header carrying early data
+	EarlyDataHeader string // ws: header carrying early data; empty: in the path
+	// TCP with HTTP request headers (network http): the method and every
+	// path and host, one of which each request picks; Path and Host are
+	// the first. h2 has hosts too.
+	Method string
+	Paths  []string
+	Hosts  []string
 }
 
 type Hysteria struct {
 	Obfs         string // salamander
 	ObfsPassword string
 	Up, Down     uint64 // bandwidth hints, bits per second (ParseBandwidth)
-	Ports        string // port hopping, e.g. "20000-30000"
-	HopInterval  int    // seconds
+	Ports        string // port hopping, e.g. "443,20000-30000"
+	HopMin       int    // seconds between hops; a random time up to
+	HopMax       int    // HopMax when it is more
+	// gecko obfuscation pads packets to sizes in this range.
+	ObfsMinPacket, ObfsMaxPacket int
 }
 
 // TrojanGo holds what trojan-go adds to trojan; such nodes run in a

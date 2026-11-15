@@ -63,7 +63,11 @@
       "streamSettings": {
         "security": "tls",
         "tlsSettings": {
-          "serverName": "hk2.example.com"
+          "serverName": "hk2.example.com",
+          "alpn": [
+            "h2",
+            "http/1.1"
+          ]
         }
       }
     },
@@ -74,7 +78,7 @@
         "address": "jp1.example.com",
         "port": 443,
         "id": "00000000-0000-0000-0000-000000000000",
-        "flow": "xtls-rprx-vision",
+        "flow": "xtls-rprx-vision-udp443",
         "encryption": "none"
       },
       "streamSettings": {

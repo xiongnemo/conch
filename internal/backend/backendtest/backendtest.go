@@ -118,6 +118,24 @@ func Build(t *testing.T, b backend.Router, path string, opts backend.Options) (*
 	return art, append(diags, d...)
 }
 
+// BuildNode compiles a profile of one node, written as a flow mapping
+// that starts with its name, and returns the config, or nil, and what
+// was said about it.
+func BuildNode(t *testing.T, b backend.Router, node string) (*backend.Artifact, string) {
+	t.Helper()
+	name := strings.SplitN(strings.TrimPrefix(node, "{ name: "), ",", 2)[0]
+	profile := filepath.Join(t.TempDir(), "profile.yaml")
+	if err := os.WriteFile(profile, []byte("nodes:\n  - "+node+"\nroutes: { default: "+name+" }\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	art, d := Build(t, b, profile, backend.Options{Certs: Certs})
+	var text strings.Builder
+	for _, x := range d {
+		text.WriteString(x.String() + "\n")
+	}
+	return art, text.String()
+}
+
 // Golden compiles every case and compares the config (with extension ext),
 // the manifest and the diagnostics with golden files in ./testdata. A case
 // the backend rejects only has a diagnostics golden.

@@ -1,0 +1,2 @@
+警告 ../testdata/transports.profile.yaml:4：节点 "HTTP伪装"：sing-box 的 HTTP 伪装只能用一个路径，用 /a
+警告 ../testdata/transports.profile.yaml:14：节点 "chrome120"：sing-box 没有 chrome120 指纹，改用 chrome

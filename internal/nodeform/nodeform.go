@@ -88,10 +88,12 @@ var Fields = func() []Field {
 		{Key: "reserved", Label: "reserved", Kind: "list", Types: []string{"wireguard"}, More: true, Hint: "1, 2, 3"},
 		{Key: "mtu", Label: "MTU", Kind: "number", Types: []string{"wireguard"}, More: true},
 
-		{Key: "obfs", Label: "混淆", Kind: "select", Types: []string{"hysteria2"}, Options: []Option{{"", "不用"}, {"salamander", "salamander"}}},
-		{Key: "obfs-password", Label: "混淆密码", Kind: "secret", Types: []string{"hysteria2"}, When: map[string][]string{"obfs": {"salamander"}}},
-		{Key: "ports", Label: "端口跳跃", Kind: "text", Types: []string{"hysteria2"}, More: true, Hint: "20000-30000"},
-		{Key: "hop-interval", Label: "跳跃间隔（秒）", Kind: "number", Types: []string{"hysteria2"}, More: true, Hint: "30"},
+		{Key: "obfs", Label: "混淆", Kind: "select", Types: []string{"hysteria2"}, Options: []Option{{"", "不用"}, {"salamander", "salamander"}, {"gecko", "gecko"}}},
+		{Key: "obfs-password", Label: "混淆密码", Kind: "secret", Types: []string{"hysteria2"}, When: map[string][]string{"obfs": {"salamander", "gecko"}}},
+		{Key: "obfs-min-packet-size", Label: "最小包", Kind: "number", Types: []string{"hysteria2"}, When: map[string][]string{"obfs": {"gecko"}}, More: true, Hint: "512"},
+		{Key: "obfs-max-packet-size", Label: "最大包", Kind: "number", Types: []string{"hysteria2"}, When: map[string][]string{"obfs": {"gecko"}}, More: true, Hint: "1200"},
+		{Key: "ports", Label: "端口跳跃", Kind: "text", Types: []string{"hysteria2"}, More: true, Hint: "443,20000-30000"},
+		{Key: "hop-interval", Label: "跳跃间隔（秒）", Kind: "text", Types: []string{"hysteria2"}, More: true, Hint: "30，或 10-30 随机"},
 		{Key: "up", Label: "上行带宽", Kind: "text", Types: []string{"hysteria2"}, More: true, Hint: "50 Mbps"},
 		{Key: "down", Label: "下行带宽", Kind: "text", Types: []string{"hysteria2"}, More: true, Hint: "200 Mbps"},
 

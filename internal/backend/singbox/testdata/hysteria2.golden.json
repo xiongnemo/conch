@@ -87,6 +87,27 @@
       }
     },
     {
+      "type": "hysteria2",
+      "tag": "gecko",
+      "server": "192.0.2.11",
+      "password": "p",
+      "server_ports": [
+        "443:443",
+        "20000:30000"
+      ],
+      "hop_interval": "10s",
+      "hop_interval_max": "30s",
+      "obfs": {
+        "type": "gecko",
+        "password": "g",
+        "min_packet_size": 600
+      },
+      "tls": {
+        "enabled": true,
+        "server_name": "h.example.com"
+      }
+    },
+    {
       "type": "socks",
       "tag": "入口",
       "server": "192.0.2.7",
@@ -116,6 +137,7 @@
         "经入口",
         "单端口",
         "跳一个端口",
+        "gecko",
         "入口",
         "DIRECT"
       ]
@@ -139,6 +161,13 @@
         ],
         "action": "route",
         "outbound": "经入口"
+      },
+      {
+        "domain_suffix": [
+          "c.example"
+        ],
+        "action": "route",
+        "outbound": "gecko"
       },
       {
         "domain_suffix": [

@@ -2,6 +2,7 @@ package proto
 
 import (
 	"cmp"
+	"fmt"
 	"net/netip"
 	"slices"
 	"strconv"
@@ -79,8 +80,17 @@ func ToClash(name string, s *Spec) *yaml.Node {
 			m.str("up", FormatBandwidth(h.Up))
 			m.str("down", FormatBandwidth(h.Down))
 			m.str("ports", h.Ports)
-			if h.HopInterval > 0 {
-				m.int("hop-interval", h.HopInterval)
+			switch {
+			case h.HopMax > h.HopMin:
+				m.str("hop-interval", fmt.Sprintf("%d-%d", h.HopMin, h.HopMax))
+			case h.HopMin > 0:
+				m.int("hop-interval", h.HopMin)
+			}
+			if h.ObfsMinPacket > 0 {
+				m.int("obfs-min-packet-size", h.ObfsMinPacket)
+			}
+			if h.ObfsMaxPacket > 0 {
+				m.int("obfs-max-packet-size", h.ObfsMaxPacket)
 			}
 		}
 		tlsClash(m, s.TLS, false, "sni")
@@ -161,15 +171,27 @@ func transportClash(m *mapping, t Transport) {
 		m.node("grpc-opts", o.n)
 	case "h2":
 		m.str("network", "h2")
-		if t.Host != "" {
-			o.strs("host", []string{t.Host})
+		if hosts := orOne(t.Hosts, t.Host); len(hosts) > 0 {
+			o.strs("host", hosts)
 		}
 		o.str("path", t.Path)
 		m.node("h2-opts", o.n)
 	case "http":
 		m.str("network", "http")
-		if t.Path != "" {
-			o.strs("path", []string{t.Path})
+		o.str("method", t.Method)
+		if paths := orOne(t.Paths, t.Path); len(paths) > 0 {
+			o.strs("path", paths)
+		}
+		// http-opts headers are lists, Host the transport's hosts.
+		h := &mapping{n: &yaml.Node{Kind: yaml.MappingNode}}
+		if hosts := orOne(t.Hosts, t.Host); len(hosts) > 0 {
+			h.strs("Host", hosts)
+		}
+		for _, k := range sortedKeys(t.Headers) {
+			h.strs(k, []string{t.Headers[k]})
+		}
+		if len(h.n.Content) > 0 {
+			o.node("headers", h.n)
 		}
 		m.node("http-opts", o.n)
 	case "xhttp":
@@ -286,4 +308,24 @@ func (m *mapping) strMap(key string, kv map[string]string) {
 		sub.Content = append(sub.Content, model.Str(k), model.Str(kv[k]))
 	}
 	m.node(key, sub)
+}
+
+// orOne is a list, or the one value when there is no list.
+func orOne(list []string, one string) []string {
+	if len(list) > 0 {
+		return list
+	}
+	if one != "" {
+		return []string{one}
+	}
+	return nil
+}
+
+func sortedKeys(m map[string]string) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	slices.Sort(keys)
+	return keys
 }

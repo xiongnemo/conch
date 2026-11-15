@@ -1,0 +1,345 @@
+{
+  "log": {
+    "level": "info",
+    "timestamp": true
+  },
+  "dns": {
+    "servers": [
+      {
+        "type": "local",
+        "tag": "local"
+      }
+    ],
+    "final": "local",
+    "strategy": "ipv4_only"
+  },
+  "inbounds": [
+    {
+      "type": "mixed",
+      "tag": "›mixed",
+      "listen": "127.0.0.1",
+      "listen_port": 7890
+    }
+  ],
+  "outbounds": [
+    {
+      "type": "direct",
+      "tag": "DIRECT"
+    },
+    {
+      "type": "vmess",
+      "tag": "HTTP伪装",
+      "server": "192.0.2.20",
+      "server_port": 80,
+      "uuid": "00000000-0000-0000-0000-000000000020",
+      "security": "auto",
+      "transport": {
+        "type": "http",
+        "host": [
+          "a.example.com",
+          "b.example.com"
+        ],
+        "path": "/a",
+        "method": "POST",
+        "headers": {
+          "User-Agent": "conch"
+        }
+      }
+    },
+    {
+      "type": "vless",
+      "tag": "ws无SNI",
+      "server": "192.0.2.21",
+      "server_port": 443,
+      "uuid": "00000000-0000-0000-0000-000000000021",
+      "tls": {
+        "enabled": true,
+        "server_name": "cdn.example.com",
+        "alpn": [
+          "http/1.1"
+        ]
+      },
+      "transport": {
+        "type": "ws",
+        "path": "/ray",
+        "headers": {
+          "Host": "cdn.example.com"
+        },
+        "max_early_data": 2048,
+        "early_data_header_name": "Sec-WebSocket-Protocol"
+      }
+    },
+    {
+      "type": "trojan",
+      "tag": "trojan-tcp",
+      "server": "192.0.2.22",
+      "server_port": 443,
+      "password": "p",
+      "tls": {
+        "enabled": true,
+        "server_name": "t.example.com",
+        "alpn": [
+          "h2",
+          "http/1.1"
+        ]
+      }
+    },
+    {
+      "type": "trojan",
+      "tag": "trojan-ws",
+      "server": "192.0.2.23",
+      "server_port": 443,
+      "password": "p",
+      "tls": {
+        "enabled": true,
+        "server_name": "t.example.com",
+        "alpn": [
+          "http/1.1"
+        ]
+      },
+      "transport": {
+        "type": "ws",
+        "path": "/ws",
+        "headers": {
+          "Host": "t.example.com"
+        }
+      }
+    },
+    {
+      "type": "trojan",
+      "tag": "不用uTLS",
+      "server": "192.0.2.24",
+      "server_port": 443,
+      "password": "p",
+      "tls": {
+        "enabled": true,
+        "server_name": "t.example.com",
+        "alpn": [
+          "h2",
+          "http/1.1"
+        ]
+      }
+    },
+    {
+      "type": "trojan",
+      "tag": "chrome120",
+      "server": "192.0.2.25",
+      "server_port": 443,
+      "password": "p",
+      "tls": {
+        "enabled": true,
+        "server_name": "t.example.com",
+        "alpn": [
+          "h2",
+          "http/1.1"
+        ],
+        "utls": {
+          "enabled": true,
+          "fingerprint": "chrome"
+        }
+      }
+    },
+    {
+      "type": "trojan",
+      "tag": "只要IPv4",
+      "server": "t.example.com",
+      "server_port": 443,
+      "password": "p",
+      "tls": {
+        "enabled": true,
+        "alpn": [
+          "h2",
+          "http/1.1"
+        ]
+      },
+      "domain_resolver": {
+        "server": "local",
+        "strategy": "ipv4_only"
+      }
+    },
+    {
+      "type": "selector",
+      "tag": "GLOBAL",
+      "outbounds": [
+        "HTTP伪装",
+        "ws无SNI",
+        "trojan-tcp",
+        "trojan-ws",
+        "不用uTLS",
+        "chrome120",
+        "只要IPv4",
+        "DIRECT"
+      ]
+    }
+  ],
+  "route": {
+    "rules": [
+      {
+        "action": "sniff"
+      },
+      {
+        "domain_suffix": [
+          "a.example"
+        ],
+        "action": "route",
+        "outbound": "ws无SNI"
+      },
+      {
+        "domain_suffix": [
+          "b.example"
+        ],
+        "action": "route",
+        "outbound": "trojan-tcp"
+      },
+      {
+        "domain_suffix": [
+          "c.example"
+        ],
+        "action": "route",
+        "outbound": "trojan-ws"
+      },
+      {
+        "domain_suffix": [
+          "d.example"
+        ],
+        "action": "route",
+        "outbound": "不用uTLS"
+      },
+      {
+        "domain_suffix": [
+          "e.example"
+        ],
+        "action": "route",
+        "outbound": "chrome120"
+      },
+      {
+        "domain_suffix": [
+          "f.example"
+        ],
+        "action": "route",
+        "outbound": "只要IPv4"
+      },
+      {
+        "domain_suffix": [
+          "home.arpa"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "domain_suffix": [
+          "lan"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "domain_suffix": [
+          "local"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "domain_suffix": [
+          "localhost"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "ip_cidr": [
+          "::1/128"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "ip_cidr": [
+          "255.255.255.255/32"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "ip_cidr": [
+          "169.254.0.0/16"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "ip_cidr": [
+          "192.168.0.0/16"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "ip_cidr": [
+          "172.16.0.0/12"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "ip_cidr": [
+          "100.64.0.0/10"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "ip_cidr": [
+          "fe80::/10"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "ip_cidr": [
+          "0.0.0.0/8"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "ip_cidr": [
+          "10.0.0.0/8"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "ip_cidr": [
+          "127.0.0.0/8"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "ip_cidr": [
+          "ff00::/8"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "ip_cidr": [
+          "fc00::/7"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      },
+      {
+        "ip_cidr": [
+          "224.0.0.0/4"
+        ],
+        "action": "route",
+        "outbound": "DIRECT"
+      }
+    ],
+    "final": "HTTP伪装",
+    "default_domain_resolver": "local"
+  }
+}

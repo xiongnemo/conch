@@ -36,6 +36,17 @@ proxies:
     ports: "8443"
     fingerprint: cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
     skip-cert-verify: true
+  - name: gecko
+    type: hysteria2
+    server: 192.0.2.11
+    port: 443
+    password: p
+    sni: h.example.com
+    obfs: gecko
+    obfs-password: g
+    obfs-min-packet-size: 600
+    ports: "443/20000-30000"
+    hop-interval: "10-30"
   - name: 入口
     type: socks5
     server: 192.0.2.7
@@ -58,11 +69,13 @@ proxy-groups:
       - 经入口
       - 单端口
       - 跳一个端口
+      - gecko
       - 入口
       - DIRECT
 rules:
   - DOMAIN-SUFFIX,a.example,跳一个端口
   - DOMAIN-SUFFIX,b.example,经入口
+  - DOMAIN-SUFFIX,c.example,gecko
   - DOMAIN-SUFFIX,home.arpa,DIRECT
   - DOMAIN-SUFFIX,lan,DIRECT
   - DOMAIN-SUFFIX,local,DIRECT

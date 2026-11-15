@@ -35,7 +35,13 @@ func TestNodesXrayNoLongerTakes(t *testing.T) {
 		{`{ name: s, type: ss, server: 203.0.114.1, port: 8388, cipher: none, password: p }`, "xray 不支持 shadowsocks 加密方式", true},
 		{`{ name: s, type: ss, server: 203.0.114.1, port: 8388, cipher: aes-128-gcm, password: p, udp-over-tcp: true }`, "UDP over TCP", false},
 		{`{ name: m, type: vmess, server: 203.0.114.1, port: 443, uuid: 11111111-2222-3333-4444-555555555555, alterId: 0, cipher: none, tls: true }`, "VMess 的 none 加密，改用 auto", false},
-		{`{ name: h, type: hysteria2, server: 203.0.114.1, port: 443, password: p, ports: "20000:30000", hop-interval: 2 }`, "hop-interval 2 改为 5", false},
+		{`{ name: h, type: hysteria2, server: 203.0.114.1, port: 443, password: p, ports: "20000:30000", hop-interval: 2 }`, "hop-interval 的 2 改为 5", false},
+		// xray refuses fingerprints it does not know, and its bandwidth floor.
+		{`{ name: f, type: trojan, server: 203.0.114.1, port: 443, password: p, client-fingerprint: nonsense }`, "mihomo 不认识 uTLS 指纹", false},
+		{`{ name: b, type: hysteria2, server: 203.0.114.1, port: 443, password: p, up: "100 Kbps" }`, "最少 512 Kbps", false},
+		// Early data in the path is mihomo's and sing-box's only.
+		{`{ name: w, type: trojan, server: 203.0.114.1, port: 443, password: p, network: ws, ws-opts: { path: /w, max-early-data: 2048 } }`, "不能把 early data 放在路径里", false},
+		{`{ name: o, type: hysteria2, server: 203.0.114.1, port: 443, password: p, obfs: nonsense, obfs-password: x }`, "不认识 hysteria2 混淆", false},
 	} {
 		dir := t.TempDir()
 		profile := filepath.Join(dir, "profile.yaml")
@@ -48,7 +54,7 @@ func TestNodesXrayNoLongerTakes(t *testing.T) {
 		if c.err != (art == nil) || !strings.Contains(text, c.want) {
 			t.Errorf("%s:\nconfig made: %v\n%s", c.node, art != nil, text)
 		}
-		if strings.Contains(c.node, "hysteria2") && art != nil && !strings.Contains(string(art.Config), `"remotePorts": "20000-30000"`) {
+		if strings.Contains(c.node, "ports:") && art != nil && !strings.Contains(string(art.Config), `"remotePorts": "20000-30000"`) {
 			t.Errorf("port range not in xray's form:\n%s", art.Config)
 		}
 	}

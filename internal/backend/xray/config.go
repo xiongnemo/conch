@@ -139,6 +139,7 @@ type rawHeader struct {
 }
 
 type rawRequest struct {
+	Method  string              `json:"method,omitempty"`
 	Path    []string            `json:"path,omitempty"`
 	Headers map[string][]string `json:"headers,omitempty"`
 }
@@ -185,8 +186,14 @@ type quicParams struct {
 // udpHopSettings are the settings of the "udphop" UDP mask: port hopping.
 type udpHopSettings struct {
 	Mode        string `json:"mode"`
-	Interval    int    `json:"interval,omitempty"` // seconds, 5 or more; xray's default is 30
+	Interval    any    `json:"interval,omitempty"` // seconds, or "min-max"; 5 or more; xray's default is 30
 	RemotePorts string `json:"remotePorts"`
+}
+
+// salamanderSettings: with a packet size range, it is gecko.
+type salamanderSettings struct {
+	Password   string `json:"password"`
+	PacketSize string `json:"packetSize,omitempty"`
 }
 
 type sockopt struct {

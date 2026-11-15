@@ -1,0 +1,111 @@
+{
+  "backend": "xray",
+  "proxies": [
+    {
+      "name": "HTTP伪装",
+      "kind": "node",
+      "node": "HTTP伪装"
+    },
+    {
+      "name": "ws无SNI",
+      "kind": "node",
+      "node": "ws无SNI"
+    },
+    {
+      "name": "trojan-tcp",
+      "kind": "node",
+      "node": "trojan-tcp"
+    },
+    {
+      "name": "trojan-ws",
+      "kind": "node",
+      "node": "trojan-ws"
+    },
+    {
+      "name": "不用uTLS",
+      "kind": "node",
+      "node": "不用uTLS"
+    },
+    {
+      "name": "chrome120",
+      "kind": "node",
+      "node": "chrome120"
+    },
+    {
+      "name": "只要IPv4",
+      "kind": "node",
+      "node": "只要IPv4"
+    }
+  ],
+  "rules": [
+    {
+      "index": 0,
+      "rule": "{\"domain\":[\"domain:a.example\"],\"outboundTag\":\"ws无SNI\",\"ruleTag\":\"#0 a.example\"}",
+      "tag": "#0 a.example",
+      "tier": "domain",
+      "key": "a.example",
+      "source": "../testdata/transports.profile.yaml:21"
+    },
+    {
+      "index": 1,
+      "rule": "{\"domain\":[\"domain:b.example\"],\"outboundTag\":\"trojan-tcp\",\"ruleTag\":\"#1 b.example\"}",
+      "tag": "#1 b.example",
+      "tier": "domain",
+      "key": "b.example",
+      "source": "../testdata/transports.profile.yaml:22"
+    },
+    {
+      "index": 2,
+      "rule": "{\"domain\":[\"domain:c.example\"],\"outboundTag\":\"trojan-ws\",\"ruleTag\":\"#2 c.example\"}",
+      "tag": "#2 c.example",
+      "tier": "domain",
+      "key": "c.example",
+      "source": "../testdata/transports.profile.yaml:23"
+    },
+    {
+      "index": 3,
+      "rule": "{\"domain\":[\"domain:d.example\"],\"outboundTag\":\"不用uTLS\",\"ruleTag\":\"#3 d.example\"}",
+      "tag": "#3 d.example",
+      "tier": "domain",
+      "key": "d.example",
+      "source": "../testdata/transports.profile.yaml:24"
+    },
+    {
+      "index": 4,
+      "rule": "{\"domain\":[\"domain:e.example\"],\"outboundTag\":\"chrome120\",\"ruleTag\":\"#4 e.example\"}",
+      "tag": "#4 e.example",
+      "tier": "domain",
+      "key": "e.example",
+      "source": "../testdata/transports.profile.yaml:25"
+    },
+    {
+      "index": 5,
+      "rule": "{\"domain\":[\"domain:f.example\"],\"outboundTag\":\"只要IPv4\",\"ruleTag\":\"#5 f.example\"}",
+      "tag": "#5 f.example",
+      "tier": "domain",
+      "key": "f.example",
+      "source": "../testdata/transports.profile.yaml:26"
+    },
+    {
+      "index": 6,
+      "last": 9,
+      "rule": "{\"domain\":[\"domain:home.arpa\",\"domain:lan\",\"domain:local\",\"domain:localhost\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#6-9 lan\"}",
+      "tag": "#6-9 lan",
+      "tier": "domain",
+      "key": "lan",
+      "builtin": true
+    },
+    {
+      "index": 10,
+      "last": 22,
+      "rule": "{\"ip\":[\"::1/128\",\"255.255.255.255/32\",\"169.254.0.0/16\",\"192.168.0.0/16\",\"172.16.0.0/12\",\"100.64.0.0/10\",\"fe80::/10\",\"0.0.0.0/8\",\"10.0.0.0/8\",\"127.0.0.0/8\",\"ff00::/8\",\"fc00::/7\",\"224.0.0.0/4\"],\"outboundTag\":\"DIRECT\",\"ruleTag\":\"#10-22 lan\"}",
+      "tag": "#10-22 lan",
+      "tier": "ip",
+      "key": "lan",
+      "builtin": true
+    }
+  ],
+  "tags": {
+    "REJECT": "REJECT»"
+  }
+}

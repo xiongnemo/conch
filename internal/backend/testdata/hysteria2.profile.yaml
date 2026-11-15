@@ -11,6 +11,9 @@ nodes:
   # 还没取到证书的指纹：sing-box 先按常规校验
   - { name: 跳一个端口, type: hysteria2, server: 192.0.2.9, port: 8443, password: p, ports: "8443",
       fingerprint: cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc, skip-cert-verify: true }
+  # gecko 混淆、随机的跳跃间隔、mihomo 也接受的 / 分隔
+  - { name: gecko, type: hysteria2, server: 192.0.2.11, port: 443, password: p, sni: h.example.com,
+      obfs: gecko, obfs-password: g, obfs-min-packet-size: 600, ports: "443/20000-30000", hop-interval: "10-30" }
   - { name: 入口, type: socks5, server: 192.0.2.7, port: 1080, udp: true }
 
 chains:
@@ -21,3 +24,4 @@ routes:
   entries:
     a.example: 跳一个端口
     b.example: 经入口
+    c.example: gecko

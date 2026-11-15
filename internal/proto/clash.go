@@ -77,13 +77,23 @@ func FromClash(m *yaml.Node) *Spec {
 		s.Password = r.str("password")
 		s.UDP = true
 		s.Hysteria = &Hysteria{
-			Obfs:         r.str("obfs"),
-			ObfsPassword: r.str("obfs-password"),
-			Ports:        r.str("ports"),
-			HopInterval:  r.int("hop-interval"),
+			Obfs:          r.str("obfs"),
+			ObfsPassword:  r.str("obfs-password"),
+			Ports:         HopPorts(r.str("ports")),
+			ObfsMinPacket: r.int("obfs-min-packet-size"),
+			ObfsMaxPacket: r.int("obfs-max-packet-size"),
+		}
+		if v := r.str("hop-interval"); v != "" {
+			lo, hi, ok := IntRange(v)
+			if !ok {
+				s.Unknown = append(s.Unknown, "hop-interval: "+v)
+			}
+			s.Hysteria.HopMin, s.Hysteria.HopMax = lo, hi
 		}
 		s.Hysteria.Up, s.Hysteria.Down = bandwidths(s, r.str("up"), r.str("down"))
-		readTLS(r, s, true)
+		// mihomo's hysteria2 has no uTLS or REALITY and ignores their keys.
+		r.ignore("client-fingerprint", "reality-opts")
+		readQUICTLS(r, s)
 	case "wireguard":
 		s.UDP = true
 		s.WireGuard = readWireGuard(r, s)
@@ -97,16 +107,28 @@ func FromClash(m *yaml.Node) *Spec {
 }
 
 func readTLS(r *reader, s *Spec, enabled bool) {
-	t := &TLS{
-		SNI:         firstNonEmpty(r.str("servername"), r.str("sni")),
-		ALPN:        r.strs("alpn"),
-		Insecure:    r.bool("skip-cert-verify"),
-		PinSHA256:   r.str("fingerprint"), // mihomo: server certificate sha256
-		Fingerprint: r.str("client-fingerprint"),
-	}
+	t := readTLSCommon(r, s)
+	t.Fingerprint = r.str("client-fingerprint")
+	// REALITY is a kind of TLS: mihomo ignores its options without tls.
 	if o := r.sub("reality-opts"); o != nil {
 		t.Reality = &Reality{PublicKey: o.str("public-key"), ShortID: o.str("short-id"), SpiderX: o.str("spider-x")}
-		enabled = true
+	}
+	if enabled {
+		s.TLS = t
+	}
+}
+
+// readQUICTLS reads the TLS of a QUIC protocol, which is always on.
+func readQUICTLS(r *reader, s *Spec) {
+	s.TLS = readTLSCommon(r, s)
+}
+
+func readTLSCommon(r *reader, s *Spec) *TLS {
+	t := &TLS{
+		SNI:       firstNonEmpty(r.str("servername"), r.str("sni")),
+		ALPN:      r.strs("alpn"),
+		Insecure:  r.bool("skip-cert-verify"),
+		PinSHA256: r.str("fingerprint"), // mihomo: server certificate sha256
 	}
 	if o := r.sub("ech-opts"); o != nil {
 		if o.bool("enable") {
@@ -114,9 +136,7 @@ func readTLS(r *reader, s *Spec, enabled bool) {
 		}
 		o.ignoreAll()
 	}
-	if enabled {
-		s.TLS = t
-	}
+	return t
 }
 
 func readTransport(r *reader, s *Spec) {
@@ -141,13 +161,33 @@ func readTransport(r *reader, s *Spec) {
 		}
 	case "h2":
 		if o := r.sub("h2-opts"); o != nil {
-			t.Host = first(o.strs("host"))
+			t.Hosts = o.strs("host")
+			t.Host = first(t.Hosts)
 			t.Path = o.str("path")
 		}
 	case "http":
 		if o := r.sub("http-opts"); o != nil {
-			t.Path = first(o.strs("path"))
-			o.ignore("method", "headers")
+			t.Method = o.str("method")
+			t.Paths = o.strs("path")
+			t.Path = first(t.Paths)
+			// Headers are lists here; Host is the transport's hosts.
+			if h := o.sub("headers"); h != nil {
+				for i := 0; i+1 < len(h.m.Content); i += 2 {
+					k := h.m.Content[i].Value
+					vals := h.strs(k)
+					if strings.EqualFold(k, "host") {
+						t.Hosts = vals
+						t.Host = first(vals)
+						continue
+					}
+					if len(vals) > 0 {
+						if t.Headers == nil {
+							t.Headers = map[string]string{}
+						}
+						t.Headers[k] = vals[0]
+					}
+				}
+			}
 		}
 	case "xhttp":
 		if o := r.sub("xhttp-opts"); o != nil {
@@ -383,4 +423,26 @@ func (r *reader) unknown() []string {
 		out = append(out, c.unknown()...)
 	}
 	return out
+}
+
+// HopPorts writes hopping ports the one way backends read them: mihomo
+// also separates them with "/".
+func HopPorts(ports string) string {
+	return strings.ReplaceAll(strings.TrimSpace(ports), "/", ",")
+}
+
+// IntRange reads "10" or "10-30".
+func IntRange(v string) (lo, hi int, ok bool) {
+	a, b, isRange := strings.Cut(strings.TrimSpace(v), "-")
+	lo, err := strconv.Atoi(strings.TrimSpace(a))
+	if err != nil || lo < 0 {
+		return 0, 0, false
+	}
+	hi = lo
+	if isRange {
+		if hi, err = strconv.Atoi(strings.TrimSpace(b)); err != nil || hi < lo {
+			return 0, 0, false
+		}
+	}
+	return lo, hi, true
 }

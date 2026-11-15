@@ -1,0 +1,111 @@
+# 由 conch 生成，请不要手动修改；需要改动时请编辑 profile.yaml
+
+mixed-port: 7890
+allow-lan: false
+mode: rule
+log-level: info
+profile:
+  store-selected: true
+proxies:
+  - name: HTTP伪装
+    type: vmess
+    server: 192.0.2.20
+    port: 80
+    uuid: 00000000-0000-0000-0000-000000000020
+    alterId: 0
+    cipher: auto
+    network: http
+    http-opts:
+      method: POST
+      path:
+        - /a
+        - /b
+      headers:
+        Host:
+          - a.example.com
+          - b.example.com
+        User-Agent:
+          - conch
+  - name: ws无SNI
+    type: vless
+    server: 192.0.2.21
+    port: 443
+    uuid: 00000000-0000-0000-0000-000000000021
+    tls: true
+    network: ws
+    ws-opts:
+      path: "/ray?ed=2048"
+      headers:
+        Host: cdn.example.com
+  - name: trojan-tcp
+    type: trojan
+    server: 192.0.2.22
+    port: 443
+    password: p
+    sni: t.example.com
+  - name: trojan-ws
+    type: trojan
+    server: 192.0.2.23
+    port: 443
+    password: p
+    sni: t.example.com
+    network: ws
+    ws-opts:
+      path: /ws
+  - name: 不用uTLS
+    type: trojan
+    server: 192.0.2.24
+    port: 443
+    password: p
+    sni: t.example.com
+    client-fingerprint: none
+  - name: chrome120
+    type: trojan
+    server: 192.0.2.25
+    port: 443
+    password: p
+    sni: t.example.com
+    client-fingerprint: chrome120
+  - name: 只要IPv4
+    type: trojan
+    server: t.example.com
+    port: 443
+    password: p
+    ip-version: ipv4
+proxy-groups:
+  - name: GLOBAL
+    type: select
+    proxies:
+      - HTTP伪装
+      - ws无SNI
+      - trojan-tcp
+      - trojan-ws
+      - 不用uTLS
+      - chrome120
+      - 只要IPv4
+      - DIRECT
+rules:
+  - DOMAIN-SUFFIX,a.example,ws无SNI
+  - DOMAIN-SUFFIX,b.example,trojan-tcp
+  - DOMAIN-SUFFIX,c.example,trojan-ws
+  - DOMAIN-SUFFIX,d.example,不用uTLS
+  - DOMAIN-SUFFIX,e.example,chrome120
+  - DOMAIN-SUFFIX,f.example,只要IPv4
+  - DOMAIN-SUFFIX,home.arpa,DIRECT
+  - DOMAIN-SUFFIX,lan,DIRECT
+  - DOMAIN-SUFFIX,local,DIRECT
+  - DOMAIN-SUFFIX,localhost,DIRECT
+  - IP-CIDR6,::1/128,DIRECT,no-resolve
+  - IP-CIDR,255.255.255.255/32,DIRECT,no-resolve
+  - IP-CIDR,169.254.0.0/16,DIRECT,no-resolve
+  - IP-CIDR,192.168.0.0/16,DIRECT,no-resolve
+  - IP-CIDR,172.16.0.0/12,DIRECT,no-resolve
+  - IP-CIDR,100.64.0.0/10,DIRECT,no-resolve
+  - IP-CIDR6,fe80::/10,DIRECT,no-resolve
+  - IP-CIDR,0.0.0.0/8,DIRECT,no-resolve
+  - IP-CIDR,10.0.0.0/8,DIRECT,no-resolve
+  - IP-CIDR,127.0.0.0/8,DIRECT,no-resolve
+  - IP-CIDR6,ff00::/8,DIRECT,no-resolve
+  - IP-CIDR6,fc00::/7,DIRECT,no-resolve
+  - IP-CIDR,224.0.0.0/4,DIRECT,no-resolve
+  - MATCH,HTTP伪装
