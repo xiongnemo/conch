@@ -131,6 +131,28 @@ proxies:
     interface-name: eth0
     routing-mark: 255
     ip-version: ipv4
+  - name: xhttp-more
+    type: vless
+    server: x.example.com
+    port: 443
+    uuid: 00000000-0000-0000-0000-000000000003
+    tls: true
+    servername: x.example.com
+    network: xhttp
+    xhttp-opts:
+      path: /xh
+      mode: packet-up
+      no-grpc-header: true
+      x-padding-bytes: "100-1000"
+      sc-max-each-post-bytes: 1000000
+      reuse-settings:
+        max-concurrency: "16-32"
+        h-keep-alive-period: 30
+      download-settings:
+        server: d.example.com
+        port: 8443
+        path: /down
+        servername: d.example.com
 proxy-groups:
   - name: GLOBAL
     type: select
@@ -147,6 +169,7 @@ proxy-groups:
       - hy2
       - wg
       - tuned
+      - xhttp-more
       - DIRECT
 rules:
   - DOMAIN-SUFFIX,home.arpa,DIRECT

@@ -25,7 +25,8 @@ type Spec struct {
 	PacketEncoding      string
 	GlobalPadding       bool
 	AuthenticatedLength bool
-	Mux                 *Mux // sing-mux (mihomo's smux)
+	Mux                 *Mux    // sing-mux (mihomo's smux)
+	Plugin              *Plugin // shadowsocks SIP003 plugin
 	Headers             map[string]string
 
 	TLS       *TLS // nil means no TLS
@@ -55,11 +56,54 @@ type TLS struct {
 	Certificate, PrivateKey string
 }
 
+// XHTTPDownload is where XHTTP downloads go, with what mihomo inherits
+// from the node filled in.
+type XHTTPDownload struct {
+	Server     string
+	Port       int
+	TLS        *TLS
+	Path, Host string
+	Headers    map[string]string
+	Extra      map[string]any // reuse-settings
+}
+
+// XHTTPKeys are mihomo's xhttp-opts keys in xray's xhttpSettings.
+var XHTTPKeys = map[string]string{
+	"no-grpc-header": "noGRPCHeader", "x-padding-bytes": "xPaddingBytes", "x-padding-obfs-mode": "xPaddingObfsMode",
+	"x-padding-key": "xPaddingKey", "x-padding-header": "xPaddingHeader", "x-padding-placement": "xPaddingPlacement",
+	"x-padding-method": "xPaddingMethod", "uplink-http-method": "uplinkHTTPMethod", "session-placement": "sessionIDPlacement",
+	"session-key": "sessionIDKey", "session-table": "sessionIDTable", "session-length": "sessionIDLength",
+	"seq-placement": "seqPlacement", "seq-key": "seqKey", "uplink-data-placement": "uplinkDataPlacement",
+	"uplink-data-key": "uplinkDataKey", "uplink-chunk-size": "uplinkChunkSize", "sc-max-each-post-bytes": "scMaxEachPostBytes",
+	"sc-min-posts-interval-ms": "scMinPostsIntervalMs", "reuse-settings": "xmux",
+	// reuse-settings, which is xray's xmux
+	"max-concurrency": "maxConcurrency", "max-connections": "maxConnections", "c-max-reuse-times": "cMaxReuseTimes",
+	"h-max-request-times": "hMaxRequestTimes", "h-max-reusable-secs": "hMaxReusableSecs", "h-keep-alive-period": "hKeepAlivePeriod",
+}
+
 // ECH is Encrypted Client Hello: its config list (base64), or looked up
 // in DNS, under another name if QueryServerName says so.
 type ECH struct {
 	Config          string
 	QueryServerName string
+}
+
+// Plugin is a shadowsocks plugin as mihomo has them. mihomo's defaults
+// are filled in: host bing.com, mux on, shadow-tls version 2 with
+// ALPN h2,http/1.1.
+type Plugin struct {
+	Name        string // obfs, v2ray-plugin, gost-plugin, shadow-tls
+	Mode        string // obfs: http or tls; v2ray-plugin, gost-plugin: websocket
+	Host        string
+	Path        string
+	Headers     map[string]string
+	Mux         bool // v2ray-plugin, gost-plugin
+	HTTPUpgrade bool // v2ray-plugin: HTTPUpgrade instead of WebSocket
+	// The plugin's TLS: v2ray-plugin and gost-plugin with tls, and
+	// shadow-tls, whose SNI is Host.
+	TLS      *TLS
+	Password string // shadow-tls
+	Version  int    // shadow-tls
 }
 
 // Mux is sing-mux: several streams over one connection.
@@ -95,6 +139,10 @@ type Transport struct {
 	// gRPC
 	UserAgent    string
 	PingInterval int // seconds
+	// XHTTP: mihomo's other xhttp-opts keys as written (XHTTPKeys has
+	// xray's names for them), and where downloads go when elsewhere.
+	XHTTPExtra map[string]any
+	Download   *XHTTPDownload
 }
 
 type Hysteria struct {

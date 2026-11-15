@@ -102,6 +102,27 @@
       }
     },
     {
+      "tag": "ss-v2ray",
+      "protocol": "shadowsocks",
+      "settings": {
+        "address": "192.0.2.34",
+        "port": 443,
+        "method": "aes-128-gcm",
+        "password": "p"
+      },
+      "streamSettings": {
+        "network": "ws",
+        "security": "tls",
+        "tlsSettings": {
+          "serverName": "cdn.example.com"
+        },
+        "wsSettings": {
+          "host": "cdn.example.com",
+          "path": "/v"
+        }
+      }
+    },
+    {
       "tag": "wg",
       "protocol": "wireguard",
       "settings": {
@@ -160,13 +181,20 @@
       },
       {
         "domain": [
+          "domain:d.example"
+        ],
+        "outboundTag": "ss-v2ray",
+        "ruleTag": "#3 d.example"
+      },
+      {
+        "domain": [
           "domain:home.arpa",
           "domain:lan",
           "domain:local",
           "domain:localhost"
         ],
         "outboundTag": "DIRECT",
-        "ruleTag": "#3-6 lan"
+        "ruleTag": "#4-7 lan"
       },
       {
         "ip": [
@@ -185,7 +213,7 @@
           "224.0.0.0/4"
         ],
         "outboundTag": "DIRECT",
-        "ruleTag": "#7-19 lan"
+        "ruleTag": "#8-20 lan"
       }
     ],
     "balancers": [

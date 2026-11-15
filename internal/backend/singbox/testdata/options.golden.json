@@ -124,12 +124,23 @@
       }
     },
     {
+      "type": "shadowsocks",
+      "tag": "ss-v2ray",
+      "server": "192.0.2.34",
+      "server_port": 443,
+      "plugin": "v2ray-plugin",
+      "plugin_opts": "mode=websocket;host=cdn.example.com;path=/v;mux=0;tls",
+      "method": "aes-128-gcm",
+      "password": "p"
+    },
+    {
       "type": "selector",
       "tag": "GLOBAL",
       "outbounds": [
         "ss-uot",
         "vmess-grpc",
         "hy2-quic",
+        "ss-v2ray",
         "wg",
         "DIRECT"
       ]
@@ -160,6 +171,13 @@
         ],
         "action": "route",
         "outbound": "wg"
+      },
+      {
+        "domain_suffix": [
+          "d.example"
+        ],
+        "action": "route",
+        "outbound": "ss-v2ray"
       },
       {
         "domain_suffix": [

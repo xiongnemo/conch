@@ -212,9 +212,49 @@ func shadowsocks(link string) (string, *proto.Spec, error) {
 		s.UDPOverTCP = true
 	}
 	if p := u.Query().Get("plugin"); p != "" {
-		s.Unknown = append(s.Unknown, "plugin: "+strings.SplitN(p, ";", 2)[0])
+		s.Plugin = ssPlugin(p)
+		if s.Plugin == nil {
+			s.Unknown = append(s.Unknown, "plugin: "+strings.SplitN(p, ";", 2)[0])
+		}
 	}
 	return name, s, nil
+}
+
+// ssPlugin reads a SIP002 plugin ("name;key=value;flag", with \ escapes)
+// in mihomo's terms: obfs-local (simple-obfs) and v2ray-plugin, whose mux
+// is on unless mux=0. Others it does not know.
+func ssPlugin(p string) *proto.Plugin {
+	var parts []string
+	var cur strings.Builder
+	for i := 0; i < len(p); i++ {
+		switch {
+		case p[i] == '\\' && i+1 < len(p):
+			i++
+			cur.WriteByte(p[i])
+		case p[i] == ';':
+			parts, cur = append(parts, cur.String()), strings.Builder{}
+		default:
+			cur.WriteByte(p[i])
+		}
+	}
+	parts = append(parts, cur.String())
+	opts := map[string]string{}
+	for _, kv := range parts[1:] {
+		k, v, _ := strings.Cut(kv, "=")
+		opts[strings.TrimSpace(k)] = strings.TrimSpace(v)
+	}
+	_, tls := opts["tls"]
+	switch parts[0] {
+	case "obfs-local", "simple-obfs", "obfs":
+		return &proto.Plugin{Name: "obfs", Mode: cmpOr(opts["obfs"], "http"), Host: cmpOr(opts["obfs-host"], "bing.com")}
+	case "v2ray-plugin":
+		pl := &proto.Plugin{Name: "v2ray-plugin", Mode: cmpOr(opts["mode"], "websocket"), Host: cmpOr(opts["host"], "bing.com"), Path: opts["path"], Mux: opts["mux"] != "0"}
+		if tls {
+			pl.TLS = &proto.TLS{SNI: pl.Host}
+		}
+		return pl
+	}
+	return nil
 }
 
 // hysteria2://auth@host:port/?sni=…&obfs=salamander&obfs-password=…&mport=…
@@ -402,8 +442,8 @@ func applyQuery(s *proto.Spec, q url.Values, report bool) {
 	case "xhttp", "splithttp":
 		tr.Network = "xhttp"
 		tr.Host, tr.Path, tr.Mode = host, path, get("mode")
-		if get("extra") != "" {
-			s.Unknown = append(s.Unknown, "extra")
+		if extra := get("extra"); extra != "" {
+			xhttpExtra(s, &tr, extra)
 		}
 	case "h2", "http":
 		tr.Network, tr.Host, tr.Path = "h2", host, path
@@ -543,4 +583,94 @@ func short(s string) string {
 		return s[:40] + "…"
 	}
 	return s
+}
+
+// xhttpExtra reads xray's extra: xhttpSettings beyond the link's own
+// parameters, in xray's names, into mihomo's; downloadSettings is a
+// stream of its own.
+func xhttpExtra(s *proto.Spec, tr *proto.Transport, extra string) {
+	var x map[string]any
+	if err := json.Unmarshal([]byte(extra), &x); err != nil {
+		s.Unknown = append(s.Unknown, "extra（不是 JSON）")
+		return
+	}
+	mihomo := map[string]string{}
+	for k, v := range proto.XHTTPKeys {
+		mihomo[v] = k
+	}
+	var rename func(m map[string]any, at string) map[string]any
+	rename = func(m map[string]any, at string) map[string]any {
+		out := map[string]any{}
+		for k, v := range m {
+			name, ok := mihomo[k]
+			if !ok {
+				s.Unknown = append(s.Unknown, "extra."+at+k)
+				continue
+			}
+			if sub, ok := v.(map[string]any); ok {
+				v = rename(sub, at+k+".")
+			}
+			out[name] = v
+		}
+		return out
+	}
+	for _, k := range []string{"host", "path", "mode"} {
+		if v, ok := x[k].(string); ok && v != "" {
+			*map[string]*string{"host": &tr.Host, "path": &tr.Path, "mode": &tr.Mode}[k] = v
+		}
+		delete(x, k)
+	}
+	if h, ok := x["headers"].(map[string]any); ok {
+		for k, v := range h {
+			if tr.Headers == nil {
+				tr.Headers = map[string]string{}
+			}
+			tr.Headers[k] = fmt.Sprint(v)
+		}
+	}
+	delete(x, "headers")
+	if d, ok := x["downloadSettings"].(map[string]any); ok {
+		tr.Download = xrayDownload(s, d, rename)
+	}
+	delete(x, "downloadSettings")
+	if len(x) > 0 {
+		tr.XHTTPExtra = rename(x, "")
+	}
+}
+
+// xrayDownload reads xray's downloadSettings, a stream with an address.
+func xrayDownload(s *proto.Spec, d map[string]any, rename func(map[string]any, string) map[string]any) *proto.XHTTPDownload {
+	str := func(m map[string]any, k string) string { v, _ := m[k].(string); return v }
+	sub := func(m map[string]any, k string) map[string]any { v, _ := m[k].(map[string]any); return v }
+	dl := &proto.XHTTPDownload{Server: cmpOr(str(d, "address"), s.Server), Port: s.Port}
+	if p, ok := d["port"].(float64); ok {
+		dl.Port = int(p)
+	}
+	if x := sub(d, "xhttpSettings"); x != nil {
+		dl.Path, dl.Host = str(x, "path"), str(x, "host")
+		if h := sub(x, "headers"); h != nil {
+			dl.Headers = map[string]string{}
+			for k, v := range h {
+				dl.Headers[k] = fmt.Sprint(v)
+			}
+		}
+		if m := sub(x, "xmux"); m != nil {
+			dl.Extra = map[string]any{"reuse-settings": rename(m, "downloadSettings.xhttpSettings.xmux.")}
+		}
+	}
+	switch str(d, "security") {
+	case "tls":
+		t := sub(d, "tlsSettings")
+		dl.TLS = &proto.TLS{SNI: str(t, "serverName"), Fingerprint: str(t, "fingerprint"), PinSHA256: str(t, "pinnedPeerCertSha256")}
+		if a, ok := t["alpn"].([]any); ok {
+			for _, v := range a {
+				dl.TLS.ALPN = append(dl.TLS.ALPN, fmt.Sprint(v))
+			}
+		}
+	case "reality":
+		r := sub(d, "realitySettings")
+		dl.TLS = &proto.TLS{SNI: str(r, "serverName"), Fingerprint: str(r, "fingerprint"),
+			Reality: &proto.Reality{PublicKey: cmpOr(str(r, "publicKey"), str(r, "password")), ShortID: str(r, "shortId"), SpiderX: str(r, "spiderX")}}
+	}
+	return dl
 }

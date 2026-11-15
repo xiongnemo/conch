@@ -39,6 +39,9 @@ func (e *encoder) nodeOutbound(p *compile.Proxy) (outbound, []string, error) {
 		if s.UDPOverTCP {
 			warns = append(warns, "xray 已不支持 shadowsocks 的 UDP over TCP（udp-over-tcp），这个节点的 UDP 会直接以 UDP 发往服务器")
 		}
+		if err := ssPlugin(s); err != nil {
+			return o, nil, err
+		}
 	case "vmess":
 		if s.AlterID != 0 {
 			return o, nil, fmt.Errorf("xray 只支持 alterId 为 0 的 VMess（AEAD），这个节点是 %d", s.AlterID)
@@ -112,6 +115,11 @@ func (e *encoder) nodeOutbound(p *compile.Proxy) (outbound, []string, error) {
 	}
 	if err := transportStream(st, s.Transport, &warns); err != nil {
 		return o, nil, err
+	}
+	if d := s.Transport.Download; d != nil && st.XHTTPSettings != nil {
+		if err := e.download(st, d, &warns); err != nil {
+			return o, nil, err
+		}
 	}
 	st.Sockopt = e.sockopt(p.Upstream, s.Sockopt)
 	// xray refuses a whole config with one of these; better to name the
@@ -226,7 +234,7 @@ func transportStream(st *streamSettings, t proto.Transport, warns *[]string) err
 		st.GRPCSettings = &grpcSettings{ServiceName: t.ServiceName, UserAgent: t.UserAgent, IdleTimeout: t.PingInterval}
 	case "xhttp":
 		st.Network = "xhttp"
-		st.XHTTPSettings = &xhttpSettings{Host: t.Host, Path: t.Path, Mode: t.Mode, Headers: nonEmpty(t.Headers)}
+		st.XHTTPSettings = &xhttpSettings{Host: t.Host, Path: t.Path, Mode: t.Mode, Headers: nonEmpty(t.Headers), Extra: xrayKeys(t.XHTTPExtra, warns)}
 	case "http":
 		// HTTP request-header obfuscation over raw TCP. Resolve filled in
 		// mihomo's method, paths and host; xray's own defaults differ.
@@ -370,4 +378,64 @@ func nonEmpty(m map[string]string) map[string]string {
 		return nil
 	}
 	return m
+}
+
+// ssPlugin carries a shadowsocks plugin the one way xray can: v2ray-plugin
+// without mux is shadowsocks over WebSocket (or HTTPUpgrade), with TLS
+// when it has it. With mux, the plugin muxes outside shadowsocks, and
+// xray only inside; the other plugins xray does not have.
+func ssPlugin(s *proto.Spec) error {
+	pl := s.Plugin
+	if pl == nil {
+		return nil
+	}
+	switch {
+	case pl.Name == "v2ray-plugin" && pl.Mux:
+		return fmt.Errorf("xray 做不到 v2ray-plugin 的 mux（它在 shadowsocks 外面多路复用）；把节点和服务器的 mux 都关掉，或者换用 mihomo、sing-box 内核")
+	case pl.Name == "v2ray-plugin":
+		s.Transport = proto.Transport{Network: "ws", Host: pl.Host, Path: cmp.Or(pl.Path, "/"), Headers: pl.Headers}
+		if pl.HTTPUpgrade {
+			s.Transport.Network = "httpupgrade"
+		}
+		s.TLS = pl.TLS
+		return nil
+	}
+	return fmt.Errorf("xray 没有 shadowsocks 的 %s 插件，换用 mihomo 或 sing-box 内核", pl.Name)
+}
+
+// xrayKeys renames mihomo's xhttp-opts keys to xray's, nested ones too.
+func xrayKeys(kv map[string]any, warns *[]string) map[string]any {
+	if len(kv) == 0 {
+		return nil
+	}
+	out := map[string]any{}
+	for k, v := range kv {
+		name, ok := proto.XHTTPKeys[k]
+		if !ok {
+			*warns = append(*warns, fmt.Sprintf("xray 的 XHTTP 没有 %s", k))
+			continue
+		}
+		if sub, ok := v.(map[string]any); ok {
+			v = xrayKeys(sub, warns)
+		}
+		out[name] = v
+	}
+	return out
+}
+
+// download writes XHTTP's download-settings as xray's own stream.
+func (e *encoder) download(st *streamSettings, d *proto.XHTTPDownload, warns *[]string) error {
+	ds := &downloadSettings{Address: d.Server, Port: d.Port}
+	ds.Network = "xhttp"
+	x := &xhttpSettings{Host: d.Host, Path: d.Path, Headers: nonEmpty(d.Headers), Extra: xrayKeys(d.Extra, warns)}
+	ds.XHTTPSettings = x
+	if d.TLS != nil {
+		w, err := e.tlsStream(&ds.streamSettings, &proto.Spec{Server: d.Server, TLS: d.TLS})
+		if err != nil {
+			return err
+		}
+		*warns = append(*warns, w...)
+	}
+	st.XHTTPSettings.Download = ds
+	return nil
 }

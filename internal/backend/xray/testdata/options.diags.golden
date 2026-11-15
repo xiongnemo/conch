@@ -1,4 +1,4 @@
 警告 ../testdata/options.profile.yaml:4：节点 "ss-uot"：xray 已不支持 shadowsocks 的 UDP over TCP（udp-over-tcp），这个节点的 UDP 会直接以 UDP 发往服务器
 警告 ../testdata/options.profile.yaml:4：节点 "ss-uot"：xray 没有 sing-mux（smux），这个节点不用多路复用
 警告 ../testdata/options.profile.yaml:8：节点 "vmess-grpc"：xray 没有 packetaddr，UDP 用 xudp 传，服务器也需要支持 xudp
-警告 ../testdata/options.profile.yaml:17：节点 "wg"：xray 不能设置 WireGuard 的 workers，用它自己的
+警告 ../testdata/options.profile.yaml:20：节点 "wg"：xray 不能设置 WireGuard 的 workers，用它自己的

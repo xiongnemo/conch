@@ -24,5 +24,10 @@ nodes:
   - { name: tuned, type: vless, server: 192.0.2.12, port: 443, uuid: 00000000-0000-0000-0000-000000000004, tls: true,
       tfo: true, interface-name: eth0, routing-mark: 255, ip-version: ipv4 }
 
+  # XHTTP 的细项、下载走另一台服务器（mihomo 的 download-settings）
+  - { name: xhttp-more, type: vless, server: x.example.com, port: 443, uuid: 00000000-0000-0000-0000-000000000003, tls: true, servername: x.example.com,
+      network: xhttp, xhttp-opts: { path: /xh, mode: packet-up, no-grpc-header: true, x-padding-bytes: "100-1000", sc-max-each-post-bytes: 1000000,
+        reuse-settings: { max-concurrency: "16-32", h-keep-alive-period: 30 },
+        download-settings: { server: d.example.com, port: 8443, path: /down, servername: d.example.com } } }
 routes:
   default: ss-2022

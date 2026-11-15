@@ -1,5 +1,7 @@
 package xray
 
+import "encoding/json"
+
 // The subset of Xray-core's JSON configuration conch emits. Field order
 // follows the documentation so generated files read naturally.
 
@@ -160,10 +162,36 @@ type grpcSettings struct {
 }
 
 type xhttpSettings struct {
-	Host    string            `json:"host,omitempty"`
-	Path    string            `json:"path,omitempty"`
-	Mode    string            `json:"mode,omitempty"`
-	Headers map[string]string `json:"headers,omitempty"`
+	Host     string            `json:"host,omitempty"`
+	Path     string            `json:"path,omitempty"`
+	Mode     string            `json:"mode,omitempty"`
+	Headers  map[string]string `json:"headers,omitempty"`
+	Download *downloadSettings `json:"downloadSettings,omitempty"`
+	// Extra are more keys, xray's names already (xPaddingBytes, xmux…).
+	Extra map[string]any `json:"-"`
+}
+
+func (x xhttpSettings) MarshalJSON() ([]byte, error) {
+	type plain xhttpSettings
+	b, err := json.Marshal(plain(x))
+	if err != nil || len(x.Extra) == 0 {
+		return b, err
+	}
+	m := map[string]any{}
+	if err := json.Unmarshal(b, &m); err != nil {
+		return nil, err
+	}
+	for k, v := range x.Extra {
+		m[k] = v
+	}
+	return json.Marshal(m)
+}
+
+// downloadSettings: where XHTTP downloads go, a stream of its own.
+type downloadSettings struct {
+	Address string `json:"address"`
+	Port    int    `json:"port"`
+	streamSettings
 }
 
 type hysteriaSettings struct {

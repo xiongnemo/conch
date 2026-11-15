@@ -1,0 +1,14 @@
+# shadowsocks 插件：sing-box 有 obfs、v2ray-plugin，shadow-tls 是它的一种出站；xray 只能做关掉 mux 的 v2ray-plugin
+nodes:
+  - { name: obfs, type: ss, server: 192.0.2.40, port: 8388, cipher: aes-128-gcm, password: p, plugin: obfs, plugin-opts: { mode: tls, host: cdn.example.com } }
+  # mihomo 的 v2ray-plugin 默认开 mux
+  - { name: v2ray-plugin, type: ss, server: 192.0.2.41, port: 443, cipher: aes-128-gcm, password: p,
+      plugin: v2ray-plugin, plugin-opts: { mode: websocket, tls: true, host: cdn.example.com, path: /v } }
+  - { name: shadow-tls, type: ss, server: 192.0.2.42, port: 443, cipher: 2022-blake3-aes-128-gcm, password: "AAAAAAAAAAAAAAAAAAAAAA==", client-fingerprint: chrome,
+      plugin: shadow-tls, plugin-opts: { host: www.example.com, password: st, version: 3 } }
+
+routes:
+  default: obfs
+  entries:
+    a.example: v2ray-plugin
+    b.example: shadow-tls

@@ -1,6 +1,7 @@
 package proto
 
 import (
+	"cmp"
 	"encoding/base64"
 	"fmt"
 	"net/netip"
@@ -43,10 +44,8 @@ func FromClash(m *yaml.Node) *Spec {
 			r.ignore("udp-over-tcp-version")
 		}
 		s.Mux = readMux(r)
-		if p := r.str("plugin"); p != "" {
-			r.ignore("plugin-opts")
-			s.Unknown = append(s.Unknown, "plugin: "+p)
-		}
+		s.Plugin = readPlugin(r, s)
+		r.ignore("client-fingerprint") // only plugins use it
 	case "vmess":
 		s.UUID = r.str("uuid")
 		s.AlterID = r.int("alterId")
@@ -261,6 +260,10 @@ func readTransport(r *reader, s *Spec) {
 			t.Host = o.str("host")
 			t.Mode = o.str("mode")
 			t.Headers = o.strMap("headers")
+			t.XHTTPExtra = rawKeys(o, XHTTPKeys)
+			if d := o.sub("download-settings"); d != nil {
+				t.Download = readDownload(d, s)
+			}
 		}
 	}
 	// Subscriptions often carry options for transports they do not use.
@@ -511,4 +514,127 @@ func IntRange(v string) (lo, hi int, ok bool) {
 		}
 	}
 	return lo, hi, true
+}
+
+// readPlugin reads a shadowsocks plugin and its options with mihomo's
+// defaults. Of plugins only mihomo has there is just the name, for other
+// kernels to refuse: without its plugin a node does not connect.
+func readPlugin(r *reader, s *Spec) *Plugin {
+	name := r.str("plugin")
+	if name == "" {
+		r.ignore("plugin-opts")
+		return nil
+	}
+	o := r.sub("plugin-opts")
+	if o == nil {
+		o = newReader(&yaml.Node{Kind: yaml.MappingNode}, "plugin-opts.")
+	}
+	p := &Plugin{Name: name, Mode: o.str("mode"), Host: cmp.Or(o.str("host"), "bing.com")}
+	tlsOf := func() *TLS {
+		return &TLS{SNI: p.Host, Insecure: o.bool("skip-cert-verify"), PinSHA256: o.str("fingerprint"), VerifyName: o.str("name-cert-verify"),
+			Certificate: o.str("certificate"), PrivateKey: o.str("private-key")}
+	}
+	switch name {
+	case "obfs":
+	case "v2ray-plugin", "gost-plugin":
+		p.Path, p.Headers = o.str("path"), o.strMap("headers")
+		p.Mux = true
+		if v, ok := model.WeakBool(o.node("mux")); ok {
+			p.Mux = v
+		}
+		if name == "v2ray-plugin" {
+			p.HTTPUpgrade = o.bool("v2ray-http-upgrade")
+			o.ignore("v2ray-http-upgrade-fast-open")
+		}
+		if o.bool("tls") {
+			p.TLS = tlsOf()
+			if e := o.sub("ech-opts"); e != nil {
+				if e.bool("enable") {
+					p.TLS.ECH = &ECH{Config: e.str("config"), QueryServerName: e.str("query-server-name")}
+				} else {
+					e.ignoreAll()
+				}
+			}
+		}
+	case "shadow-tls":
+		p.Password, p.Version = o.str("password"), cmpInt(o.int("version"), 2)
+		p.TLS = tlsOf()
+		p.TLS.ALPN = o.strs("alpn")
+		if p.TLS.ALPN == nil {
+			p.TLS.ALPN = []string{"h2", "http/1.1"}
+		}
+		// The node's client-fingerprint is shadow-tls's, in mihomo.
+		p.TLS.Fingerprint = r.str("client-fingerprint")
+	default:
+		o.ignoreAll()
+		return &Plugin{Name: name}
+	}
+	return p
+}
+
+// rawKeys takes the keys of a mapping that known has, as written.
+func rawKeys(o *reader, known map[string]string) map[string]any {
+	var out map[string]any
+	for i := 0; i+1 < len(o.m.Content); i += 2 {
+		k := o.m.Content[i].Value
+		if _, ok := known[k]; !ok {
+			continue
+		}
+		var v any
+		if o.node(k).Decode(&v) == nil {
+			if out == nil {
+				out = map[string]any{}
+			}
+			out[k] = v
+		}
+	}
+	return out
+}
+
+// readDownload reads XHTTP's download-settings, inheriting what it does
+// not say from the node, as mihomo does.
+func readDownload(d *reader, s *Spec) *XHTTPDownload {
+	dl := &XHTTPDownload{Server: cmp.Or(d.str("server"), s.Server), Port: cmpInt(d.int("port"), s.Port),
+		Path: d.str("path"), Host: d.str("host"), Headers: d.strMap("headers"), Extra: rawKeys(d, map[string]string{"reuse-settings": ""})}
+	tlsOn := s.TLS != nil
+	if v, ok := model.WeakBool(d.node("tls")); ok {
+		tlsOn = v
+	}
+	if !tlsOn {
+		d.ignore("alpn", "servername", "skip-cert-verify", "fingerprint", "client-fingerprint", "name-cert-verify", "certificate", "private-key", "ech-opts", "reality-opts")
+		return dl
+	}
+	t := &TLS{}
+	if s.TLS != nil {
+		c := *s.TLS
+		t = &c
+	}
+	if v := d.strs("alpn"); v != nil {
+		t.ALPN = v
+	}
+	if v := d.str("servername"); v != "" {
+		t.SNI = v
+	}
+	if v, ok := model.WeakBool(d.node("skip-cert-verify")); ok {
+		t.Insecure = v
+	}
+	for key, to := range map[string]*string{"fingerprint": &t.PinSHA256, "client-fingerprint": &t.Fingerprint,
+		"name-cert-verify": &t.VerifyName, "certificate": &t.Certificate, "private-key": &t.PrivateKey} {
+		if v := d.str(key); v != "" {
+			*to = v
+		}
+	}
+	if o := d.sub("ech-opts"); o != nil {
+		t.ECH = nil
+		if o.bool("enable") {
+			t.ECH = &ECH{Config: o.str("config"), QueryServerName: o.str("query-server-name")}
+		} else {
+			o.ignoreAll()
+		}
+	}
+	if o := d.sub("reality-opts"); o != nil {
+		t.Reality = &Reality{PublicKey: o.str("public-key"), ShortID: o.str("short-id"), SpiderX: o.str("spider-x")}
+	}
+	dl.TLS = t
+	return dl
 }

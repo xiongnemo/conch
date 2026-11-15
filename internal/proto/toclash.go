@@ -35,6 +35,7 @@ func ToClash(name string, s *Spec) *yaml.Node {
 			}
 		}
 		muxClash(m, s.Mux)
+		pluginClash(m, s.Plugin)
 	case "vmess":
 		m.str("uuid", s.UUID)
 		m.int("alterId", s.AlterID)
@@ -241,6 +242,10 @@ func transportClash(m *mapping, t Transport) {
 		if len(t.Headers) > 0 {
 			o.strMap("headers", t.Headers)
 		}
+		rawClash(o, t.XHTTPExtra)
+		if d := t.Download; d != nil {
+			o.node("download-settings", downloadClash(d))
+		}
 		m.node("xhttp-opts", o.n)
 	default:
 		m.str("network", t.Network)
@@ -401,4 +406,85 @@ func muxClash(m *mapping, x *Mux) {
 		o.node("brutal-opts", b.n)
 	}
 	m.node("smux", o.n)
+}
+
+func pluginClash(m *mapping, p *Plugin) {
+	if p == nil {
+		return
+	}
+	m.str("plugin", p.Name)
+	o := &mapping{n: &yaml.Node{Kind: yaml.MappingNode}}
+	o.str("mode", p.Mode)
+	o.str("host", p.Host)
+	o.str("path", p.Path)
+	if len(p.Headers) > 0 {
+		o.strMap("headers", p.Headers)
+	}
+	switch p.Name {
+	case "v2ray-plugin", "gost-plugin":
+		o.bool("mux", p.Mux)
+		if p.HTTPUpgrade {
+			o.bool("v2ray-http-upgrade", true)
+		}
+	case "shadow-tls":
+		o.str("password", p.Password)
+		o.int("version", p.Version)
+	}
+	if t := p.TLS; t != nil {
+		if p.Name != "shadow-tls" {
+			o.bool("tls", true)
+		} else if len(t.ALPN) > 0 {
+			o.strs("alpn", t.ALPN)
+		}
+		if t.Insecure {
+			o.bool("skip-cert-verify", true)
+		}
+		o.str("fingerprint", t.PinSHA256)
+		o.str("name-cert-verify", t.VerifyName)
+		o.str("certificate", t.Certificate)
+		o.str("private-key", t.PrivateKey)
+		if e := t.ECH; e != nil {
+			eo := &mapping{n: &yaml.Node{Kind: yaml.MappingNode}}
+			eo.bool("enable", true)
+			eo.str("config", e.Config)
+			eo.str("query-server-name", e.QueryServerName)
+			o.node("ech-opts", eo.n)
+		}
+		if p.Name == "shadow-tls" {
+			m.str("client-fingerprint", t.Fingerprint)
+		}
+	}
+	m.node("plugin-opts", o.n)
+}
+
+// rawClash writes keys kept as written, in order.
+func rawClash(m *mapping, kv map[string]any) {
+	keys := make([]string, 0, len(kv))
+	for k := range kv {
+		keys = append(keys, k)
+	}
+	slices.Sort(keys)
+	for _, k := range keys {
+		n := &yaml.Node{}
+		if n.Encode(kv[k]) == nil {
+			m.node(k, n)
+		}
+	}
+}
+
+func downloadClash(d *XHTTPDownload) *yaml.Node {
+	o := &mapping{n: &yaml.Node{Kind: yaml.MappingNode}}
+	o.str("server", d.Server)
+	o.int("port", d.Port)
+	o.str("path", d.Path)
+	o.str("host", d.Host)
+	if len(d.Headers) > 0 {
+		o.strMap("headers", d.Headers)
+	}
+	rawClash(o, d.Extra)
+	o.bool("tls", d.TLS != nil)
+	if t := d.TLS; t != nil {
+		tlsClash(o, t, false, "servername")
+	}
+	return o.n
 }

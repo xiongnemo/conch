@@ -1,3 +1,4 @@
 错误 ../testdata/protocols.profile.yaml:10：节点 "vless-xhttp"：sing-box 不支持 XHTTP 传输
 警告 ../testdata/protocols.profile.yaml:16：节点 "trojan-pinned"：sing-box 要用服务器的证书才能换算证书指纹（fingerprint），conch 还没取到，先按常规校验证书（自签证书会连不上）；取到后会自动换成按指纹校验
 错误 ../testdata/protocols.profile.yaml:18：节点 "socks-tls"：sing-box 的 SOCKS5 出站不能套 TLS
+错误 ../testdata/protocols.profile.yaml:28：节点 "xhttp-more"：sing-box 不支持 XHTTP 传输

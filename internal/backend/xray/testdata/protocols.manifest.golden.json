@@ -60,6 +60,11 @@
       "name": "tuned",
       "kind": "node",
       "node": "tuned"
+    },
+    {
+      "name": "xhttp-more",
+      "kind": "node",
+      "node": "xhttp-more"
     }
   ],
   "rules": [

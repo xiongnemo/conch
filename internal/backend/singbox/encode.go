@@ -48,8 +48,9 @@ type encoder struct {
 	d    diag.List
 
 	groups      map[string]bool
-	needsReject bool   // a group lists REJECT, which only a block outbound can be
-	resolver    string // the DNS server outbounds resolve their servers with
+	needsReject bool       // a group lists REJECT, which only a block outbound can be
+	extra       []outbound // outbounds nodes need besides their own, such as shadow-tls
+	resolver    string     // the DNS server outbounds resolve their servers with
 	manifest    *backend.Manifest
 	ruleSets    []ruleSet
 }
@@ -88,6 +89,7 @@ func (Backend) Encode(r *compile.Result, opts backend.Options) (*backend.Artifac
 			cfg.Outbounds = append(cfg.Outbounds, *o)
 		}
 	}
+	cfg.Outbounds = append(cfg.Outbounds, e.extra...)
 	for _, g := range r.Groups {
 		cfg.Outbounds = append(cfg.Outbounds, e.group(g))
 	}

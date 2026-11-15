@@ -35,7 +35,7 @@ func TestTidyLine(t *testing.T) {
 		t.Fatal(err)
 	}
 	got := Line(Tidy(n))
-	want := `{name: 香港 01, type: ss, server: " 1.2.3.4 ", port: 8388, cipher: aes-128-gcm, password: "123456", udp: true, plugin: obfs}`
+	want := `{name: 香港 01, type: ss, server: " 1.2.3.4 ", port: 8388, cipher: aes-128-gcm, password: "123456", plugin: obfs, udp: true}`
 	if got != want {
 		t.Errorf("got  %s\nwant %s", got, want)
 	}

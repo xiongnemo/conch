@@ -47,9 +47,9 @@ func TestFromClash(t *testing.T) {
 				PrivateKey: "k", MTU: 1280, Address: []string{"172.16.0.2/32", "fd01::2/128"},
 				Peers: []WireGuardPeer{{Server: "1.2.3.4", Port: 51820, PublicKey: "pk", Reserved: []int{1, 2, 3}}}}}},
 		{"sockopt and unknowns", `{ name: a, type: ss, server: s, port: 1, cipher: aes-128-gcm, password: p, tfo: true,
-			interface-name: eth0, routing-mark: 255, plugin: obfs, plugin-opts: { mode: tls }, smux: { enabled: true } }`,
+			interface-name: eth0, routing-mark: 255, plugin: kcptun, plugin-opts: { key: k }, smux: { enabled: true } }`,
 			Spec{Type: "ss", Server: "s", Port: 1, Cipher: "aes-128-gcm", Password: "p",
-				Sockopt: Sockopt{TFO: true, Interface: "eth0", Mark: 255}, Mux: &Mux{}, Unknown: []string{"plugin: obfs"}}},
+				Sockopt: Sockopt{TFO: true, Interface: "eth0", Mark: 255}, Mux: &Mux{}, Plugin: &Plugin{Name: "kcptun"}}},
 		{"unsupported protocol", `{ name: a, type: tuic, server: s, port: 1, uuid: u, congestion-controller: bbr }`,
 			Spec{Type: "tuic", Server: "s", Port: 1}},
 	}
@@ -83,6 +83,11 @@ func TestNestedUnknownFields(t *testing.T) {
 func TestClashRoundTrip(t *testing.T) {
 	specs := []*Spec{
 		{Type: "ss", Server: "s", Port: 1, UDP: true, Cipher: "2022-blake3-aes-128-gcm", Password: "p", UDPOverTCP: true, UoTVersion: 1},
+		{Type: "ss", Server: "s", Port: 1, Cipher: "aes-128-gcm", Password: "p", Plugin: &Plugin{Name: "obfs", Mode: "tls", Host: "bing.com"}},
+		{Type: "ss", Server: "s", Port: 1, Cipher: "aes-128-gcm", Password: "p", Plugin: &Plugin{Name: "v2ray-plugin", Mode: "websocket", Host: "cdn.example",
+			Path: "/v", Headers: map[string]string{"X": "y"}, TLS: &TLS{SNI: "cdn.example", Insecure: true}}},
+		{Type: "ss", Server: "s", Port: 1, Cipher: "2022-blake3-aes-128-gcm", Password: "p", Plugin: &Plugin{Name: "shadow-tls", Host: "www.example.com",
+			Password: "st", Version: 3, TLS: &TLS{SNI: "www.example.com", ALPN: []string{"h2", "http/1.1"}, Fingerprint: "chrome"}}},
 		{Type: "ss", Server: "s", Port: 1, Cipher: "aes-128-gcm", Password: "p", UDPOverTCP: true, UoTVersion: 2,
 			Mux: &Mux{Protocol: "h2mux", MaxConnections: 4, Padding: true, BrutalUp: 50_000_000, BrutalDown: 100_000_000}},
 		{Type: "vmess", Server: "s", Port: 443, UUID: "u", Cipher: "auto", GlobalPadding: true, AuthenticatedLength: true, PacketEncoding: "packetaddr",
@@ -93,6 +98,9 @@ func TestClashRoundTrip(t *testing.T) {
 		{Type: "vless", Server: "s", Port: 443, UDP: true, UUID: "u", Flow: "xtls-rprx-vision", Encryption: "mlkem768x25519plus.native.0rtt.x",
 			TLS: &TLS{SNI: "a", Fingerprint: "chrome", Reality: &Reality{PublicKey: "k", ShortID: "01", SpiderX: "/"}}},
 		{Type: "vless", Server: "s", Port: 443, UUID: "u", TLS: &TLS{SNI: "a"}, Transport: Transport{Network: "xhttp", Path: "/x", Host: "h", Mode: "packet-up"}},
+		{Type: "vless", Server: "s", Port: 443, UUID: "u", TLS: &TLS{SNI: "a"}, Transport: Transport{Network: "xhttp", Path: "/x", Mode: "packet-up",
+			XHTTPExtra: map[string]any{"no-grpc-header": true, "x-padding-bytes": "100-1000", "reuse-settings": map[string]any{"max-concurrency": "16-32"}},
+			Download:   &XHTTPDownload{Server: "d.example", Port: 443, Path: "/d", TLS: &TLS{SNI: "d.example", Fingerprint: "chrome"}}}},
 		{Type: "trojan", Server: "s", Port: 443, Password: "p", TLS: &TLS{SNI: "a", PinSHA256: "abcd"}, Transport: Transport{Network: "grpc", ServiceName: "svc"}},
 		{Type: "trojan", Server: "s", Port: 443, Password: "p", TLS: &TLS{}, Transport: Transport{Network: "httpupgrade", Path: "/u", Host: "h"}},
 		{Type: "socks5", Server: "s", Port: 1080, Username: "u", Password: "p", TLS: &TLS{Insecure: true}},

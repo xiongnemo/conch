@@ -1,0 +1,3 @@
+错误 ../testdata/plugins.profile.yaml:3：节点 "obfs"：xray 没有 shadowsocks 的 obfs 插件，换用 mihomo 或 sing-box 内核
+错误 ../testdata/plugins.profile.yaml:5：节点 "v2ray-plugin"：xray 做不到 v2ray-plugin 的 mux（它在 shadowsocks 外面多路复用）；把节点和服务器的 mux 都关掉，或者换用 mihomo、sing-box 内核
+错误 ../testdata/plugins.profile.yaml:7：节点 "shadow-tls"：xray 没有 shadowsocks 的 shadow-tls 插件，换用 mihomo 或 sing-box 内核

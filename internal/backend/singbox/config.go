@@ -62,8 +62,10 @@ type outbound struct {
 	Server     string `json:"server,omitempty"`
 	ServerPort int    `json:"server_port,omitempty"`
 
-	Version        string            `json:"version,omitempty"` // socks
-	Method         string            `json:"method,omitempty"`  // shadowsocks
+	Version        any               `json:"version,omitempty"` // socks: "5"; shadowtls: 1, 2 or 3
+	Plugin         string            `json:"plugin,omitempty"`  // shadowsocks: SIP003
+	PluginOpts     string            `json:"plugin_opts,omitempty"`
+	Method         string            `json:"method,omitempty"` // shadowsocks
 	Username       string            `json:"username,omitempty"`
 	Password       string            `json:"password,omitempty"`
 	UUID           string            `json:"uuid,omitempty"`

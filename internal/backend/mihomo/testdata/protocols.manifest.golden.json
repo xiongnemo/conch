@@ -60,6 +60,11 @@
       "name": "tuned",
       "kind": "node",
       "node": "tuned"
+    },
+    {
+      "name": "xhttp-more",
+      "kind": "node",
+      "node": "xhttp-more"
     }
   ],
   "rules": [
@@ -187,7 +192,7 @@
       "rule": "MATCH,ss-2022",
       "tier": "default",
       "key": "default",
-      "source": "../testdata/protocols.profile.yaml:28"
+      "source": "../testdata/protocols.profile.yaml:33"
     }
   ]
 }

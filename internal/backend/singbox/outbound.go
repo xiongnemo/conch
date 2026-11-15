@@ -64,6 +64,13 @@ func (e *encoder) nodeOutbound(p *compile.Proxy) (*outbound, *endpoint, []string
 			// sing-box's default is version 2, mihomo's 1.
 			o.UDPOverTCP = &udpOverTCP{Enabled: true, Version: cmp.Or(s.UoTVersion, 1)}
 		}
+		if pl := s.Plugin; pl != nil {
+			w, err := e.plugin(o, p, s)
+			if err != nil {
+				return nil, nil, nil, err
+			}
+			warns = append(warns, w...)
+		}
 	case "vmess":
 		o.Type, o.UUID, o.Security, o.AlterID = "vmess", s.UUID, cmp.Or(strings.ToLower(s.Cipher), "auto"), s.AlterID
 		o.GlobalPadding, o.AuthLength, o.PacketEncoding = s.GlobalPadding, s.AuthenticatedLength, s.PacketEncoding
@@ -143,7 +150,9 @@ func (e *encoder) nodeOutbound(p *compile.Proxy) (*outbound, *endpoint, []string
 			warns = append(warns, "sing-box 只能给 ss、vmess、vless、trojan 用多路复用（smux），这个节点不用")
 		}
 	}
-	o.dial = e.dial(p.Upstream, s.Sockopt)
+	if o.Detour == "" { // shadow-tls dials for it
+		o.dial = e.dial(p.Upstream, s.Sockopt)
+	}
 	if len(s.Unknown) > 0 {
 		warns = append(warns, fmt.Sprintf("这些字段在 sing-box 中没有对应，已忽略：%s", strings.Join(s.Unknown, "、")))
 	}
@@ -366,4 +375,67 @@ func echPEM(config string) []string {
 		lines, config = append(lines, config[:64]), config[64:]
 	}
 	return append(lines, config, "-----END ECH CONFIGS-----")
+}
+
+// plugin translates a shadowsocks plugin: obfs and v2ray-plugin are
+// sing-box's own SIP003 plugins; shadow-tls is an outbound the node dials
+// through.
+func (e *encoder) plugin(o *outbound, p *compile.Proxy, s *proto.Spec) ([]string, error) {
+	pl := s.Plugin
+	var warns []string
+	switch pl.Name {
+	case "obfs":
+		o.Plugin, o.PluginOpts = "obfs-local", sip003("obfs", pl.Mode, "obfs-host", pl.Host)
+	case "v2ray-plugin":
+		if pl.HTTPUpgrade {
+			return nil, fmt.Errorf("sing-box 的 v2ray-plugin 只有 WebSocket，没有 HTTPUpgrade（v2ray-http-upgrade）")
+		}
+		mux := "0"
+		if pl.Mux {
+			mux = "1"
+		}
+		opts := []string{"mode", cmp.Or(pl.Mode, "websocket"), "host", pl.Host, "path", cmp.Or(pl.Path, "/"), "mux", mux}
+		if t := pl.TLS; t != nil {
+			opts = append(opts, "tls", "")
+			switch {
+			case t.Insecure || t.PinSHA256 != "":
+				warns = append(warns, "sing-box 的 v2ray-plugin 不能跳过或固定证书，按常规校验")
+			case t.ECH != nil || t.Certificate != "" || t.VerifyName != "":
+				warns = append(warns, "sing-box 的 v2ray-plugin 没有 ECH、客户端证书和 name-cert-verify")
+			}
+		}
+		if len(pl.Headers) > 0 {
+			warns = append(warns, "sing-box 的 v2ray-plugin 不能加请求头（headers）")
+		}
+		o.Plugin, o.PluginOpts = "v2ray-plugin", sip003(opts...)
+	case "shadow-tls":
+		tag := p.Name + compile.HopSep + "shadow-tls"
+		st := outbound{Type: "shadowtls", Tag: tag, Server: s.Server, ServerPort: s.Port, Version: pl.Version, Password: pl.Password}
+		t, w := tlsOf(pl.TLS, e.opts.Certs)
+		st.TLS, warns = t, w
+		st.dial = e.dial(p.Upstream, s.Sockopt)
+		e.extra = append(e.extra, st)
+		o.dial = dial{Detour: tag}
+	default:
+		return nil, fmt.Errorf("sing-box 没有 %s 插件", pl.Name)
+	}
+	return warns, nil
+}
+
+// sip003 writes plugin options, key, value, …, the way SIP003 has them:
+// key=value;… with ; = and \ escaped; an empty value is a flag.
+func sip003(kv ...string) string {
+	esc := strings.NewReplacer(`\`, `\\`, ";", `\;`, "=", `\=`)
+	var parts []string
+	for i := 0; i+1 < len(kv); i += 2 {
+		if kv[i+1] == "" && kv[i] != "tls" {
+			continue
+		}
+		part := esc.Replace(kv[i])
+		if kv[i+1] != "" {
+			part += "=" + esc.Replace(kv[i+1])
+		}
+		parts = append(parts, part)
+	}
+	return strings.Join(parts, ";")
 }

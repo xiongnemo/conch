@@ -286,6 +286,46 @@
       }
     },
     {
+      "tag": "xhttp-more",
+      "protocol": "vless",
+      "settings": {
+        "address": "x.example.com",
+        "port": 443,
+        "id": "00000000-0000-0000-0000-000000000003",
+        "encryption": "none"
+      },
+      "streamSettings": {
+        "network": "xhttp",
+        "security": "tls",
+        "tlsSettings": {
+          "serverName": "x.example.com"
+        },
+        "xhttpSettings": {
+          "downloadSettings": {
+            "address": "d.example.com",
+            "network": "xhttp",
+            "port": 8443,
+            "security": "tls",
+            "tlsSettings": {
+              "serverName": "d.example.com"
+            },
+            "xhttpSettings": {
+              "path": "/down"
+            }
+          },
+          "mode": "packet-up",
+          "noGRPCHeader": true,
+          "path": "/xh",
+          "scMaxEachPostBytes": 1000000,
+          "xPaddingBytes": "100-1000",
+          "xmux": {
+            "hKeepAlivePeriod": 30,
+            "maxConcurrency": "16-32"
+          }
+        }
+      }
+    },
+    {
       "tag": "GLOBAL",
       "protocol": "loopback",
       "settings": {

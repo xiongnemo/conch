@@ -126,6 +126,21 @@ var Fields = func() []Field {
 		onNetwork("xhttp", Field{Key: "xhttp-opts.host", Label: "Host", Kind: "text"}),
 		onNetwork("xhttp", Field{Key: "xhttp-opts.mode", Label: "模式", Kind: "select", Options: append([]Option{{"", "自动"}}, opts("packet-up", "stream-up", "stream-one")...)}),
 
+		tls(Field{Key: "ech-opts.enable", Label: "ECH", Kind: "bool", More: true}, "vmess", "vless", "trojan", "hysteria2"),
+
+		// shadowsocks plugins, with mihomo's defaults as hints
+		Field{Key: "plugin", Label: "插件", Kind: "select", Types: []string{"ss"}, More: true,
+			Options: []Option{{"", "不用"}, {"obfs", "obfs（simple-obfs）"}, {"v2ray-plugin", "v2ray-plugin"}, {"shadow-tls", "shadow-tls"}}},
+		onPlugin([]string{"obfs"}, Field{Key: "plugin-opts.mode", Label: "混淆方式", Kind: "select", Options: opts("http", "tls")}),
+		onPlugin([]string{"v2ray-plugin"}, Field{Key: "plugin-opts.mode", Label: "传输", Kind: "select", Options: opts("websocket")}),
+		onPlugin([]string{"obfs", "v2ray-plugin", "shadow-tls"}, Field{Key: "plugin-opts.host", Label: "插件 Host", Kind: "text", Hint: "bing.com"}),
+		onPlugin([]string{"v2ray-plugin"}, Field{Key: "plugin-opts.path", Label: "插件路径", Kind: "text", Hint: "/"}),
+		onPlugin([]string{"v2ray-plugin"}, Field{Key: "plugin-opts.tls", Label: "插件 TLS", Kind: "bool"}),
+		onPlugin([]string{"v2ray-plugin"}, Field{Key: "plugin-opts.mux", Label: "插件 mux", Kind: "select", Options: []Option{{"", "开（默认）"}, {"false", "关"}}}),
+		onPlugin([]string{"shadow-tls"}, Field{Key: "plugin-opts.password", Label: "shadow-tls 密码", Kind: "secret"}),
+		onPlugin([]string{"shadow-tls"}, Field{Key: "plugin-opts.version", Label: "shadow-tls 版本", Kind: "select", Options: []Option{{"", "2（默认）"}, {"1", "1"}, {"3", "3"}}}),
+
+		Field{Key: "smux.enabled", Label: "多路复用（smux）", Kind: "bool", Types: []string{"ss", "vmess", "vless", "trojan"}, More: true},
 		Field{Key: "udp", Label: "UDP", Kind: "bool", Types: []string{"ss", "vmess", "vless", "trojan", "socks5"}, Default: true},
 		Field{Key: "udp-over-tcp", Label: "UDP over TCP", Kind: "bool", Types: []string{"ss"}, More: true},
 	)
@@ -138,6 +153,11 @@ func opts(values ...string) []Option {
 		out[i] = Option{v, v}
 	}
 	return out
+}
+
+func onPlugin(plugins []string, f Field) Field {
+	f.Types, f.When, f.More = []string{"ss"}, map[string][]string{"plugin": plugins}, true
+	return f
 }
 
 func onNetwork(network string, f Field) Field {

@@ -2,6 +2,7 @@ package linkparse
 
 import (
 	"encoding/base64"
+	"net/url"
 	"reflect"
 	"strings"
 	"testing"
@@ -30,6 +31,15 @@ func TestParse(t *testing.T) {
 		{"vless://u-3@x.example.com:443?security=tls&sni=x.example.com&type=xhttp&path=%2Fxh&mode=auto&custom=1#xh", "xh",
 			proto.Spec{Type: "vless", Server: "x.example.com", Port: 443, UDP: true, UUID: "u-3", TLS: &proto.TLS{SNI: "x.example.com"},
 				Transport: proto.Transport{Network: "xhttp", Path: "/xh", Mode: "auto"}, Unknown: []string{"custom"}}},
+		// xray's extra, in mihomo's names; downloads elsewhere.
+		{"vless://u@x.example.com:443?security=tls&sni=x.example.com&type=xhttp&path=%2Fxh&extra=" + url.QueryEscape(`{"noGRPCHeader":true,"xPaddingBytes":"100-1000",`+
+			`"xmux":{"maxConcurrency":"16-32"},"future":1,"downloadSettings":{"address":"d.example.com","port":8443,"security":"tls",`+
+			`"tlsSettings":{"serverName":"d.example.com","fingerprint":"chrome"},"xhttpSettings":{"path":"/down"}}}`) + "#ex", "ex",
+			proto.Spec{Type: "vless", Server: "x.example.com", Port: 443, UDP: true, UUID: "u", TLS: &proto.TLS{SNI: "x.example.com"},
+				Transport: proto.Transport{Network: "xhttp", Path: "/xh",
+					XHTTPExtra: map[string]any{"no-grpc-header": true, "x-padding-bytes": "100-1000", "reuse-settings": map[string]any{"max-concurrency": "16-32"}},
+					Download:   &proto.XHTTPDownload{Server: "d.example.com", Port: 8443, Path: "/down", TLS: &proto.TLS{SNI: "d.example.com", Fingerprint: "chrome"}}},
+				Unknown: []string{"extra.future"}}},
 		{"trojan://pass@t.example.com:443?sni=t.example.com&type=ws&host=t.example.com&path=%2Fws&allowInsecure=1#trojan", "trojan",
 			proto.Spec{Type: "trojan", Server: "t.example.com", Port: 443, UDP: true, Password: "pass", TLS: &proto.TLS{SNI: "t.example.com", Insecure: true},
 				Transport: proto.Transport{Network: "ws", Host: "t.example.com", Path: "/ws"}}},
@@ -70,7 +80,12 @@ func TestParse(t *testing.T) {
 		{"ss://" + b64("aes-256-gcm:p@ss@1.2.3.4:8389") + "#legacy", "legacy",
 			proto.Spec{Type: "ss", Server: "1.2.3.4", Port: 8389, UDP: true, Cipher: "aes-256-gcm", Password: "p@ss"}},
 		{"ss://" + b64("aes-128-gcm:x") + "@1.2.3.4:1/?plugin=obfs-local%3Bobfs%3Dhttp#p", "p",
-			proto.Spec{Type: "ss", Server: "1.2.3.4", Port: 1, UDP: true, Cipher: "aes-128-gcm", Password: "x", Unknown: []string{"plugin: obfs-local"}}},
+			proto.Spec{Type: "ss", Server: "1.2.3.4", Port: 1, UDP: true, Cipher: "aes-128-gcm", Password: "x", Plugin: &proto.Plugin{Name: "obfs", Mode: "http", Host: "bing.com"}}},
+		{"ss://" + b64("aes-128-gcm:x") + "@1.2.3.4:1/?plugin=v2ray-plugin%3Btls%3Bhost%3Dcdn.example%3Bpath%3D%2Fv%3Bmux%3D0#v", "v",
+			proto.Spec{Type: "ss", Server: "1.2.3.4", Port: 1, UDP: true, Cipher: "aes-128-gcm", Password: "x",
+				Plugin: &proto.Plugin{Name: "v2ray-plugin", Mode: "websocket", Host: "cdn.example", Path: "/v", TLS: &proto.TLS{SNI: "cdn.example"}}}},
+		{"ss://" + b64("aes-128-gcm:x") + "@1.2.3.4:1/?plugin=kcptun%3Bkey%3Dk#k", "k",
+			proto.Spec{Type: "ss", Server: "1.2.3.4", Port: 1, UDP: true, Cipher: "aes-128-gcm", Password: "x", Unknown: []string{"plugin: kcptun"}}},
 		{"hysteria2://auth@h.example.com:443?sni=h.example.com&obfs=salamander&obfs-password=o&insecure=1&up=50#hy2", "hy2",
 			proto.Spec{Type: "hysteria2", Server: "h.example.com", Port: 443, UDP: true, Password: "auth", TLS: &proto.TLS{SNI: "h.example.com", Insecure: true},
 				Hysteria: &proto.Hysteria{Obfs: "salamander", ObfsPassword: "o", Up: 50_000_000}}},

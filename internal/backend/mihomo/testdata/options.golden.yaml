@@ -58,6 +58,19 @@ proxies:
     bbr-profile: aggressive
     max-stream-receive-window: 8388608
     max-connection-receive-window: 20971520
+  - name: ss-v2ray
+    type: ss
+    server: 192.0.2.34
+    port: 443
+    cipher: aes-128-gcm
+    password: p
+    plugin: v2ray-plugin
+    plugin-opts:
+      mode: websocket
+      tls: true
+      host: cdn.example.com
+      path: /v
+      mux: false
   - name: wg
     type: wireguard
     server: 192.0.2.33
@@ -75,12 +88,14 @@ proxy-groups:
       - ss-uot
       - vmess-grpc
       - hy2-quic
+      - ss-v2ray
       - wg
       - DIRECT
 rules:
   - DOMAIN-SUFFIX,a.example,vmess-grpc
   - DOMAIN-SUFFIX,b.example,hy2-quic
   - DOMAIN-SUFFIX,c.example,wg
+  - DOMAIN-SUFFIX,d.example,ss-v2ray
   - DOMAIN-SUFFIX,home.arpa,DIRECT
   - DOMAIN-SUFFIX,lan,DIRECT
   - DOMAIN-SUFFIX,local,DIRECT
