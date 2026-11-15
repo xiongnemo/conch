@@ -136,6 +136,9 @@ func (e *encoder) log() logConfig {
 // group emits a group. sing-box only has selector and urltest, so groups
 // that fail over or balance pick the fastest member instead.
 func (e *encoder) group(g *compile.Group) outbound {
+	for _, w := range backend.GroupGaps(g, "sing-box", 15) {
+		e.d.Warnf(g.Pos, "出口组 %q：%s", g.Name, w)
+	}
 	members := make([]string, 0, len(g.Members))
 	for _, m := range g.Members {
 		if m == "REJECT" || m == "REJECT-DROP" {

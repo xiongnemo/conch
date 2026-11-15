@@ -1,8 +1,8 @@
 package subscription
 
 import (
+	"cmp"
 	"fmt"
-	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -13,6 +13,7 @@ import (
 	"github.com/xiongnemo/conch/internal/diag"
 	"github.com/xiongnemo/conch/internal/model"
 	"github.com/xiongnemo/conch/internal/route"
+	"github.com/xiongnemo/conch/internal/rx"
 )
 
 var builtins = []string{"DIRECT", "REJECT", "REJECT-DROP", "GLOBAL"}
@@ -116,11 +117,11 @@ func (m *merger) nodes() {
 	}
 }
 
-func (m *merger) regexp(expr, field string) *regexp.Regexp {
+func (m *merger) regexp(expr, field string) *rx.Regexp {
 	if expr == "" {
 		return nil
 	}
-	re, err := regexp.Compile(expr)
+	re, err := rx.Compile(expr)
 	if err != nil {
 		m.d.Errorf(m.sub.Pos, "订阅 %q 的 %s 不是有效的正则表达式：%v", m.sub.Name, field, err)
 		return nil
@@ -161,9 +162,13 @@ func (m *merger) groups() {
 			continue
 		}
 		if len(members) == 0 {
-			// Fail closed: an emptied group must not silently go direct.
-			m.d.Warnf(m.sub.Pos, "订阅 %q 的出口组 %q 没有可用的成员，暂时设为屏蔽", m.sub.Name, g.name)
-			members = []string{"REJECT"}
+			if fb := model.WeakString(model.Lookup(g.raw, "empty-fallback")); fb != "" && (slices.Contains(builtins, fb) || m.names[fb] != "") {
+				members = []string{cmp.Or(m.names[fb], fb)} // the group's own fallback, as in mihomo
+			} else {
+				// Fail closed: an emptied group must not silently go direct.
+				m.d.Warnf(m.sub.Pos, "订阅 %q 的出口组 %q 没有可用的成员，暂时设为屏蔽", m.sub.Name, g.name)
+				members = []string{"REJECT"}
+			}
 		}
 		typ := g.typ
 		switch typ {
@@ -181,17 +186,27 @@ func (m *merger) groups() {
 		if lazy, ok := model.WeakBool(model.Lookup(raw, "lazy")); ok {
 			grp.Lazy = &lazy
 		}
+		grp.Timeout, _ = model.WeakInt(model.Lookup(raw, "timeout"))
+		grp.MaxFailedTimes, _ = model.WeakInt(model.Lookup(raw, "max-failed-times"))
+		grp.ExpectedStatus = model.WeakString(model.Lookup(raw, "expected-status"))
+		grp.DisableUDP, _ = model.WeakBool(model.Lookup(raw, "disable-udp"))
+		grp.Hidden, _ = model.WeakBool(model.Lookup(raw, "hidden"))
+		grp.Icon = model.WeakString(model.Lookup(raw, "icon"))
 		m.p.Groups = append(m.p.Groups, grp)
 	}
 }
 
-// members resolves a Clash group's members: listed names, provider nodes
-// (use), and all nodes (include-all), narrowed by filter/exclude-filter.
+// members resolves a Clash group's members as mihomo does: listed names;
+// provider nodes (use, include-all-providers) and all nodes (include-all,
+// include-all-proxies), which filter narrows, in the order of its
+// expressions; then exclude-filter and exclude-type take members out,
+// listed ones too.
 func (m *merger) members(raw *yaml.Node, all []string) []string {
-	var out []string
-	add := func(name string) {
-		if !slices.Contains(out, name) {
-			out = append(out, name)
+	type member struct{ sub, final string } // subscription-side and final names
+	var out []member
+	add := func(sub, final string) {
+		if !slices.ContainsFunc(out, func(x member) bool { return x.final == final }) {
+			out = append(out, member{sub, final})
 		}
 	}
 	if n := model.Lookup(raw, "proxies"); n != nil {
@@ -199,45 +214,95 @@ func (m *merger) members(raw *yaml.Node, all []string) []string {
 			name := model.WeakString(c)
 			switch {
 			case slices.Contains(builtins, name):
-				add(name)
+				add(name, name)
 			case m.names[name] != "":
-				add(m.names[name])
+				add(name, m.names[name])
 			}
 			// Other names were filtered out by the subscription's filter.
 		}
 	}
-	// pool holds subscription-side names; filters apply to those.
 	var pool []string
-	if n := model.Lookup(raw, "use"); n != nil {
+	on := func(key string) bool { v, _ := model.WeakBool(model.Lookup(raw, key)); return v }
+	if on("include-all") || on("include-all-providers") {
+		for _, nodes := range m.snap.Providers {
+			pool = append(pool, nodes...)
+		}
+	} else if n := model.Lookup(raw, "use"); n != nil {
 		for _, c := range n.Content {
 			pool = append(pool, m.snap.Providers[model.WeakString(c)]...)
 		}
 	}
-	for _, key := range []string{"include-all", "include-all-proxies"} {
-		if on, _ := model.WeakBool(model.Lookup(raw, key)); on {
-			pool = append(pool, all...)
+	if on("include-all") || on("include-all-proxies") {
+		pool = append(pool, all...)
+	}
+	if keep := m.groupRegexp(model.WeakString(model.Lookup(raw, "filter"))); keep != nil {
+		var kept []string
+		for _, re := range keep {
+			for _, name := range pool {
+				if re.MatchString(name) && !slices.Contains(kept, name) {
+					kept = append(kept, name)
+				}
+			}
+		}
+		pool = kept
+	}
+	for _, name := range pool {
+		if final, ok := m.names[name]; ok {
+			add(name, final)
 		}
 	}
-	keep := m.groupRegexp(model.WeakString(model.Lookup(raw, "filter")))
 	drop := m.groupRegexp(model.WeakString(model.Lookup(raw, "exclude-filter")))
-	for _, name := range pool {
-		if (keep != nil && !keep.MatchString(name)) || (drop != nil && drop.MatchString(name)) {
+	var types []string
+	for t := range strings.SplitSeq(model.WeakString(model.Lookup(raw, "exclude-type")), "|") {
+		if t = strings.TrimSpace(t); t != "" {
+			types = append(types, strings.ToLower(t))
+		}
+	}
+	var names []string
+	for _, x := range out {
+		if drop.MatchString(x.sub) || len(types) > 0 && slices.Contains(types, m.adapterType(x.sub)) {
 			continue
 		}
-		if final, ok := m.names[name]; ok {
-			add(final)
-		}
+		names = append(names, x.final)
 	}
-	return out
+	return names
 }
 
-// groupRegexp compiles a group's filter. A filter Go cannot compile (for
-// example one using lookahead) is ignored with a warning.
-func (m *merger) groupRegexp(expr string) *regexp.Regexp {
+// adapterType is a subscription member's type as mihomo's exclude-type
+// compares it: its adapter's name, in lower case.
+func (m *merger) adapterType(name string) string {
+	if slices.Contains(builtins, name) {
+		return strings.ToLower(name)
+	}
+	for _, raw := range m.snap.Nodes {
+		if model.WeakString(model.Lookup(raw, "name")) == name {
+			switch t := strings.ToLower(model.WeakString(model.Lookup(raw, "type"))); t {
+			case "ss":
+				return "shadowsocks"
+			case "ssr":
+				return "shadowsocksr"
+			default:
+				return t
+			}
+		}
+	}
+	for _, raw := range m.snap.Groups {
+		if model.WeakString(model.Lookup(raw, "name")) == name {
+			t := strings.ToLower(model.WeakString(model.Lookup(raw, "type")))
+			return map[string]string{"select": "selector", "url-test": "urltest", "fallback": "fallback", "load-balance": "loadbalance", "relay": "relay"}[t]
+		}
+	}
+	return ""
+}
+
+// groupRegexp compiles a group's filter: expressions as mihomo reads
+// them, several separated by backticks. One that cannot be read is
+// ignored with a warning.
+func (m *merger) groupRegexp(expr string) rx.List {
 	if expr == "" {
 		return nil
 	}
-	re, err := regexp.Compile(expr)
+	re, err := rx.CompileList(expr)
 	if err != nil {
 		m.d.Warnf(m.sub.Pos, "订阅 %q 的正则表达式 %q 无法使用（%v），已忽略这个过滤条件", m.sub.Name, expr, err)
 		return nil

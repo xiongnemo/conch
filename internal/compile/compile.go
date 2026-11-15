@@ -56,7 +56,15 @@ type Group struct {
 	Lazy      *bool
 	Strategy  string
 	Selected  string // select groups: the chosen member; empty means the first
-	Pos       diag.Pos
+	// mihomo's: the health check's timeout (ms), failures before a member
+	// is down, the status that is up; no UDP; hidden from UIs, an icon.
+	Timeout        int
+	MaxFailedTimes int
+	ExpectedStatus string
+	DisableUDP     bool
+	Hidden         bool
+	Icon           string
+	Pos            diag.Pos
 	// A group at a later hop of a chain is emitted as a copy whose members
 	// dial through the hop before. Chain and Hop say where it belongs;
 	// such copies are not user-visible. Follows is the group it copies,

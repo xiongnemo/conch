@@ -232,6 +232,9 @@ func (e *encoder) nodeOutbounds() {
 
 // group emits a group's balancer(s) and its loopback outbound.
 func (e *encoder) group(g *compile.Group) {
+	for _, w := range backend.GroupGaps(g, "xray", 5) {
+		e.d.Warnf(g.Pos, "出口组 %q：%s", g.Name, w)
+	}
 	members := make([]string, len(g.Members))
 	for i, m := range g.Members {
 		members[i] = e.tags[m]

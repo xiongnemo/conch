@@ -4,6 +4,7 @@ package backend
 
 import (
 	"cmp"
+	"fmt"
 	"runtime"
 	"slices"
 	"strings"
@@ -207,6 +208,33 @@ func ProxyManifest(r *compile.Result) []ManifestProxy {
 			Hop:      p.Hop,
 			Upstream: p.Upstream,
 		})
+	}
+	return out
+}
+
+// GroupGaps says which of a group's mihomo options a kernel without them
+// (xray, sing-box) leaves out: its own health check times out after
+// timeout seconds whatever the group says, takes any response, and has no
+// count of failures; UDP still goes through the group. Chain copies are
+// said by the group they copy.
+func GroupGaps(g *compile.Group, kernel string, timeout int) []string {
+	if g.Chain != "" {
+		return nil
+	}
+	var out []string
+	if g.Type != "select" {
+		if g.Timeout != 0 && g.Timeout != timeout*1000 {
+			out = append(out, fmt.Sprintf("%s 的测速超时是固定的 %d 秒，不能设为 %d 毫秒（timeout）", kernel, timeout, g.Timeout))
+		}
+		if s := strings.TrimSpace(g.ExpectedStatus); s != "" && s != "*" {
+			out = append(out, fmt.Sprintf("%s 测速时不看 HTTP 状态码（expected-status: %s）", kernel, s))
+		}
+		if g.MaxFailedTimes != 0 && g.MaxFailedTimes != 5 {
+			out = append(out, fmt.Sprintf("%s 没有失败次数的设置（max-failed-times）", kernel))
+		}
+	}
+	if g.DisableUDP {
+		out = append(out, fmt.Sprintf("%s 不能关掉出口组的 UDP（disable-udp），UDP 照样经由这个组", kernel))
 	}
 	return out
 }

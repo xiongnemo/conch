@@ -1,3 +1,7 @@
 警告 ../testdata/groups.profile.yaml:10：出口组 "备用"：sing-box 没有故障转移组，改为自动选择延迟最低的成员
 警告 ../testdata/groups.profile.yaml:11：出口组 "轮询"：sing-box 没有负载均衡组，改为自动选择延迟最低的成员
 警告 ../testdata/groups.profile.yaml:12：出口组 "一致"：sing-box 没有负载均衡组，改为自动选择延迟最低的成员
+警告 ../testdata/groups.profile.yaml:15：出口组 "严格"：sing-box 的测速超时是固定的 15 秒，不能设为 3000 毫秒（timeout）
+警告 ../testdata/groups.profile.yaml:15：出口组 "严格"：sing-box 测速时不看 HTTP 状态码（expected-status: 204）
+警告 ../testdata/groups.profile.yaml:15：出口组 "严格"：sing-box 没有失败次数的设置（max-failed-times）
+警告 ../testdata/groups.profile.yaml:15：出口组 "严格"：sing-box 不能关掉出口组的 UDP（disable-udp），UDP 照样经由这个组

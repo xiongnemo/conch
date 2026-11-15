@@ -71,6 +71,19 @@ proxy-groups:
       - 备用
       - 出口链
       - DIRECT
+  - name: 严格
+    type: url-test
+    proxies:
+      - a
+      - a2
+    url: https://www.gstatic.com/generate_204
+    interval: 300
+    timeout: 3000
+    max-failed-times: 3
+    expected-status: "204"
+    disable-udp: true
+    hidden: true
+    icon: https://example.com/icon.png
   - name: GLOBAL
     type: select
     proxies:
@@ -79,6 +92,7 @@ proxy-groups:
       - 备用
       - 轮询
       - 一致
+      - 严格
       - 出口链
       - a
       - a2
@@ -88,6 +102,7 @@ proxy-groups:
 rules:
   - DOMAIN-SUFFIX,a.example,轮询
   - DOMAIN-SUFFIX,b.example,一致
+  - DOMAIN-SUFFIX,c.example,严格
   - DOMAIN-SUFFIX,home.arpa,DIRECT
   - DOMAIN-SUFFIX,lan,DIRECT
   - DOMAIN-SUFFIX,local,DIRECT

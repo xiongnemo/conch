@@ -288,3 +288,48 @@ proxy-providers:
 		t.Errorf("override-expr not said: %q", snap.Warnings)
 	}
 }
+
+// Imported groups get their members as mihomo does and keep its options.
+func TestImportedGroupOptions(t *testing.T) {
+	snap, err := Parse([]byte(`
+proxies:
+  - { name: 香港 01, type: trojan, server: s, port: 1, password: p }
+  - { name: 香港 02, type: socks5, server: s, port: 2 }
+  - { name: 日本 01, type: trojan, server: s, port: 3, password: p }
+proxy-providers:
+  p:
+    type: inline
+    payload:
+      - { name: 美国 01, type: trojan, server: s, port: 4, password: p }
+      - { name: 美国 02, type: trojan, server: s, port: 5, password: p }
+proxy-groups:
+  - { name: 列出的也排除, type: select, proxies: [香港 01, 日本 01], exclude-filter: 日本 }
+  - { name: 全部, type: url-test, include-all: true, filter: "美国`+"`"+`香港", exclude-type: socks5, timeout: 3000, hidden: true }
+  - { name: 空的, type: select, proxies: [日本 01], exclude-filter: 日本, empty-fallback: DIRECT }
+`), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	p, err := model.Parse([]byte("subscriptions:\n  - { name: s, url: \"https://example.com\", import: [nodes, groups] }\n"), "profile.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var d diag.List
+	Apply(p, map[string]*Snapshot{"s": snap}, &d)
+	groups := map[string]*model.Group{}
+	for _, g := range p.Groups {
+		groups[g.Name] = g
+	}
+	for name, want := range map[string][]string{
+		"列出的也排除": {"香港 01"},
+		"全部":     {"美国 01", "美国 02", "香港 01"}, // the filters' order; socks5 left out
+		"空的":     {"DIRECT"},
+	} {
+		if g := groups[name]; g == nil || !slices.Equal(g.Members, want) {
+			t.Errorf("%s = %v, want %q", name, g, want)
+		}
+	}
+	if g := groups["全部"]; g == nil || g.Timeout != 3000 || !g.Hidden {
+		t.Errorf("options: %+v", g)
+	}
+}

@@ -348,3 +348,45 @@ func TestSettings(t *testing.T) {
 	wantError(t, "tun: { enable: true }\ndns: { enable: false }\nroutes:\n  default: DIRECT\n", "必须开启 DNS")
 	wantError(t, "mode: fast\nroutes:\n  default: DIRECT\n", "mode 应该是")
 }
+
+// Groups take mihomo's options: filters as mihomo reads them, several
+// separated by backticks in their order, lookahead too; exclude-filter and
+// exclude-type take out listed members as well; empty-fallback stands in
+// for none.
+func TestGroupOptions(t *testing.T) {
+	p, err := model.Parse([]byte(`
+nodes:
+  - { name: 香港 01, type: trojan, server: s, port: 1, password: p }
+  - { name: 日本 01, type: trojan, server: s, port: 2, password: p }
+  - { name: 香港 02 0.1x, type: ss, server: s, port: 3, cipher: aes-128-gcm, password: p }
+  - { name: 家, type: socks5, server: s, port: 4 }
+groups:
+  - { name: 亚洲, type: url-test, filter: "日本`+"`"+`^(?!.*0\\.1x).*香港", timeout: 3000, expected-status: "204", disable-udp: true, hidden: true, icon: https://i.example/a.png }
+  - { name: 不要socks, type: select, members: [家, 香港 01], exclude-type: Socks5 }
+  - { name: 空, type: select, members: [家], exclude-filter: 家, empty-fallback: DIRECT }
+routes: { default: 亚洲 }
+`), "profile.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	res := Compile(p)
+	if err := res.Diags.Err(); err != nil {
+		t.Fatal(err)
+	}
+	groups := map[string]*Group{}
+	for _, g := range res.Groups {
+		groups[g.Name] = g
+	}
+	if got := groups["亚洲"].Members; !slices.Equal(got, []string{"日本 01", "香港 01"}) {
+		t.Errorf("亚洲 = %q", got)
+	}
+	if g := groups["亚洲"]; g.Timeout != 3000 || g.ExpectedStatus != "204" || !g.DisableUDP || !g.Hidden || g.Icon == "" {
+		t.Errorf("亚洲 options: %+v", g)
+	}
+	if got := groups["不要socks"].Members; !slices.Equal(got, []string{"香港 01"}) {
+		t.Errorf("不要socks = %q", got)
+	}
+	if got := groups["空"].Members; !slices.Equal(got, []string{"DIRECT"}) {
+		t.Errorf("空 = %q", got)
+	}
+}

@@ -5,7 +5,6 @@ package subscription
 import (
 	"bytes"
 	"fmt"
-	"regexp"
 	"slices"
 	"strings"
 
@@ -14,6 +13,7 @@ import (
 	"github.com/xiongnemo/conch/internal/linkparse"
 	"github.com/xiongnemo/conch/internal/model"
 	"github.com/xiongnemo/conch/internal/proto"
+	"github.com/xiongnemo/conch/internal/rx"
 )
 
 // Snapshot is a parsed subscription, before it is merged into a profile.
@@ -237,12 +237,12 @@ var overrideKeys = []string{"tfo", "mptcp", "udp", "udp-over-tcp", "up", "down",
 	"skip-cert-verify", "name-cert-verify", "interface-name", "routing-mark", "ip-version"}
 
 type rename struct {
-	re *regexp.Regexp
+	re *rx.Regexp
 	to string
 }
 
-// proxyNameRules reads override.proxy-name: patterns replaced in names.
-// mihomo's are .NET-style; ones Go cannot read are reported.
+// proxyNameRules reads override.proxy-name: patterns replaced in names,
+// .NET-style as mihomo's; ones that cannot be read are reported.
 func (s *Snapshot) proxyNameRules(provider string, over *yaml.Node) []rename {
 	list := model.Lookup(over, "proxy-name")
 	if list == nil || list.Kind != yaml.SequenceNode {
@@ -251,12 +251,11 @@ func (s *Snapshot) proxyNameRules(provider string, over *yaml.Node) []rename {
 	var out []rename
 	for _, item := range list.Content {
 		pattern := model.WeakString(model.Lookup(item, "pattern"))
-		re, err := regexp.Compile(pattern)
+		re, err := rx.Compile(pattern)
 		if err != nil {
-			s.Warnings = append(s.Warnings, fmt.Sprintf("proxy-provider %q 的 proxy-name 规则 %q 用了 conch 读不了的正则写法，没有用", provider, pattern))
+			s.Warnings = append(s.Warnings, fmt.Sprintf("proxy-provider %q 的 proxy-name 规则 %q 不是有效的正则表达式（%v），没有用", provider, pattern, err))
 			continue
 		}
-		// .NET writes groups $1 and ${name}; so does Go.
 		out = append(out, rename{re, model.WeakString(model.Lookup(item, "target"))})
 	}
 	return out
@@ -286,11 +285,13 @@ func ruleProvider(name string, m *yaml.Node) (*model.RuleProvider, error) {
 	return rp, nil
 }
 
-func compileOrWarn(s *Snapshot, expr string) *regexp.Regexp {
+// compileOrWarn compiles a provider's filter, several expressions
+// separated by backticks as mihomo has them.
+func compileOrWarn(s *Snapshot, expr string) rx.List {
 	if expr == "" {
 		return nil
 	}
-	re, err := regexp.Compile(expr)
+	re, err := rx.CompileList(expr)
 	if err != nil {
 		s.Warnings = append(s.Warnings, fmt.Sprintf("无法使用正则表达式 %q（%v），已忽略这个过滤条件", expr, err))
 		return nil

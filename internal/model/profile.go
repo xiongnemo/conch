@@ -76,6 +76,19 @@ type Group struct {
 	Tolerance int      `yaml:"tolerance"`
 	Lazy      *bool    `yaml:"lazy"`
 	Strategy  string   `yaml:"strategy"`
+	// As in mihomo: members left out by name or by type, the member used
+	// when none is left, the health check's timeout (ms), failures before
+	// a member counts as down and the HTTP status that counts as up, no
+	// UDP through the group, and hidden from the UIs, with an icon.
+	ExcludeFilter  string `yaml:"exclude-filter"`
+	ExcludeType    string `yaml:"exclude-type"`
+	EmptyFallback  string `yaml:"empty-fallback"`
+	Timeout        int    `yaml:"timeout"`
+	MaxFailedTimes int    `yaml:"max-failed-times"`
+	ExpectedStatus string `yaml:"expected-status"`
+	DisableUDP     bool   `yaml:"disable-udp"`
+	Hidden         bool   `yaml:"hidden"`
+	Icon           string `yaml:"icon"`
 
 	Pos diag.Pos `yaml:"-"`
 }

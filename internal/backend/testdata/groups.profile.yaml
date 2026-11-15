@@ -11,6 +11,9 @@ groups:
   - { name: 轮询, type: load-balance, members: [a, a2, b], strategy: round-robin }
   - { name: 一致, type: load-balance, members: [a, b] }
   - { name: 选择, type: select, members: [自动, 备用, 出口链, DIRECT] }
+  # mihomo 出口组的选项：测速超时、期望状态码、失败次数、不走 UDP、在列表里隐藏、图标
+  - { name: 严格, type: url-test, members: [a, a2], timeout: 3000, expected-status: "204", max-failed-times: 3, disable-udp: true,
+      hidden: true, icon: "https://example.com/icon.png" }
 
 chains:
   出口链: [自动, exit]
@@ -20,3 +23,4 @@ routes:
   entries:
     a.example: 轮询
     b.example: 一致
+    c.example: 严格

@@ -637,7 +637,7 @@ $("#node-yaml-form").addEventListener("submit", (e) => {
 
 function renderOutbounds(list) {
   outbounds = list;
-  const groups = list.filter((o) => o.kind === "group");
+  const groups = list.filter((o) => o.kind === "group" && !o.hidden);
   fill($("#groups"), ...groups.map((g) => h("div", { class: "card group" },
     h("h3", {}, nameSpan(g.name), h("span", { class: "kind" }, kindNames[g.type] || g.type),
       g.type !== "select" && g.now ? h("span", { class: "kind" }, "当前 " + g.now) : null,

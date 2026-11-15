@@ -160,6 +160,13 @@
       }
     },
     {
+      "tag": "严格",
+      "protocol": "loopback",
+      "settings": {
+        "inboundTag": "›group›严格"
+      }
+    },
+    {
       "tag": "GLOBAL",
       "protocol": "loopback",
       "settings": {
@@ -214,6 +221,12 @@
       },
       {
         "inboundTag": [
+          "›group›严格"
+        ],
+        "balancerTag": "严格"
+      },
+      {
+        "inboundTag": [
           "›group›GLOBAL"
         ],
         "balancerTag": "GLOBAL"
@@ -234,13 +247,20 @@
       },
       {
         "domain": [
+          "domain:c.example"
+        ],
+        "balancerTag": "严格",
+        "ruleTag": "#2 c.example"
+      },
+      {
+        "domain": [
           "domain:home.arpa",
           "domain:lan",
           "domain:local",
           "domain:localhost"
         ],
         "outboundTag": "DIRECT",
-        "ruleTag": "#2-5 lan"
+        "ruleTag": "#3-6 lan"
       },
       {
         "ip": [
@@ -259,7 +279,7 @@
           "224.0.0.0/4"
         ],
         "outboundTag": "DIRECT",
-        "ruleTag": "#6-18 lan"
+        "ruleTag": "#7-19 lan"
       }
     ],
     "balancers": [
@@ -334,6 +354,17 @@
         "strategy": {
           "type": "random"
         }
+      },
+      {
+        "tag": "严格",
+        "selector": [
+          "a»",
+          "a2"
+        ],
+        "strategy": {
+          "type": "leastPing"
+        },
+        "fallbackTag": "a»"
       },
       {
         "tag": "GLOBAL",

@@ -74,7 +74,9 @@ func (m *Model) outboundRows(w int) []row {
 	for _, o := range m.outbounds {
 		switch o.Kind {
 		case "group":
-			groups = append(groups, o)
+			if !o.Hidden {
+				groups = append(groups, o)
+			}
 		case "chain":
 			chains = append(chains, o)
 		case "node":

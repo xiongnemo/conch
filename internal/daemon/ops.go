@@ -108,6 +108,7 @@ type Outbound struct {
 	UDP      bool     `json:"udp,omitempty"`     // UDP traffic gets through (nodes and chains)
 	Source   string   `json:"source,omitempty"`  // file:line it is written at
 	Managed  bool     `json:"managed,omitempty"` // added from the UIs; they can remove it
+	Hidden   bool     `json:"hidden,omitempty"`  // a group the profile hides from lists (mihomo's hidden)
 }
 
 // Outbounds lists the outbounds with the members groups use right now.
@@ -155,7 +156,7 @@ func (d *Daemon) outbounds() []Outbound {
 		if g.Chain != "" {
 			continue // a copy carrying a chain hop
 		}
-		o := Outbound{Name: g.Name, Kind: "group", Type: g.Type, Members: g.Members}
+		o := Outbound{Name: g.Name, Kind: "group", Type: g.Type, Members: g.Members, Hidden: g.Hidden}
 		if g.Type == "select" {
 			o.Selected = cmpOr(d.state.Selections[g.Name], g.Selected, first(g.Members))
 		}

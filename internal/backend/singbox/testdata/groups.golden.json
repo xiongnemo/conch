@@ -137,6 +137,16 @@
       ]
     },
     {
+      "type": "urltest",
+      "tag": "严格",
+      "outbounds": [
+        "a",
+        "a2"
+      ],
+      "url": "https://www.gstatic.com/generate_204",
+      "interval": "300s"
+    },
+    {
       "type": "selector",
       "tag": "GLOBAL",
       "outbounds": [
@@ -145,6 +155,7 @@
         "备用",
         "轮询",
         "一致",
+        "严格",
         "出口链",
         "a",
         "a2",
@@ -172,6 +183,13 @@
         ],
         "action": "route",
         "outbound": "一致"
+      },
+      {
+        "domain_suffix": [
+          "c.example"
+        ],
+        "action": "route",
+        "outbound": "严格"
       },
       {
         "domain_suffix": [

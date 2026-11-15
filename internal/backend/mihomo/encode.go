@@ -238,8 +238,25 @@ func groupNode(g *compile.Group) *yaml.Node {
 	if g.Type == "load-balance" && g.Strategy != "" {
 		m.set("strategy", str(g.Strategy))
 	}
-	if g.Chain != "" {
-		m.set("hidden", boolNode(true)) // a copy carrying a chain hop
+	if g.Type != "select" {
+		if g.Timeout > 0 {
+			m.set("timeout", intNode(g.Timeout))
+		}
+		if g.MaxFailedTimes > 0 {
+			m.set("max-failed-times", intNode(g.MaxFailedTimes))
+		}
+		if g.ExpectedStatus != "" {
+			m.set("expected-status", str(g.ExpectedStatus))
+		}
+	}
+	if g.DisableUDP {
+		m.set("disable-udp", boolNode(true))
+	}
+	if g.Chain != "" || g.Hidden {
+		m.set("hidden", boolNode(true)) // a copy carrying a chain hop, or hidden by the user
+	}
+	if g.Icon != "" {
+		m.set("icon", str(g.Icon))
 	}
 	return m.node
 }
