@@ -81,3 +81,11 @@ xray 和 sing-box 需要写明的，conch 按 mihomo 的行为补上：
 ## 订阅
 
 proxy-provider 的 `filter`、`exclude-filter`、`exclude-type`、`dialer-proxy` 和 `override`（设置项、`proxy-name` 改名、前后缀）照 mihomo 的顺序处理；`override-expr` 是 mihomo 自己的表达式，conch 做不到，会提示。分享链接里 conch 不认识的参数，添加时会提示。
+
+## 各内核刻意保留的差别
+
+这几处三个内核本来的默认就不一样，conch 不去统一：
+
+- 节点没写 `client-fingerprint`：mihomo 和 sing-box 用 Go 自带的 TLS 握手，xray 模仿 Chrome（xray 的默认）。想三个内核一样，就在节点上写明 `client-fingerprint`。
+- sing-box 的 hysteria2 默认模仿 Chrome 的 QUIC 握手，mihomo 和 xray 不会。sing-box 的文档说，服务器用 Ed25519 证书时这会连不上；遇到这种服务器请换用 mihomo 或 xray。
+- 节点没写 `udp: true`（Clash 写法里大多数协议默认不开）：mihomo 会让 UDP 流量跳过指向它的规则、继续往下匹配；xray 和 sing-box 照样把 UDP 发给这个节点。
