@@ -28,16 +28,16 @@ func newMigrateCmd() *cobra.Command {
 		Long: `把旧版本放在旧位置的文件移到新的位置。conch 现在在每个系统上都按 XDG 的目录放文件：
 
   配置  ~/.config/conch         profile.yaml、managed.yaml、.env
-  数据  ~/.local/share/conch    pairings.json（浏览器扩展的配对）
+  数据  ~/.local/share/conch    pairings.json（浏览器扩展的配对）、内核、内核的工作目录（geodata）、
+                                规则列表、订阅、certs.json：没有网络也要靠它们启动，所以不放在 ~/.cache
   状态  ~/.local/state/conch    state.json、api.json、agent.json、daemon.log、agent.log
-  缓存  ~/.cache/conch          内核、内核的工作目录、规则列表、订阅、certs.json
 
-设置了 XDG_CONFIG_HOME、XDG_DATA_HOME、XDG_STATE_HOME、XDG_CACHE_HOME（必须是绝对路径）时用它们；
-CONCH_CONFIG_DIR 和 CONCH_DATA_DIR 仍然优先，设置了的那类文件不迁移。迁移之前，旧位置的文件照样能用，
-每次运行会在 stderr 提醒一次。
+设置了 XDG_CONFIG_HOME、XDG_DATA_HOME、XDG_STATE_HOME（必须是绝对路径）时用它们；CONCH_CONFIG_DIR 和
+CONCH_DATA_DIR 仍然优先，设置了的那类文件不迁移。迁移之前，旧位置的文件照样能用，每次运行会在 stderr
+提醒一次。
 
 旧位置是：Windows 的 %APPDATA%\conch 和 %LOCALAPPDATA%\conch，macOS 的 ~/Library/Application Support/conch
-和 ~/Library/Logs/conch，Linux 的 ~/.local/share/conch 里不算数据的文件；还有旧版本在运行 conch daemon
+和 ~/Library/Logs/conch，Linux 的 ~/.local/share/conch 里的状态文件；还有旧版本在运行 conch daemon
 的目录里生成的 .env：默认看当前目录，别的目录用 --from 指定。（当前目录的 .env 以后仍然会读，而且优先于
 配置目录里的，只是新的密码不再写到那里。）
 

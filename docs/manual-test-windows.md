@@ -93,7 +93,7 @@ conch kernel path mihomo
 conch kernel path sing-box
 ```
 
-预期：每个内核都下载、校验 sha256，然后装到 `%USERPROFILE%\.cache\conch\kernels\` 下；`kernel path` 打印 exe 的完整路径。
+预期：每个内核都下载、校验 sha256，然后装到 `%USERPROFILE%\.local\share\conch\kernels\` 下；`kernel path` 打印 exe 的完整路径。
 
 - [ ] 2 通过
 
@@ -748,7 +748,7 @@ conch service uninstall
 conch sysproxy off              # 如果 daemon 还在运行
 # 在窗口 A 按 Ctrl+C 停掉 daemon
 conch doctor --fix
-Remove-Item -Recurse $HOME\.config\conch, $HOME\.local\share\conch, $HOME\.local\state\conch, $HOME\.cache\conch    # 测试用的配置和数据，里面有你的节点
+Remove-Item -Recurse $HOME\.config\conch, $HOME\.local\share\conch, $HOME\.local\state\conch    # 测试用的配置和数据，里面有你的节点
 Remove-Item C:\conch-test\links.txt
 ```
 

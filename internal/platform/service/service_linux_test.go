@@ -17,12 +17,12 @@ import (
 // commands instead of running them.
 func TestInstallSystemd(t *testing.T) {
 	root, home := t.TempDir(), t.TempDir()
-	userConfig, userCache := paths.ForUser(home).Dir(paths.Config), paths.ForUser(home).Dir(paths.Cache)
+	userConfig, userData := paths.ForUser(home).Dir(paths.Config), paths.ForUser(home).Dir(paths.Data)
 	os.MkdirAll(userConfig, 0o700)
 	profile := filepath.Join(userConfig, "profile.yaml")
 	os.WriteFile(profile, []byte("routes: { default: DIRECT }\n"), 0o644)
 	os.WriteFile(filepath.Join(userConfig, ".env"), []byte("CONCH_PASSWORD=users-own\n"), 0o600)
-	kernel := filepath.Join(userCache, "kernels", "mihomo", "v1.19.32", "mihomo")
+	kernel := filepath.Join(userData, "kernels", "mihomo", "v1.19.32", "mihomo")
 	os.MkdirAll(filepath.Dir(kernel), 0o755)
 	os.WriteFile(kernel, []byte("kernel"), 0o755)
 	exe := filepath.Join(t.TempDir(), "conch")

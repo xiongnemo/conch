@@ -27,6 +27,9 @@ func TestMigrateCommand(t *testing.T) {
 	oldState := filepath.Join(home, ".local", "share", "conch", "state.json") // an old place on every OS
 	os.MkdirAll(filepath.Dir(oldState), 0o700)
 	os.WriteFile(oldState, []byte(`{"backend":"sing-box"}`), 0o600)
+	kernel := filepath.Join(home, ".local", "share", "conch", "kernels", "sing-box", "current") // data, where it is on Linux
+	os.MkdirAll(filepath.Dir(kernel), 0o700)
+	os.WriteFile(kernel, []byte("v1\n"), 0o600)
 	cwd := t.TempDir()
 	os.WriteFile(filepath.Join(cwd, ".env"), []byte("CONCH_PASSWORD=from-cwd\n"), 0o600)
 	t.Chdir(cwd)
@@ -59,6 +62,12 @@ func TestMigrateCommand(t *testing.T) {
 	}
 	if env, _ := os.ReadFile(filepath.Join(home, ".config", "conch", ".env")); string(env) != "CONCH_PASSWORD=from-cwd\n" {
 		t.Errorf("config .env = %q", env)
+	}
+	if got := paths.Kernels(); got != filepath.Dir(filepath.Dir(kernel)) {
+		t.Errorf("kernels at %s, want them left in the data directory", got)
+	}
+	if _, err := os.Stat(filepath.Join(home, ".cache")); err == nil {
+		t.Error("~/.cache was created")
 	}
 	if out, err = run(); err != nil || !strings.Contains(out, "没有需要迁移的文件") {
 		t.Errorf("second run: %v\n%s", err, out)

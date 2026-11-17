@@ -145,17 +145,16 @@ conch 在 Linux、macOS 和 Windows 上都按 [XDG Base Directory](https://speci
 | 类别 | 目录 | 里面有什么 |
 | --- | --- | --- |
 | 配置 | `~/.config/conch` | `profile.yaml`（你写的配置，conch 只读不写）、`managed.yaml`（在界面和命令行里添加的节点、链和条目）、`.env`（`CONCH_PASSWORD`、`CONCH_AUTH`、`CONCH_LISTEN`、`CONCH_TLS_CERT` / `CONCH_TLS_KEY`） |
-| 数据 | `~/.local/share/conch` | `pairings.json`（配对过的浏览器扩展） |
+| 数据 | `~/.local/share/conch` | `pairings.json`（配对过的浏览器扩展）、`kernels`（下载的内核）、`home`（内核的工作目录，有 geodata）、`lists`（规则列表）、`subscriptions`（订阅）、`certs.json`（见下） |
 | 状态 | `~/.local/state/conch` | `state.json`（选择的节点、开关、临时条目、崩溃后要恢复的系统设置）、`api.json`（daemon 在哪里监听、密码在哪个 `.env`）、`agent.json`、`daemon.log`（macOS 和 Windows 上登录时自动启动的 daemon 的日志）、`agent.log` |
-| 缓存 | `~/.cache/conch` | `kernels`（下载的内核）、`home`（内核的工作目录，有 geodata）、`lists`（规则列表）、`subscriptions`（订阅）、`certs.json`（见下） |
 
-内核的 socket 和 pid 文件放在 `$XDG_RUNTIME_DIR/conch`，没有这个变量时放在 `~/.local/state/conch/run`。
+内核、geodata、规则列表、订阅和取到的证书虽然都能重新下载，但没有网络时 conch 要靠它们启动，重新下载又可能要先有代理，所以算数据，不放在随时可能被清空的 `~/.cache`；conch 不往 `~/.cache` 里放任何东西。内核的 socket 和 pid 文件放在 `$XDG_RUNTIME_DIR/conch`，没有这个变量时放在 `~/.local/state/conch/run`。
 
 环境变量：
 
-- `XDG_CONFIG_HOME`、`XDG_DATA_HOME`、`XDG_STATE_HOME`、`XDG_CACHE_HOME`、`XDG_RUNTIME_DIR`：设置了就用 `$XDG_…/conch` 代替上面的目录，每个系统上都一样；只认绝对路径，相对路径会被忽略。
+- `XDG_CONFIG_HOME`、`XDG_DATA_HOME`、`XDG_STATE_HOME`、`XDG_RUNTIME_DIR`：设置了就用 `$XDG_…/conch` 代替上面的目录，每个系统上都一样；只认绝对路径，相对路径会被忽略。
 - `CONCH_CONFIG_DIR`：配置目录，优先于上面这些。
-- `CONCH_DATA_DIR`：数据、状态、缓存和 socket 都放在这一个目录里（系统服务就是这样用的），也优先于上面这些。
+- `CONCH_DATA_DIR`：数据、状态和 socket 都放在这一个目录里（系统服务就是这样用的），也优先于上面这些。
 
 `.env` 每一项按这个顺序找：环境变量、当前目录的 `.env`、`~/.config/conch/.env`。当前目录的 `.env` 适合把 profile 和密码一起放在单独的目录里（登录时自动启动会切换到 profile 所在的目录）；第一次运行生成的密码写在 `~/.config/conch/.env`。
 

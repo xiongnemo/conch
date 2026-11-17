@@ -227,7 +227,7 @@ func New(opts Options) (*Daemon, error) {
 		}
 	}
 	d.socket = filepath.Join(runDir, name+".sock")
-	if err := os.MkdirAll(opts.homesDir(), 0o700); err != nil { // and conch's cache directory, if this is the first thing in it
+	if err := os.MkdirAll(opts.homesDir(), 0o700); err != nil { // and conch's data directory, if this is the first thing in it
 		return nil, err
 	}
 	if err := os.MkdirAll(d.home, 0o755); err != nil {

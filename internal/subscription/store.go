@@ -43,7 +43,7 @@ type Info struct {
 }
 
 // Store keeps downloaded subscriptions, and the proxy-providers they use,
-// in a cache directory.
+// in a directory, for runs without the network too.
 type Store struct {
 	Dir     string
 	HTTP    *http.Client

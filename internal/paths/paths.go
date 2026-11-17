@@ -2,10 +2,14 @@
 // Directory layout on every OS, Windows and macOS included:
 //
 //	config  $XDG_CONFIG_HOME/conch  ~/.config/conch       profile.yaml, managed.yaml, .env
-//	data    $XDG_DATA_HOME/conch    ~/.local/share/conch  pairings.json
+//	data    $XDG_DATA_HOME/conch    ~/.local/share/conch  pairings.json, kernels, their working
+//	                                                      directories, rule lists, subscriptions,
+//	                                                      certs.json
 //	state   $XDG_STATE_HOME/conch   ~/.local/state/conch  state.json, api.json, agent.json, logs
-//	cache   $XDG_CACHE_HOME/conch   ~/.cache/conch        kernels, their working directories,
-//	                                                      rule lists, subscriptions, certs.json
+//
+// Nothing goes in ~/.cache: what conch needs to bring the proxy up without
+// network access is data, since downloading it again may need the proxy,
+// and people clear their caches freely.
 //
 // An XDG variable only counts when it is an absolute path. CONCH_CONFIG_DIR
 // and CONCH_DATA_DIR still win: the first for configuration, the second for
@@ -37,16 +41,15 @@ type Kind int
 
 const (
 	Config Kind = iota // what the user writes, and settings conch saves for them
-	Data               // what cannot be made again
+	Data               // what cannot be made again offline: kernels and downloads included
 	State              // what a run leaves for the next: state, logs, records
-	Cache              // what can be downloaded or made again
 )
 
 // String names a kind in messages.
-func (k Kind) String() string { return [...]string{"配置", "数据", "状态", "缓存"}[k] }
+func (k Kind) String() string { return [...]string{"配置", "数据", "状态"}[k] }
 
-// Kinds lists every kind.
-var Kinds = []Kind{Config, Data, State, Cache}
+// Kinds lists every kind conch keeps files of.
+var Kinds = []Kind{Config, Data, State}
 
 // Env is what locating files depends on. System is this process's; tests
 // make their own.
@@ -98,7 +101,6 @@ var xdgHomes = [...]struct {
 	Config: {"XDG_CONFIG_HOME", []string{".config"}},
 	Data:   {"XDG_DATA_HOME", []string{".local", "share"}},
 	State:  {"XDG_STATE_HOME", []string{".local", "state"}},
-	Cache:  {"XDG_CACHE_HOME", []string{".cache"}},
 }
 
 // Dir is the directory for a kind of file.
@@ -151,8 +153,8 @@ func (e Env) OldConfigDirs() []string {
 // OldDataDirs are where released versions kept everything but
 // configuration: %LOCALAPPDATA%\conch on Windows, ~/Library/Application
 // Support/conch on macOS, $XDG_DATA_HOME/conch or ~/.local/share/conch
-// elsewhere. On Linux that is the new data directory too, which keeps
-// only what is data now. There are none with CONCH_DATA_DIR set.
+// elsewhere. On Linux that is the new data directory too: only state
+// leaves it. There are none with CONCH_DATA_DIR set.
 func (e Env) OldDataDirs() []string {
 	if d, _ := e.Override(Data); d != "" {
 		return nil
@@ -244,11 +246,11 @@ var (
 	agentItem    = Item{"agent.json", State, "agent.json", false}
 	daemonLog    = Item{"daemon.log", State, "daemon.log", false}
 	agentLog     = Item{"agent.log", State, "agent.log", false}
-	kernelsItem  = Item{"已下载的内核", Cache, "kernels", true}
-	homesItem    = Item{"内核的工作目录", Cache, "home", true}
-	listsItem    = Item{"规则列表缓存", Cache, "lists", true}
-	subsItem     = Item{"订阅缓存", Cache, "subscriptions", true}
-	certsItem    = Item{"证书缓存 certs.json", Cache, "certs.json", false}
+	kernelsItem  = Item{"已下载的内核", Data, "kernels", true}
+	homesItem    = Item{"内核的工作目录（geodata）", Data, "home", true}
+	listsItem    = Item{"下载的规则列表", Data, "lists", true}
+	subsItem     = Item{"下载的订阅", Data, "subscriptions", true}
+	certsItem    = Item{"取到的证书 certs.json", Data, "certs.json", false}
 )
 
 // Items lists every item, configuration first.
@@ -357,10 +359,9 @@ func (e Env) NewDaemonLog() string { return e.New(daemonLog) }
 // profile and a new .env goes.
 func ConfigDir() string { return System().Dir(Config) }
 
-// DataDir, StateDir and CacheDir are the other kinds' directories.
+// DataDir and StateDir are the other kinds' directories.
 func DataDir() string  { return System().Dir(Data) }
 func StateDir() string { return System().Dir(State) }
-func CacheDir() string { return System().Dir(Cache) }
 
 // RunDir is where the kernels' sockets and pid files go.
 func RunDir() string { return System().RunDir() }

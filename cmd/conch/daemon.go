@@ -142,7 +142,7 @@ func newDaemonCmd() *cobra.Command {
 	fl.BoolVar(&f.offline, "offline", false, "不下载订阅和规则列表，只用已缓存的")
 	fl.BoolVar(&f.service, "service", false, "作为系统服务运行（由 conch service install 设置）：系统代理交给每个用户的 conch agent")
 	fl.StringVar(&f.configDir, "config-dir", "", "配置目录（默认 "+paths.ConfigDir()+"）")
-	fl.StringVar(&f.dataDir, "data-dir", "", "放数据、状态和缓存的目录（默认分别是 "+paths.DataDir()+"、"+paths.StateDir()+" 和 "+paths.CacheDir()+"）")
+	fl.StringVar(&f.dataDir, "data-dir", "", "放数据和状态的目录（默认分别是 "+paths.DataDir()+" 和 "+paths.StateDir()+"）")
 	fl.BoolVar(&f.autostart, "autostart", false, "登录时自动启动（由 conch autostart on 设置）")
 	fl.StringVar(&f.chdir, "chdir", "", "先切换到这个目录")
 	for _, name := range []string{"service", "config-dir", "data-dir", "autostart", "chdir"} {

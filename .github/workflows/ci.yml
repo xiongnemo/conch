@@ -88,7 +88,7 @@ jobs:
           {
             echo "CONCH_MIHOMO=$(/tmp/conch kernel path mihomo)"
             echo "CONCH_XRAY=$(/tmp/conch kernel path xray)"
-            echo "CONCH_XRAY_ASSETS=${XDG_CACHE_HOME:-$HOME/.cache}/conch/home/xray"
+            echo "CONCH_XRAY_ASSETS=${XDG_DATA_HOME:-$HOME/.local/share}/conch/home/xray"
             echo "CONCH_SING_BOX=$(/tmp/conch kernel path sing-box)"
             echo "CONCH_TROJAN_GO=$(/tmp/conch kernel path trojan-go)"
             echo "CONCH_CHROME=$(command -v google-chrome)"
@@ -187,7 +187,8 @@ jobs:
           /tmp/conch migrate --dry-run | tee plan.txt
           test -f $old/state.json && test -f .env
           /tmp/conch migrate | tee done.txt
-          test -f $HOME/.local/state/conch/state.json && test -f $HOME/.cache/conch/kernels/mihomo/v1/mihomo
+          # State leaves the data directory; the kernels stay in it, and nothing goes to ~/.cache.
+          test -f $HOME/.local/state/conch/state.json && test -f $old/kernels/mihomo/v1/mihomo && test ! -e $HOME/.cache
           test -f $old/pairings.json && test ! -e $old/state.json && test ! -e $old/run && test ! -e .env
           grep -q CONCH_PASSWORD=ci-migrate $HOME/.config/conch/.env
           test "$(stat -c %a $HOME/.config/conch)" = 700
@@ -213,7 +214,7 @@ jobs:
           {
             echo "CONCH_MIHOMO=$(./conch.exe kernel path mihomo)"
             echo "CONCH_XRAY=$(./conch.exe kernel path xray)"
-            echo "CONCH_XRAY_ASSETS=$USERPROFILE\\.cache\\conch\\home\\xray"
+            echo "CONCH_XRAY_ASSETS=$USERPROFILE\\.local\\share\\conch\\home\\xray"
             echo "CONCH_SING_BOX=$(./conch.exe kernel path sing-box)"
             echo "CONCH_TROJAN_GO=$(./conch.exe kernel path trojan-go)"
           } >> "$GITHUB_ENV"
@@ -263,6 +264,7 @@ jobs:
           home="$(cygpath -u "$USERPROFILE")"
           test -f "$home/.config/conch/profile.yaml" && test -f "$home/.local/share/conch/pairings.json"
           test ! -e "$cfg" && test ! -e "$data"
+          test -f "$(cygpath -u "$("$conch" kernel path mihomo)")" && test ! -e "$home/.cache/conch"
           grep -qF '.config\\conch\\.env' "$home/.local/state/conch/api.json"
           "$conch" autostart status | tee status.txt
           grep -qF '.config\conch\profile.yaml' status.txt
@@ -358,7 +360,7 @@ jobs:
           ~/bin/conch migrate | tee migrate.txt
           state=${XDG_STATE_HOME:-$HOME/.local/state}/conch
           grep -q "$state/daemon.log" $plist
-          test ! -e ~/Library/Logs/conch && grep -q 'old log' "$state/daemon.log"
+          test ! -e ~/Library/Logs/conch && grep -q 'old log' "$state/daemon.log" && test ! -e ~/.cache/conch
           ~/bin/conch autostart on
           ready || { cat "$state/daemon.log" || true; exit 1; }
           ~/bin/conch autostart off

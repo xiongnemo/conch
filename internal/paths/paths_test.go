@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 )
 
@@ -36,7 +37,6 @@ func TestDirs(t *testing.T) {
 			Config: filepath.Join(home, ".config", "conch"),
 			Data:   filepath.Join(home, ".local", "share", "conch"),
 			State:  filepath.Join(home, ".local", "state", "conch"),
-			Cache:  filepath.Join(home, ".cache", "conch"),
 		}
 	}
 	for _, goos := range []string{"linux", "darwin", "windows"} {
@@ -56,13 +56,22 @@ func TestDirs(t *testing.T) {
 				"XDG_STATE_HOME": filepath.Join(abs, "s"), "XDG_CACHE_HOME": filepath.Join(abs, "k"),
 				"XDG_RUNTIME_DIR": filepath.Join(abs, "r"),
 			})
-			for k, sub := range map[Kind]string{Config: "c", Data: "d", State: "s", Cache: "k"} {
+			for k, sub := range map[Kind]string{Config: "c", Data: "d", State: "s"} {
 				if got, w := set.Dir(k), filepath.Join(abs, sub, "conch"); got != w {
 					t.Errorf("set: %s = %s, want %s", k, got, w)
 				}
 			}
 			if got, w := set.RunDir(), filepath.Join(abs, "r", "conch"); got != w {
 				t.Errorf("set: run = %s, want %s", got, w)
+			}
+			// Nothing conch keeps is in a cache directory: people clear
+			// those, and conch could not start without the network then.
+			for _, it := range Items() {
+				for _, cache := range []string{filepath.Join(abs, "k"), filepath.Join(set.Home, ".cache")} {
+					if p := set.New(it); strings.HasPrefix(p, cache) {
+						t.Errorf("%s goes to the cache directory: %s", it.what, p)
+					}
+				}
 			}
 
 			relative, _ := testEnv(t, goos, map[string]string{
@@ -108,18 +117,18 @@ func TestOverrides(t *testing.T) {
 func TestResolveEachItem(t *testing.T) {
 	e, told := testEnv(t, "darwin", nil)
 	support := filepath.Join(e.Home, "Library", "Application Support", "conch")
-	write(t, filepath.Join(support, "state.json"))                        // old only
-	write(t, filepath.Join(support, "certs.json"))                        // both
-	write(t, filepath.Join(e.Dir(Cache), "certs.json"))                   //
-	write(t, filepath.Join(e.Dir(Cache), "kernels", "mihomo", "current")) // new only
+	write(t, filepath.Join(support, "state.json"))                       // old only
+	write(t, filepath.Join(support, "certs.json"))                       // both
+	write(t, filepath.Join(e.Dir(Data), "certs.json"))                   //
+	write(t, filepath.Join(e.Dir(Data), "kernels", "mihomo", "current")) // new only
 	write(t, filepath.Join(e.Home, "Library", "Logs", "conch", "daemon.log"))
 
 	cases := []struct{ name, got, want string }{
 		{"old only", e.StateFile(), filepath.Join(support, "state.json")},
-		{"both", e.Certs(), filepath.Join(e.Dir(Cache), "certs.json")},
-		{"new only", e.Kernels(), filepath.Join(e.Dir(Cache), "kernels")},
+		{"both", e.Certs(), filepath.Join(e.Dir(Data), "certs.json")},
+		{"new only", e.Kernels(), filepath.Join(e.Dir(Data), "kernels")},
 		{"neither", e.Pairings(), filepath.Join(e.Dir(Data), "pairings.json")},
-		{"neither, a directory", e.Lists(), filepath.Join(e.Dir(Cache), "lists")},
+		{"neither, a directory", e.Lists(), filepath.Join(e.Dir(Data), "lists")},
 		{"the old log directory", e.DaemonLog(), filepath.Join(e.Home, "Library", "Logs", "conch", "daemon.log")},
 		{"configuration was in ~/.config already", e.Profile(), filepath.Join(e.Home, ".config", "conch", "profile.yaml")},
 	}
@@ -145,12 +154,12 @@ func TestEmptyDirectoryDoesNotHide(t *testing.T) {
 	e, _ := testEnv(t, "windows", map[string]string{"LOCALAPPDATA": filepath.Join(t.TempDir(), "Local")})
 	old := filepath.Join(e.Getenv("LOCALAPPDATA"), "conch", "kernels")
 	write(t, filepath.Join(old, "mihomo", "current"))
-	os.MkdirAll(filepath.Join(e.Dir(Cache), "kernels", "mihomo"), 0o700)
+	os.MkdirAll(filepath.Join(e.Dir(Data), "kernels", "mihomo"), 0o700)
 	if got := e.Kernels(); got != old {
 		t.Errorf("kernels = %s, want the old %s", got, old)
 	}
-	write(t, filepath.Join(e.Dir(Cache), "kernels", "mihomo", "current"))
-	if got := e.Kernels(); got != filepath.Join(e.Dir(Cache), "kernels") {
+	write(t, filepath.Join(e.Dir(Data), "kernels", "mihomo", "current"))
+	if got := e.Kernels(); got != filepath.Join(e.Dir(Data), "kernels") {
 		t.Errorf("kernels = %s once the new place has them", got)
 	}
 }
@@ -185,14 +194,17 @@ func TestOldPlaces(t *testing.T) {
 	if got, want := linux.OldDataDirs(), []string{filepath.Join(xdgData, "conch"), filepath.Join(linux.Home, ".local", "share", "conch")}; !slices.Equal(got, want) {
 		t.Errorf("linux data: %q, want %q", got, want)
 	}
-	// On Linux the data directory stays: state.json leaves it, pairings.json does not.
+	// On Linux the data directory stays: state.json leaves it, the kernels do not.
 	write(t, filepath.Join(xdgData, "conch", "state.json"))
-	write(t, filepath.Join(xdgData, "conch", "pairings.json"))
+	write(t, filepath.Join(xdgData, "conch", "kernels", "xray", "current"))
 	if got := linux.StateFile(); got != filepath.Join(xdgData, "conch", "state.json") {
 		t.Errorf("state.json = %s", got)
 	}
-	if got := linux.Pairings(); got != filepath.Join(xdgData, "conch", "pairings.json") {
-		t.Errorf("pairings.json = %s", got)
+	if got := linux.Kernels(); got != filepath.Join(xdgData, "conch", "kernels") {
+		t.Errorf("kernels = %s", got)
+	}
+	if got := linux.Legacy(kernelsItem); slices.Contains(got, filepath.Join(xdgData, "conch", "kernels")) {
+		t.Errorf("the new place of the kernels is an old one too: %q", got)
 	}
 	if got, want := linux.OldRunDirs(), []string{filepath.Join(xdgData, "conch", "run"), filepath.Join(linux.Home, ".local", "share", "conch", "run")}; !slices.Equal(got, want) {
 		t.Errorf("linux old run directories: %q", got)
@@ -208,7 +220,7 @@ func TestForUser(t *testing.T) {
 	if got := e.Dir(Config); got != filepath.Join(home, ".config", "conch") {
 		t.Errorf("config = %s", got)
 	}
-	if got := e.Kernels(); got != filepath.Join(home, ".cache", "conch", "kernels") {
+	if got := e.Kernels(); got != filepath.Join(home, ".local", "share", "conch", "kernels") {
 		t.Errorf("kernels = %s", got)
 	}
 }

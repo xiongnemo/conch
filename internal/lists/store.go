@@ -21,7 +21,8 @@ import (
 // ErrNotCached means an offline store has not downloaded a list.
 var ErrNotCached = errors.New("还没有下载")
 
-// Store keeps downloaded rule lists in a cache directory.
+// Store keeps downloaded rule lists in a directory, for runs without the
+// network too.
 type Store struct {
 	Dir     string
 	HTTP    *http.Client

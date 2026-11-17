@@ -86,7 +86,7 @@ func Install(ctx context.Context, o InstallOptions) (*Installed, error) {
 	}
 
 	dest := filepath.Join(o.Dir, o.Kernel, version)
-	if err := os.MkdirAll(o.Dir, 0o700); err != nil { // and conch's cache directory, if this is the first thing in it
+	if err := os.MkdirAll(o.Dir, 0o700); err != nil { // and conch's data directory, if this is the first thing in it
 		return nil, err
 	}
 	if err := os.MkdirAll(dest, 0o755); err != nil {

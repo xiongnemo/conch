@@ -24,7 +24,7 @@ type home struct {
 	env            paths.Env
 	roaming, local string // %APPDATA%\conch and %LOCALAPPDATA%\conch
 	config, data   string
-	state, cache   string
+	state          string
 	vars           map[string]string
 }
 
@@ -37,8 +37,17 @@ func newHome(t *testing.T, goos string) *home {
 	h.env = paths.Env{Home: dir, GOOS: goos, Getenv: func(k string) string { return h.vars[k] }}
 	h.roaming, h.local = filepath.Join(h.vars["APPDATA"], "conch"), filepath.Join(h.vars["LOCALAPPDATA"], "conch")
 	h.config, h.data = h.env.Dir(paths.Config), h.env.Dir(paths.Data)
-	h.state, h.cache = h.env.Dir(paths.State), h.env.Dir(paths.Cache)
+	h.state = h.env.Dir(paths.State)
 	return h
+}
+
+// noCache fails when anything made a cache directory: conch keeps
+// nothing there.
+func (h *home) noCache() {
+	h.t.Helper()
+	if _, err := os.Stat(filepath.Join(h.env.Home, ".cache")); err == nil {
+		h.t.Error("~/.cache was created")
+	}
 }
 
 func (h *home) write(path, content string) {
@@ -110,7 +119,7 @@ func TestDryRunTouchesNothing(t *testing.T) {
 	}
 	for _, want := range []string{
 		"将要移动 " + filepath.Join(h.roaming, "profile.yaml") + " → " + filepath.Join(h.config, "profile.yaml"),
-		"将要移动 " + filepath.Join(h.local, "kernels") + " → " + filepath.Join(h.cache, "kernels"),
+		"将要移动 " + filepath.Join(h.local, "kernels") + " → " + filepath.Join(h.data, "kernels"),
 		"将要删除 " + filepath.Join(h.local, "run"),
 		"将要改写 " + filepath.Join(h.local, "api.json"),
 		"预演",
@@ -132,15 +141,15 @@ func TestMoveAndSecondRun(t *testing.T) {
 		t.Fatalf("%v\n%s", err, out)
 	}
 	for path, want := range map[string]string{
-		filepath.Join(h.config, "profile.yaml"):                         "routes: { default: DIRECT }\n",
-		filepath.Join(h.config, "managed.yaml"):                         "nodes: []\n",
-		filepath.Join(h.config, "cert.pem"):                             "certificate",
-		filepath.Join(h.state, "state.json"):                            `{"backend":"xray"}`,
-		filepath.Join(h.state, "daemon.log"):                            "log\n",
-		filepath.Join(h.data, "pairings.json"):                          `[]`,
-		filepath.Join(h.cache, "kernels", "mihomo", "v1", "mihomo.exe"): "kernel v1",
-		filepath.Join(h.cache, "home", "xray", "geosite.dat"):           "geosite",
-		filepath.Join(h.cache, "subscriptions", "a.body"):               "sub",
+		filepath.Join(h.config, "profile.yaml"):                        "routes: { default: DIRECT }\n",
+		filepath.Join(h.config, "managed.yaml"):                        "nodes: []\n",
+		filepath.Join(h.config, "cert.pem"):                            "certificate",
+		filepath.Join(h.state, "state.json"):                           `{"backend":"xray"}`,
+		filepath.Join(h.state, "daemon.log"):                           "log\n",
+		filepath.Join(h.data, "pairings.json"):                         `[]`,
+		filepath.Join(h.data, "kernels", "mihomo", "v1", "mihomo.exe"): "kernel v1",
+		filepath.Join(h.data, "home", "xray", "geosite.dat"):           "geosite",
+		filepath.Join(h.data, "subscriptions", "a.body"):               "sub",
 	} {
 		if got := h.read(path); got != want {
 			t.Errorf("%s = %q, want %q", path, got, want)
@@ -162,6 +171,7 @@ func TestMoveAndSecondRun(t *testing.T) {
 	if fi, err := os.Stat(h.config); err == nil && runtime.GOOS != "windows" && fi.Mode().Perm() != 0o700 {
 		t.Errorf("new configuration directory mode %v", fi.Mode().Perm())
 	}
+	h.noCache()
 
 	again, err := h.run(Options{})
 	if err != nil || !strings.Contains(again, "没有需要迁移的文件") {
@@ -176,8 +186,8 @@ func TestMergeSameAndConflict(t *testing.T) {
 	h.write(filepath.Join(h.local, "kernels", "mihomo", "v1", "mihomo.exe"), "kernel v1")
 	h.write(filepath.Join(h.local, "kernels", "mihomo", "v2", "mihomo.exe"), "kernel v2")
 	h.write(filepath.Join(h.local, "kernels", "mihomo", "current"), "v1\n")
-	h.write(filepath.Join(h.cache, "kernels", "mihomo", "v2", "mihomo.exe"), "kernel v2")
-	h.write(filepath.Join(h.cache, "kernels", "mihomo", "current"), "v2\n")
+	h.write(filepath.Join(h.data, "kernels", "mihomo", "v2", "mihomo.exe"), "kernel v2")
+	h.write(filepath.Join(h.data, "kernels", "mihomo", "current"), "v2\n")
 	h.write(filepath.Join(h.local, "state.json"), "old state")
 	h.write(filepath.Join(h.state, "state.json"), "new state")
 
@@ -185,7 +195,7 @@ func TestMergeSameAndConflict(t *testing.T) {
 	if !errors.Is(err, ErrConflicts) {
 		t.Fatalf("err = %v, want conflicts\n%s", err, out)
 	}
-	newK, oldK := filepath.Join(h.cache, "kernels", "mihomo"), filepath.Join(h.local, "kernels", "mihomo")
+	newK, oldK := filepath.Join(h.data, "kernels", "mihomo"), filepath.Join(h.local, "kernels", "mihomo")
 	if h.read(filepath.Join(newK, "v1", "mihomo.exe")) != "kernel v1" {
 		t.Error("v1 not merged in")
 	}
@@ -227,7 +237,7 @@ func TestMoveAcrossVolumes(t *testing.T) {
 	if err != nil || renames == 0 {
 		t.Fatalf("%v, %d renames\n%s", err, renames, out)
 	}
-	moved := filepath.Join(h.cache, "kernels", "mihomo", "v1", "mihomo.exe")
+	moved := filepath.Join(h.data, "kernels", "mihomo", "v1", "mihomo.exe")
 	fi, err := os.Stat(moved)
 	if err != nil || h.read(moved) != "kernel v1" || !fi.ModTime().Equal(mtime) {
 		t.Fatalf("copy: %v %q %v", err, h.read(moved), fi)
@@ -307,24 +317,28 @@ func TestEnvFromWorkingDirectory(t *testing.T) {
 	}
 }
 
-// On Linux the data directory stays where it was; only what is not data
-// leaves it.
+// On Linux the data directory stays where it was, kernels and downloads
+// included; only state leaves it.
 func TestLinuxDataDirectoryStays(t *testing.T) {
 	h := newHome(t, "linux")
 	h.write(filepath.Join(h.data, "pairings.json"), "[]")
 	h.write(filepath.Join(h.data, "state.json"), "{}")
 	h.write(filepath.Join(h.data, "kernels", "xray", "current"), "v\n")
+	h.write(filepath.Join(h.data, "home", "xray", "geosite.dat"), "geosite")
+	h.write(filepath.Join(h.data, "subscriptions", "a.body"), "sub")
 	out, err := h.run(Options{})
 	if err != nil {
 		t.Fatalf("%v\n%s", err, out)
 	}
 	if h.read(filepath.Join(h.data, "pairings.json")) != "[]" || h.read(filepath.Join(h.state, "state.json")) != "{}" ||
-		h.read(filepath.Join(h.cache, "kernels", "xray", "current")) != "v\n" {
+		h.read(filepath.Join(h.data, "kernels", "xray", "current")) != "v\n" ||
+		h.read(filepath.Join(h.data, "home", "xray", "geosite.dat")) != "geosite" || h.read(filepath.Join(h.data, "subscriptions", "a.body")) != "sub" {
 		t.Errorf("after migrating:\n%s", out)
 	}
-	if strings.Contains(out, "pairings.json →") || strings.Contains(out, "已删除空的旧目录 "+h.data) {
+	if strings.Count(out, "已移动") != 1 || strings.Contains(out, "已删除空的旧目录 "+h.data) {
 		t.Errorf("the data directory was disturbed:\n%s", out)
 	}
+	h.noCache()
 }
 
 // With CONCH_DATA_DIR set, nothing but configuration is migrated.
