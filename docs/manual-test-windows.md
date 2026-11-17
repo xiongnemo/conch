@@ -53,12 +53,14 @@ conch version
 
 **0.4 设置登录密码**
 
-先把密码放进配置目录。这样不管在哪个目录运行命令，用的都是同一个密码，第 14 节的服务也会沿用它。
+先把密码放进配置目录（`%USERPROFILE%\.config\conch`）。这样不管在哪个目录运行命令，用的都是同一个密码，第 14 节的服务也会沿用它。
 
 ```powershell
-mkdir $env:APPDATA\conch -Force | Out-Null
-Set-Content -Encoding utf8 $env:APPDATA\conch\.env "CONCH_PASSWORD=换成你自己的测试密码"
+mkdir $HOME\.config\conch -Force | Out-Null
+Set-Content -Encoding utf8 $HOME\.config\conch\.env "CONCH_PASSWORD=换成你自己的测试密码"
 ```
+
+装过旧版本、文件还在 `%APPDATA%\conch` 和 `%LOCALAPPDATA%\conch` 的话，先运行 `conch migrate --dry-run` 看看，再 `conch migrate` 移过来。
 
 **0.5 记录环境，备份系统代理设置**
 
@@ -91,7 +93,7 @@ conch kernel path mihomo
 conch kernel path sing-box
 ```
 
-预期：每个内核都下载、校验 sha256，然后装到 `%LOCALAPPDATA%\conch\kernels\` 下；`kernel path` 打印 exe 的完整路径。
+预期：每个内核都下载、校验 sha256，然后装到 `%USERPROFILE%\.cache\conch\kernels\` 下；`kernel path` 打印 exe 的完整路径。
 
 - [ ] 2 通过
 
@@ -113,7 +115,7 @@ conch import links.txt
 
 **3.2 写 profile**
 
-运行 `notepad $env:APPDATA\conch\profile.yaml`，填入下面的内容：
+运行 `notepad $HOME\.config\conch\profile.yaml`，填入下面的内容：
 
 - 把上一步输出的 5 行节点粘贴到 `nodes:` 下面；
 - 把每行的 `name:` 依次改成 A、B、C、D、E；
@@ -576,7 +578,7 @@ conch status
 - 打印「已开启：登录后自动运行 conch daemon，现在也已经在后台启动」和使用的 profile；
 - **没有**弹出新的黑色窗口；
 - 过几秒 `conch status` 显示「运行中」，浏览器经由 127.0.0.1:7890 能上网；
-- `%LOCALAPPDATA%\conch\daemon.log` 里有 daemon 的日志。
+- `%USERPROFILE%\.local\state\conch\daemon.log` 里有 daemon 的日志。
 
 **13.2 状态**
 
@@ -620,7 +622,7 @@ conch service install
 - 打印「agent 会在下次登录时自动启动」；
 - 最后显示配置文件的位置和 Web UI 地址。
 
-服务用的是 `C:\ProgramData\conch\profile.yaml`，安装时从你的 profile 复制过去。之后再改 `%APPDATA%\conch\profile.yaml`，**不会**影响服务。
+服务用的是 `C:\ProgramData\conch\profile.yaml`，安装时从你的 profile 复制过去。之后再改 `%USERPROFILE%\.config\conch\profile.yaml`，**不会**影响服务。
 
 **14.2 不用管理员也能看状态（本轮修复的问题）**
 
@@ -658,7 +660,7 @@ icacls C:\ProgramData\conch
 
 - 任务管理器里有 `conch.exe`（命令行带 `agent`）在运行；
 - 登录时可能闪一下黑色窗口，但**不会**一直留着；
-- `%LOCALAPPDATA%\conch\agent.log` 里有「系统代理已指向 127.0.0.1:7890」；
+- `%USERPROFILE%\.local\state\conch\agent.log` 里有「系统代理已指向 127.0.0.1:7890」；
 - 系统代理已经打开。
 
 最后在 Web UI 里关掉系统代理。
@@ -746,7 +748,7 @@ conch service uninstall
 conch sysproxy off              # 如果 daemon 还在运行
 # 在窗口 A 按 Ctrl+C 停掉 daemon
 conch doctor --fix
-Remove-Item -Recurse $env:APPDATA\conch, $env:LOCALAPPDATA\conch    # 测试用的配置和数据，里面有你的节点
+Remove-Item -Recurse $HOME\.config\conch, $HOME\.local\share\conch, $HOME\.local\state\conch, $HOME\.cache\conch    # 测试用的配置和数据，里面有你的节点
 Remove-Item C:\conch-test\links.txt
 ```
 
@@ -765,6 +767,6 @@ Remove-Item -Recurse C:\ProgramData\conch, "C:\Program Files\conch"
 - 步骤编号（例如 10.3）；
 - 看到了什么：命令输出直接复制，界面问题截图（截图前遮住 IP、链接）；
 - `conch doctor` 的输出；
-- daemon 窗口里的日志。服务模式下是 `C:\ProgramData\conch\conch.log`，agent 是 `%LOCALAPPDATA%\conch\agent.log`。
+- daemon 窗口里的日志。服务模式下是 `C:\ProgramData\conch\conch.log`，agent 是 `%USERPROFILE%\.local\state\conch\agent.log`。
 
 **不要**把节点链接、订阅地址、密码贴进 issue。

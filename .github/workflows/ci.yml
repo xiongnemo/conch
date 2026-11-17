@@ -88,7 +88,7 @@ jobs:
           {
             echo "CONCH_MIHOMO=$(/tmp/conch kernel path mihomo)"
             echo "CONCH_XRAY=$(/tmp/conch kernel path xray)"
-            echo "CONCH_XRAY_ASSETS=$HOME/.local/share/conch/home/xray"
+            echo "CONCH_XRAY_ASSETS=${XDG_CACHE_HOME:-$HOME/.cache}/conch/home/xray"
             echo "CONCH_SING_BOX=$(/tmp/conch kernel path sing-box)"
             echo "CONCH_TROJAN_GO=$(/tmp/conch kernel path trojan-go)"
             echo "CONCH_CHROME=$(command -v google-chrome)"
@@ -170,6 +170,28 @@ jobs:
           ~/.local/bin/conch autostart off
           if systemctl --user is-active --quiet conch; then exit 1; fi
           ~/.local/bin/conch autostart status | grep -q 没有开启
+      - name: conch migrate, in a home an earlier version left
+        shell: bash
+        run: |
+          # Releases before the XDG layout kept everything in ~/.local/share/conch,
+          # and wrote the password to the .env where conch daemon ran.
+          export HOME=$(mktemp -d)
+          unset XDG_CONFIG_HOME XDG_DATA_HOME XDG_STATE_HOME XDG_CACHE_HOME XDG_RUNTIME_DIR
+          old=$HOME/.local/share/conch
+          mkdir -p $old/run $old/kernels/mihomo/v1 $HOME/work
+          echo '{"backend":"xray"}' > $old/state.json
+          echo '[]' > $old/pairings.json
+          echo v1 > $old/kernels/mihomo/current
+          echo kernel > $old/kernels/mihomo/v1/mihomo
+          cd $HOME/work && echo CONCH_PASSWORD=ci-migrate > .env
+          /tmp/conch migrate --dry-run | tee plan.txt
+          test -f $old/state.json && test -f .env
+          /tmp/conch migrate | tee done.txt
+          test -f $HOME/.local/state/conch/state.json && test -f $HOME/.cache/conch/kernels/mihomo/v1/mihomo
+          test -f $old/pairings.json && test ! -e $old/state.json && test ! -e $old/run && test ! -e .env
+          grep -q CONCH_PASSWORD=ci-migrate $HOME/.config/conch/.env
+          test "$(stat -c %a $HOME/.config/conch)" = 700
+          /tmp/conch migrate | grep -q 没有需要迁移的文件
 
   # The daemon on Windows: controllers over unix sockets, Job Objects,
   # kernels' Windows builds.
@@ -191,7 +213,7 @@ jobs:
           {
             echo "CONCH_MIHOMO=$(./conch.exe kernel path mihomo)"
             echo "CONCH_XRAY=$(./conch.exe kernel path xray)"
-            echo "CONCH_XRAY_ASSETS=$LOCALAPPDATA\\conch\\home\\xray"
+            echo "CONCH_XRAY_ASSETS=$USERPROFILE\\.cache\\conch\\home\\xray"
             echo "CONCH_SING_BOX=$(./conch.exe kernel path sing-box)"
             echo "CONCH_TROJAN_GO=$(./conch.exe kernel path trojan-go)"
           } >> "$GITHUB_ENV"
@@ -210,14 +232,42 @@ jobs:
           printf 'CONCH_PASSWORD=ci-autostart\n' > .env
           "$GITHUB_WORKSPACE/conch.exe" autostart on
           for i in $(seq 1 60); do "$GITHUB_WORKSPACE/conch.exe" status 2>/dev/null | grep -q 运行中 && break; sleep 1; done
-          "$GITHUB_WORKSPACE/conch.exe" status || { cat "$LOCALAPPDATA/conch/daemon.log" || true; exit 1; }
+          "$GITHUB_WORKSPACE/conch.exe" status || { cat "$USERPROFILE/.local/state/conch/daemon.log" || true; exit 1; }
           "$GITHUB_WORKSPACE/conch.exe" autostart status | tee status.txt
           grep -q -- --autostart status.txt
           test "$(curl -s -m 20 -x http://127.0.0.1:7890 -o /dev/null -w '%{http_code}' https://www.google.com/generate_204)" = 204
-          test -s "$LOCALAPPDATA/conch/daemon.log"
+          test -s "$USERPROFILE/.local/state/conch/daemon.log"
           "$GITHUB_WORKSPACE/conch.exe" autostart off
           "$GITHUB_WORKSPACE/conch.exe" autostart status | grep -q 没有开启
           taskkill //F //IM conch.exe || true
+      - name: conch migrate moves the old places and points the Run key at the new ones
+        shell: bash
+        run: |
+          # Where releases before the XDG layout kept things.
+          cfg="$APPDATA/conch" data="$LOCALAPPDATA/conch" conch="$GITHUB_WORKSPACE/conch.exe"
+          mkdir -p "$cfg" "$data/run"
+          printf 'routes: { default: DIRECT }\ninbound: { mixed-port: 7890 }\n' > "$cfg/profile.yaml"
+          printf 'CONCH_PASSWORD=ci-migrate\n' > "$cfg/.env"
+          printf '[]\n' > "$data/pairings.json"
+          cd "$RUNNER_TEMP"
+          # The old profile still works, and autostart is registered with it.
+          "$conch" autostart on 2>&1 | tee on.txt
+          grep -q 旧位置 on.txt
+          for i in $(seq 1 60); do "$conch" status 2>/dev/null | grep -q 运行中 && break; sleep 1; done
+          "$conch" status
+          taskkill //F //IM conch.exe || true
+          for i in $(seq 1 30); do "$conch" status >/dev/null 2>&1 || break; sleep 1; done
+          "$conch" migrate --dry-run | tee plan.txt
+          test -f "$cfg/profile.yaml"
+          "$conch" migrate | tee done.txt
+          home="$(cygpath -u "$USERPROFILE")"
+          test -f "$home/.config/conch/profile.yaml" && test -f "$home/.local/share/conch/pairings.json"
+          test ! -e "$cfg" && test ! -e "$data"
+          grep -qF '.config\\conch\\.env' "$home/.local/state/conch/api.json"
+          "$conch" autostart status | tee status.txt
+          grep -qF '.config\conch\profile.yaml' status.txt
+          "$conch" migrate | grep -q 没有需要迁移的文件
+          "$conch" autostart off
 
   # The daemon on macOS: no death signal reaches the kernel (pid files
   # instead), unix socket paths are short, the kernels' darwin builds.
@@ -291,13 +341,26 @@ jobs:
           test "$(curl -s -m 20 -x http://127.0.0.1:7890 -o /dev/null -w '%{http_code}' https://www.google.com/generate_204)" = 204
           sudo /tmp/conch service uninstall
           if sudo launchctl print system/io.github.xiongnemo.conch.daemon >/dev/null 2>&1; then exit 1; fi
-          # Autostart: a launch agent of the user's own, no sudo.
+          # Autostart: a launch agent of the user's own, no sudo. A log an
+          # earlier version left in ~/Library/Logs is used until conch migrate.
           mkdir -p ~/bin && cp /tmp/conch ~/bin/conch
+          mkdir -p ~/Library/Logs/conch && echo 'old log' > ~/Library/Logs/conch/daemon.log
           ~/bin/conch autostart on
           ready || { cat ~/Library/Logs/conch/daemon.log || true; exit 1; }
           ~/bin/conch autostart status | tee status.txt
           grep -q 正在运行 status.txt
           test "$(curl -s -m 20 -x http://127.0.0.1:7890 -o /dev/null -w '%{http_code}' https://www.google.com/generate_204)" = 204
+          plist=~/Library/LaunchAgents/io.github.xiongnemo.conch.user.plist
+          grep -q "$HOME/Library/Logs/conch/daemon.log" $plist
+          # Stopped but still registered: migrate moves the log and rewrites the agent.
+          launchctl bootout gui/$(id -u)/io.github.xiongnemo.conch.user
+          for i in $(seq 1 30); do /tmp/conch status >/dev/null 2>&1 || break; sleep 1; done
+          ~/bin/conch migrate | tee migrate.txt
+          state=${XDG_STATE_HOME:-$HOME/.local/state}/conch
+          grep -q "$state/daemon.log" $plist
+          test ! -e ~/Library/Logs/conch && grep -q 'old log' "$state/daemon.log"
+          ~/bin/conch autostart on
+          ready || { cat "$state/daemon.log" || true; exit 1; }
           ~/bin/conch autostart off
           if launchctl print gui/$(id -u)/io.github.xiongnemo.conch.user >/dev/null 2>&1; then exit 1; fi
 

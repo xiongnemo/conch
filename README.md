@@ -48,7 +48,7 @@ sha256sum --check --ignore-missing checksums.txt
 ## 快速开始
 
 1. 运行 `conch init <订阅地址>`，生成一份能直接用的 `~/.config/conch/profile.yaml`：订阅自带规则就用机场的规则，只有节点的话国内网站直连、其他走代理。也可以参考 [examples/profile.yaml](examples/profile.yaml) 自己写一份，放在当前目录或 `~/.config/conch/`。
-2. 运行 `conch daemon`。第一次运行会生成登录密码，保存在 `.env` 里并打印出来。
+2. 运行 `conch daemon`。第一次运行会生成登录密码，保存在 `~/.config/conch/.env` 里并打印出来。
 3. 浏览器打开 <http://127.0.0.1:9277/>，或者在另一个终端运行 `conch tui`。
 4. conch 启动后只是一个 HTTP + SOCKS5 代理（默认端口 7890），不会自己改系统代理，也不会开 TUN。要让整个系统都走它：`conch sysproxy on`（daemon 退出时自动恢复原来的设置），或者开启 TUN：`conch tun on`。这两个开关和模式开关（规则 / 全局 / 直连）都只管这一次运行；想每次启动都这样，就写进 profile：`inbound: { system-proxy: true }`、`tun: { enable: true }`、`mode: global`。
 
@@ -124,7 +124,7 @@ conch autostart status
 conch autostart off
 ```
 
-它就是以你自己的身份运行 `conch daemon`：用你的 profile（开启时记下的那一份）、内核和密码，启动时只是 HTTP + SOCKS5 代理。Linux 用 systemd 用户服务（日志：`journalctl --user -u conch`；没有 systemd 用户会话时改用桌面的自启动项），macOS 用 LaunchAgent（日志在 `~/Library/Logs/conch/daemon.log`），Windows 用注册表的 Run 项（不弹窗口，日志在 `%LOCALAPPDATA%\conch\daemon.log`）。
+它就是以你自己的身份运行 `conch daemon`：用你的 profile（开启时记下的那一份）、内核和密码，启动时只是 HTTP + SOCKS5 代理。Linux 用 systemd 用户服务（日志：`journalctl --user -u conch`；没有 systemd 用户会话时改用桌面的自启动项），macOS 用 LaunchAgent（日志在 `~/.local/state/conch/daemon.log`），Windows 用注册表的 Run 项（不弹窗口，日志在 `%USERPROFILE%\.local\state\conch\daemon.log`）。
 
 要在还没登录时就运行，或者要用 TUN，装成系统服务（和自动启动二选一）：
 
@@ -140,14 +140,35 @@ sudo conch service uninstall    # 保留配置和数据
 
 ## 文件
 
-| 文件 | 内容 |
-| --- | --- |
-| `profile.yaml` | 你写的配置，conch 只读不写 |
-| `managed.yaml` | 在界面和命令行里添加的节点、链和条目 |
-| `.env` | `CONCH_PASSWORD`、`CONCH_AUTH`、`CONCH_LISTEN`、`CONCH_TLS_CERT` / `CONCH_TLS_KEY` |
-| 数据目录 | 内核、缓存、`state.json`（选择的节点、开关、临时条目）、`certs.json`（见下） |
+conch 在 Linux、macOS 和 Windows 上都按 [XDG Base Directory](https://specifications.freedesktop.org/basedir-spec/latest/) 放自己的文件（Windows 上 `~` 是 `%USERPROFILE%`）：
 
-`.env` 先读环境变量，再读当前目录，最后读 `~/.config/conch/.env`。
+| 类别 | 目录 | 里面有什么 |
+| --- | --- | --- |
+| 配置 | `~/.config/conch` | `profile.yaml`（你写的配置，conch 只读不写）、`managed.yaml`（在界面和命令行里添加的节点、链和条目）、`.env`（`CONCH_PASSWORD`、`CONCH_AUTH`、`CONCH_LISTEN`、`CONCH_TLS_CERT` / `CONCH_TLS_KEY`） |
+| 数据 | `~/.local/share/conch` | `pairings.json`（配对过的浏览器扩展） |
+| 状态 | `~/.local/state/conch` | `state.json`（选择的节点、开关、临时条目、崩溃后要恢复的系统设置）、`api.json`（daemon 在哪里监听、密码在哪个 `.env`）、`agent.json`、`daemon.log`（macOS 和 Windows 上登录时自动启动的 daemon 的日志）、`agent.log` |
+| 缓存 | `~/.cache/conch` | `kernels`（下载的内核）、`home`（内核的工作目录，有 geodata）、`lists`（规则列表）、`subscriptions`（订阅）、`certs.json`（见下） |
+
+内核的 socket 和 pid 文件放在 `$XDG_RUNTIME_DIR/conch`，没有这个变量时放在 `~/.local/state/conch/run`。
+
+环境变量：
+
+- `XDG_CONFIG_HOME`、`XDG_DATA_HOME`、`XDG_STATE_HOME`、`XDG_CACHE_HOME`、`XDG_RUNTIME_DIR`：设置了就用 `$XDG_…/conch` 代替上面的目录，每个系统上都一样；只认绝对路径，相对路径会被忽略。
+- `CONCH_CONFIG_DIR`：配置目录，优先于上面这些。
+- `CONCH_DATA_DIR`：数据、状态、缓存和 socket 都放在这一个目录里（系统服务就是这样用的），也优先于上面这些。
+
+`.env` 每一项按这个顺序找：环境变量、当前目录的 `.env`、`~/.config/conch/.env`。当前目录的 `.env` 适合把 profile 和密码一起放在单独的目录里（登录时自动启动会切换到 profile 所在的目录）；第一次运行生成的密码写在 `~/.config/conch/.env`。
+
+旧版本把文件放在别处：Windows 的 `%APPDATA%\conch`（配置）和 `%LOCALAPPDATA%\conch`（其他），macOS 的 `~/Library/Application Support/conch` 和 `~/Library/Logs/conch`，Linux 的 `~/.local/share/conch`（全部），生成的密码写在运行 `conch daemon` 的目录的 `.env` 里。这些文件不迁移也照样能用：每个文件单独找，新位置有就用新位置，没有就用旧位置，并在 stderr 提醒一次。
+
+`conch migrate` 把它们移到新的位置，先用 `conch migrate --dry-run` 看看要做什么：
+
+- 从不覆盖：两边都有的文件，内容相同就删掉旧的，不同就两份都保留，报告冲突并以非 0 退出；旧目录空了就删掉。
+- `api.json`、`.env` 和登录时自动启动（systemd 用户服务、LaunchAgent、注册表 Run 项）里指向旧位置的路径会改成新的；profile 里提到旧位置的地方会列出来，需要自己改。
+- 当前目录里旧版本生成的 `.env` 会移到 `~/.config/conch`；在别的目录运行过 `conch daemon` 的话用 `--from <目录>`。
+- daemon 在运行时不迁移，先停掉它；`conch agent` 和 `conch tui` 检测不到，也请先退出。
+
+系统服务（`sudo conch service install`）的文件不在这里，迁移也不碰它们：Linux 是 `/etc/conch` 和 `/var/lib/conch`，macOS 是 `/Library/Application Support/conch`，Windows 是 `C:\ProgramData\conch`。
 
 节点用 mihomo 的写法；每一项设置在 mihomo、xray、sing-box 和 trojan-go 边车里怎么翻译、哪些内核做不到，见 [docs/node-translation.md](docs/node-translation.md)。
 
@@ -172,6 +193,7 @@ sudo conch service uninstall    # 保留配置和数据
 | `conch edit` | 编辑 profile，保存前检查 |
 | `conch kernel use [内核]` | 切换内核；不写内核名则列出可用的内核 |
 | `conch autostart on/off` | 登录时自动运行 daemon（不需要管理员权限） |
+| `conch migrate` | 把旧版本放在旧位置的文件移到新的位置（见「文件」） |
 
 ## 开发
 
