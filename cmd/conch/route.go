@@ -38,7 +38,7 @@ func newRouteCmd() *cobra.Command {
 		Short: "这个地址会怎么走？为什么？",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			kernel := cmpOr(backendName, daemon.LastBackend(paths.DataDir()))
+			kernel := cmpOr(backendName, daemon.LastBackend(paths.StateFile()))
 			if _, err := lookupBackend(kernel); err != nil {
 				return err
 			}

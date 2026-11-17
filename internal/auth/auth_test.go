@@ -21,8 +21,8 @@ func private(fi os.FileInfo) bool {
 }
 
 func TestLoadPrecedence(t *testing.T) {
-	cwd, cfg := t.TempDir(), t.TempDir()
-	os.WriteFile(filepath.Join(cfg, ".env"), []byte("CONCH_PASSWORD=from-config\nCONCH_LISTEN=127.0.0.1:1111\n"), 0o600)
+	cwd, cfg := t.TempDir(), filepath.Join(t.TempDir(), ".env")
+	os.WriteFile(cfg, []byte("CONCH_PASSWORD=from-config\nCONCH_LISTEN=127.0.0.1:1111\n"), 0o600)
 	os.WriteFile(filepath.Join(cwd, ".env"), []byte("# comment\nexport CONCH_PASSWORD=\"from-cwd\"\n"), 0o600)
 	s, err := Load(cwd, cfg)
 	if err != nil {
@@ -40,18 +40,24 @@ func TestLoadPrecedence(t *testing.T) {
 func TestAuthOffOnlyOnLoopback(t *testing.T) {
 	cwd := t.TempDir()
 	os.WriteFile(filepath.Join(cwd, ".env"), []byte("CONCH_AUTH=off\nCONCH_LISTEN=0.0.0.0:9277\n"), 0o600)
-	if _, err := Load(cwd, t.TempDir()); err == nil {
+	if _, err := Load(cwd, filepath.Join(t.TempDir(), ".env")); err == nil {
 		t.Error("an unauthenticated API must not listen beyond loopback")
 	}
 }
 
+// The password made goes to the user's .env in the configuration
+// directory, never the current directory's.
 func TestEnsureAndSetPassword(t *testing.T) {
-	cwd, cfg := t.TempDir(), t.TempDir()
-	os.WriteFile(filepath.Join(cwd, ".env"), []byte("OTHER=1"), 0o600)
+	cwd, cfg := t.TempDir(), filepath.Join(t.TempDir(), "conch", ".env")
+	os.MkdirAll(filepath.Dir(cfg), 0o700)
+	os.WriteFile(cfg, []byte("OTHER=1"), 0o600)
 	s := Settings{Auth: true, Listen: DefaultListen}
-	file, err := Ensure(&s, cwd, cfg)
-	if err != nil || file != filepath.Join(cwd, ".env") || len(s.Password) < 20 {
+	file, err := Ensure(&s, cfg)
+	if err != nil || file != cfg || len(s.Password) < 20 {
 		t.Fatalf("Ensure = %q, %v, password %q", file, err, s.Password)
+	}
+	if _, err := os.Stat(filepath.Join(cwd, ".env")); err == nil {
+		t.Error("Ensure wrote to the current directory")
 	}
 	st, _ := os.Stat(file)
 	data, _ := os.ReadFile(file)
@@ -63,6 +69,13 @@ func TestEnsureAndSetPassword(t *testing.T) {
 	}
 	if got, _ := Load(cwd, cfg); got.Password != "new" {
 		t.Errorf("after SetPassword the password is %q", got.Password)
+	}
+	// A configuration directory not made yet is made, for the user only.
+	fresh := filepath.Join(t.TempDir(), "new", "conch", ".env")
+	if file, err := Ensure(&Settings{Auth: true, Listen: DefaultListen}, fresh); err != nil || file != fresh {
+		t.Errorf("Ensure in a new directory = %q, %v", file, err)
+	} else if fi, _ := os.Stat(filepath.Dir(fresh)); runtime.GOOS != "windows" && fi.Mode().Perm() != 0o700 {
+		t.Errorf("configuration directory mode %v", fi.Mode().Perm())
 	}
 	data, _ = os.ReadFile(file)
 	if strings.Count(string(data), "CONCH_PASSWORD") != 1 || !strings.Contains(string(data), "OTHER=1") {

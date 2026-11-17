@@ -62,7 +62,7 @@ func TestSystemdAnalyzeVerify(t *testing.T) {
 func TestLaunchdPlists(t *testing.T) {
 	l := testLayout()
 	l.ConfigDir = "/Library/Application Support/conch"
-	user := LaunchdUserPlist(Autostart{Bin: l.Bin, Profile: "/Users/a & b/.config/conch/profile.yaml", LogFile: "/Users/a & b/Library/Logs/conch/daemon.log"})
+	user := LaunchdUserPlist(Autostart{Bin: l.Bin, Profile: "/Users/a & b/.config/conch/profile.yaml", LogFile: "/Users/a & b/.local/state/conch/daemon.log"})
 	for _, p := range []string{LaunchdDaemonPlist(l), LaunchdAgentPlist(l), user} {
 		d := xml.NewDecoder(strings.NewReader(p))
 		d.Strict = true

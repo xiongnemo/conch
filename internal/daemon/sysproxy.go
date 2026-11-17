@@ -3,7 +3,6 @@ package daemon
 import (
 	"fmt"
 	"github.com/xiongnemo/conch/internal/compile"
-	"path/filepath"
 	"slices"
 
 	"github.com/xiongnemo/conch/internal/platform/sysproxy"
@@ -114,9 +113,8 @@ func (d *Daemon) releaseSysProxy() {
 }
 
 // RepairSysProxy restores a system proxy left pointing at a daemon that is
-// no longer running. It is for `conch doctor --fix`.
-func RepairSysProxy(dataDir string) (bool, error) {
-	path := filepath.Join(dataDir, "state.json")
+// no longer running, by its state file. It is for `conch doctor --fix`.
+func RepairSysProxy(path string) (bool, error) {
 	st, err := loadState(path)
 	if err != nil || st.SysProxy == nil || !st.SysProxy.Applied {
 		return false, err

@@ -29,15 +29,18 @@ import (
 )
 
 // resolveProfile finds the profile: the flag, else ./profile.yaml, else
-// the one in the config directory.
+// the one in the config directory (or where an earlier version kept it).
 func resolveProfile(flag string) (string, error) {
 	candidates := []string{flag}
 	if flag == "" {
-		candidates = []string{"profile.yaml", filepath.Join(paths.ConfigDir(), "profile.yaml")}
+		candidates = []string{"profile.yaml"}
 	}
-	for _, c := range candidates {
-		if _, err := os.Stat(c); err == nil {
-			return filepath.Abs(c)
+	for i := 0; i < len(candidates); i++ {
+		if _, err := os.Stat(candidates[i]); err == nil {
+			return filepath.Abs(candidates[i])
+		}
+		if flag == "" && i == 0 { // only looked for when needed: it may say it is at an old place
+			candidates = append(candidates, paths.Profile())
 		}
 	}
 	return "", fmt.Errorf("找不到 profile.yaml（找过 %s）。运行 conch init <订阅地址> 生成一份，或者参考 https://github.com/xiongnemo/conch/blob/main/examples/profile.yaml 自己写", strings.Join(candidates, "、"))
@@ -48,19 +51,17 @@ func loadSettings() (auth.Settings, string, error) {
 	if err != nil {
 		return auth.Settings{}, "", err
 	}
-	s, err := auth.Load(cwd, paths.ConfigDir())
+	s, err := auth.Load(cwd, paths.EnvFile())
 	return s, cwd, err
 }
 
-// apiRecord is what the running daemon writes about itself, next to its
-// data, so commands run elsewhere find it: where it listens, and which
-// .env holds its password (it may be the one where it was started).
+// apiRecord is what the running daemon writes about itself, in the state
+// directory, so commands run elsewhere find it: where it listens, and
+// which .env holds its password (it may be the one where it was started).
 type apiRecord struct {
 	Listen string `json:"listen"`
 	Env    string `json:"env,omitempty"`
 }
-
-func apiRecordPath() string { return filepath.Join(paths.DataDir(), "api.json") }
 
 func writeAPIRecord(s auth.Settings) {
 	rec := apiRecord{Listen: s.Listen}
@@ -68,13 +69,14 @@ func writeAPIRecord(s auth.Settings) {
 		rec.Env = s.PasswordFile
 	}
 	data, _ := json.Marshal(rec)
-	os.MkdirAll(paths.DataDir(), 0o700)
-	os.WriteFile(apiRecordPath(), data, 0o600)
+	path := paths.APIRecord()
+	os.MkdirAll(filepath.Dir(path), 0o700)
+	os.WriteFile(path, data, 0o600)
 }
 
 func readAPIRecord() (apiRecord, bool) {
 	var rec apiRecord
-	data, err := os.ReadFile(apiRecordPath())
+	data, err := os.ReadFile(paths.APIRecord())
 	return rec, err == nil && json.Unmarshal(data, &rec) == nil
 }
 
@@ -114,7 +116,8 @@ func newDaemonCmd() *cobra.Command {
 			}
 			out := cmd.ErrOrStderr()
 			if f.autostart {
-				out = quietConsole(out, "daemon.log")
+				out = quietConsole(out, paths.DaemonLog)
+				paths.SetNotices(out)
 			}
 			// The service passes its directories explicitly.
 			if f.configDir != "" {
@@ -139,7 +142,7 @@ func newDaemonCmd() *cobra.Command {
 	fl.BoolVar(&f.offline, "offline", false, "不下载订阅和规则列表，只用已缓存的")
 	fl.BoolVar(&f.service, "service", false, "作为系统服务运行（由 conch service install 设置）：系统代理交给每个用户的 conch agent")
 	fl.StringVar(&f.configDir, "config-dir", "", "配置目录（默认 "+paths.ConfigDir()+"）")
-	fl.StringVar(&f.dataDir, "data-dir", "", "数据目录（默认 "+paths.DataDir()+"）")
+	fl.StringVar(&f.dataDir, "data-dir", "", "放数据、状态和缓存的目录（默认分别是 "+paths.DataDir()+"、"+paths.StateDir()+" 和 "+paths.CacheDir()+"）")
 	fl.BoolVar(&f.autostart, "autostart", false, "登录时自动启动（由 conch autostart on 设置）")
 	fl.StringVar(&f.chdir, "chdir", "", "先切换到这个目录")
 	for _, name := range []string{"service", "config-dir", "data-dir", "autostart", "chdir"} {
@@ -171,7 +174,7 @@ func runDaemon(ctx context.Context, out io.Writer, f daemonFlags) error {
 	if err != nil {
 		return err
 	}
-	if file, err := auth.Ensure(&settings, cwd, paths.ConfigDir()); err != nil {
+	if file, err := auth.Ensure(&settings, paths.EnvFile()); err != nil {
 		return err
 	} else if file != "" {
 		fmt.Fprintf(out, "已生成登录密码，保存在 %s：\n\n    %s\n\n", file, settings.Password)
@@ -181,7 +184,7 @@ func runDaemon(ctx context.Context, out io.Writer, f daemonFlags) error {
 		settings.PasswordFile = file
 	}
 	writeAPIRecord(settings)
-	opts := daemon.Options{ProfilePath: profile, DataDir: paths.DataDir(), Backend: f.backend, Offline: f.offline, Log: out, Service: f.service}
+	opts := daemon.Options{ProfilePath: profile, DataDir: paths.DataDir(), Places: daemonPlaces(), Backend: f.backend, Offline: f.offline, Log: out, Service: f.service}
 	d, err := newDaemon(ctx, opts, out)
 	if err != nil {
 		return err
@@ -192,7 +195,7 @@ func runDaemon(ctx context.Context, out io.Writer, f daemonFlags) error {
 
 	guard := auth.NewGuard(settings)
 	guard.Log = out
-	if guard.Pairings, err = auth.LoadPairings(filepath.Join(paths.DataDir(), "pairings.json")); err != nil {
+	if guard.Pairings, err = auth.LoadPairings(paths.Pairings()); err != nil {
 		return err
 	}
 	apiServer := &api.Server{Guard: guard, Web: web.FS(), Daemon: live.Load, Switch: func(ctx context.Context, name string) error {
@@ -229,12 +232,21 @@ func runDaemon(ctx context.Context, out io.Writer, f daemonFlags) error {
 		fmt.Fprintln(out, "警告：Web UI 监听在本机以外的地址，但没有配置 TLS 证书，密码会以明文传输")
 	}
 
-	go followSettings(ctx, guard, cwd, out)
+	go followSettings(ctx, guard, cwd, paths.EnvFile(), out)
 	err = runSwitching(ctx, opts, &live, switches, out)
 	shutdown, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 	srv.Shutdown(shutdown)
 	return err
+}
+
+// daemonPlaces are where the daemon keeps its files, each where it is now
+// or where an earlier version left it.
+func daemonPlaces() daemon.Places {
+	return daemon.Places{
+		State: paths.StateFile(), Certs: paths.Certs(), Kernels: paths.Kernels(), Homes: paths.Homes(),
+		Lists: paths.Lists(), Subscriptions: paths.Subscriptions(), Run: paths.RunDir(), OldRun: paths.OldRunDirs(),
+	}
 }
 
 // kernelSwitch asks the running daemon to switch to another kernel.
@@ -378,7 +390,7 @@ func newDaemon(ctx context.Context, opts daemon.Options, out io.Writer) (*daemon
 // ensureKernel downloads the kernel opts.Backend names, and the geodata
 // it needs, unless they are there.
 func ensureKernel(ctx context.Context, opts daemon.Options, out io.Writer) error {
-	if _, err := kernels.Current(opts.DataDir, opts.Backend, kernels.Host().OS); err != nil {
+	if _, err := kernels.Current(opts.KernelsDir(), opts.Backend, kernels.Host().OS); err != nil {
 		var missing *kernels.NotInstalledError
 		if !errors.As(err, &missing) {
 			return err
@@ -387,7 +399,7 @@ func ensureKernel(ctx context.Context, opts daemon.Options, out io.Writer) error
 			return fmt.Errorf("%s 内核还没有下载，可以先运行 conch kernel install %s", opts.Backend, opts.Backend)
 		}
 		fmt.Fprintf(out, "第一次使用 %s，正在下载内核……\n", opts.Backend)
-		if _, err := kernels.Install(ctx, kernels.InstallOptions{Kernel: opts.Backend, Dir: opts.DataDir, Target: kernels.Host(), Log: out}); err != nil {
+		if _, err := kernels.Install(ctx, kernels.InstallOptions{Kernel: opts.Backend, Dir: opts.KernelsDir(), Target: kernels.Host(), Log: out}); err != nil {
 			return err
 		}
 	}
@@ -397,15 +409,15 @@ func ensureKernel(ctx context.Context, opts daemon.Options, out io.Writer) error
 // ensureGeodata downloads the data files xray reads geosite:/geoip:
 // categories from, unless they are there.
 func ensureGeodata(ctx context.Context, opts daemon.Options, out io.Writer) error {
-	if name := opts.Backend; name == "xray" && !kernels.HasGeodata(name, paths.KernelHome(name)) && !opts.Offline {
+	if name := opts.Backend; name == "xray" && !kernels.HasGeodata(name, opts.KernelHome(name)) && !opts.Offline {
 		fmt.Fprintln(out, "正在下载 xray 需要的 geodata……")
-		return kernels.FetchGeodata(ctx, nil, name, "", paths.KernelHome(name), out)
+		return kernels.FetchGeodata(ctx, nil, name, "", opts.KernelHome(name), out)
 	}
 	return nil
 }
 
 // followSettings picks up a changed password from the .env files.
-func followSettings(ctx context.Context, guard *auth.Guard, cwd string, out io.Writer) {
+func followSettings(ctx context.Context, guard *auth.Guard, cwd, envFile string, out io.Writer) {
 	tick := time.NewTicker(5 * time.Second)
 	defer tick.Stop()
 	warned := false
@@ -415,7 +427,7 @@ func followSettings(ctx context.Context, guard *auth.Guard, cwd string, out io.W
 			return
 		case <-tick.C:
 		}
-		s, err := auth.Load(cwd, paths.ConfigDir())
+		s, err := auth.Load(cwd, envFile)
 		if err != nil {
 			continue
 		}
@@ -454,7 +466,7 @@ func newPasswdCmd() *cobra.Command {
 		Short: "修改 Web UI 和 API 的登录密码（不写新密码就随机生成一个）",
 		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			settings, cwd, err := clientSettings()
+			settings, _, err := clientSettings()
 			if err != nil {
 				return err
 			}
@@ -468,7 +480,7 @@ func newPasswdCmd() *cobra.Command {
 			}
 			file := settings.PasswordFile
 			if file == "" || file == "环境变量" {
-				file = filepath.Join(cwd, ".env")
+				file = paths.EnvFile()
 			}
 			if err := auth.SetPassword(file, password); err != nil {
 				return err

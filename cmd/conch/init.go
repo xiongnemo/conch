@@ -29,7 +29,7 @@ func newInitCmd() *cobra.Command {
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if output == "" {
-				output = filepath.Join(paths.ConfigDir(), "profile.yaml")
+				output = paths.Profile() // the one an earlier version left, if it is there
 			}
 			if _, err := os.Stat(output); err == nil && !force {
 				return fmt.Errorf("%s 已经存在；要重新生成就加上 --force（原来的文件会改名为 %s.bak）", output, filepath.Base(output))
@@ -66,7 +66,7 @@ func firstDownload(cmd *cobra.Command, name, url string) (*subscription.Snapshot
 	if !strings.HasPrefix(url, "http://") && !strings.HasPrefix(url, "https://") {
 		return nil, errors.New("订阅地址应该以 http:// 或 https:// 开头（单个节点的分享链接请用 conch import）")
 	}
-	s := &subscription.Store{Dir: paths.SubscriptionsDir(), Log: cmd.ErrOrStderr()}
+	s := &subscription.Store{Dir: paths.Subscriptions(), Log: cmd.ErrOrStderr()}
 	snap, _, err := s.Update(cmd.Context(), &model.Subscription{Name: name, URL: url})
 	if err != nil {
 		return nil, fmt.Errorf("%w\n订阅下载不下来的话，可以先运行 conch init 生成一份直连的 profile，再把订阅加进去", err)
@@ -136,9 +136,10 @@ routes:
 `
 
 // writeProfile writes text to path, keeping what was there as .bak. Only
-// the user can read it: a subscription URL is as good as a password.
+// the user can read it: a subscription URL is as good as a password, and
+// the directory it makes will hold .env too.
 func writeProfile(path, text string) error {
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return err
 	}
 	if _, err := os.Stat(path); err == nil {

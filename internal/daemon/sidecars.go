@@ -66,11 +66,11 @@ func (d *Daemon) sidecarBin(ctx context.Context) (string, error) {
 	if d.opts.SidecarBin != "" {
 		return d.opts.SidecarBin, nil
 	}
-	inst, err := kernels.Current(d.opts.DataDir, sidecar.Kernel, runtime.GOOS)
+	inst, err := kernels.Current(d.opts.kernelsDir(), sidecar.Kernel, runtime.GOOS)
 	var missing *kernels.NotInstalledError
 	if errors.As(err, &missing) && !d.opts.Offline {
 		fmt.Fprintln(d.opts.Log, "profile 里有 trojan-go 节点，正在下载 trojan-go……")
-		inst, err = kernels.Install(ctx, kernels.InstallOptions{Kernel: sidecar.Kernel, Dir: d.opts.DataDir, Target: kernels.Host(), Log: d.opts.Log})
+		inst, err = kernels.Install(ctx, kernels.InstallOptions{Kernel: sidecar.Kernel, Dir: d.opts.kernelsDir(), Target: kernels.Host(), Log: d.opts.Log})
 	}
 	if err != nil {
 		return "", fmt.Errorf("trojan-go 节点需要 trojan-go 程序（可以运行 conch kernel install trojan-go）：%w", err)

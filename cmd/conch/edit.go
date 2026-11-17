@@ -141,11 +141,11 @@ func checkProfile(ctx context.Context, pl *pipeline, path string, content []byte
 		return nil, err
 	}
 	res, diags := pl.compileProfile(ctx, p)
-	b, err := lookupBackend(cmpOr(daemon.LastBackend(paths.DataDir()), "mihomo"))
+	b, err := lookupBackend(cmpOr(daemon.LastBackend(paths.StateFile()), "mihomo"))
 	if err != nil {
 		return nil, err
 	}
-	_, diags = encode(res, b, backend.Options{Lists: pl.listLoader(ctx), Certs: daemon.LearnedCerts(paths.DataDir())}, diags)
+	_, diags = encode(res, b, backend.Options{Lists: pl.listLoader(ctx), Certs: daemon.LearnedCerts(paths.Certs())}, diags)
 	return diags, nil
 }
 

@@ -53,7 +53,7 @@ func TestDNSTakeover(t *testing.T) {
 	}
 
 	d.syncDNS() // crash: nothing restores, so doctor --fix does
-	if repaired, err := RepairDNS(d.opts.DataDir); !repaired || err != nil || *resolver != "router" {
+	if repaired, err := RepairDNS(d.statePath()); !repaired || err != nil || *resolver != "router" {
 		t.Errorf("repair: %v %v, resolver %q", repaired, err, *resolver)
 	}
 }

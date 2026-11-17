@@ -32,11 +32,13 @@ type Layout struct {
 // their profile, kernels and password are carried over, and the agent
 // starts in their session.
 type User struct {
-	Name      string
-	UID       string
-	Home      string
-	ConfigDir string
-	DataDir   string
+	Name string
+	UID  string
+	Home string
+	// Env is the user's own .env, which gets the service's password.
+	Env string
+	// Kernels holds the kernels the user downloaded, carried over.
+	Kernels string
 }
 
 // Runner runs a command and returns its output; tests replace it.
@@ -180,8 +182,8 @@ func carryOver(o *Options) error {
 			}
 		}
 	}
-	if o.User != nil {
-		src, dst := filepath.Join(o.User.DataDir, "kernels"), filepath.Join(l.DataDir, "kernels")
+	if o.User != nil && o.User.Kernels != "" {
+		src, dst := o.User.Kernels, filepath.Join(l.DataDir, "kernels")
 		if exists(src) && !exists(dst) {
 			if err := copyTree(src, dst); err != nil {
 				return fmt.Errorf("复制内核：%w", err)
@@ -200,7 +202,7 @@ func syncPassword(o *Options) (string, error) {
 	serviceEnv := filepath.Join(o.files().ConfigDir, ".env")
 	userEnv := ""
 	if o.User != nil {
-		userEnv = filepath.Join(o.User.ConfigDir, ".env")
+		userEnv = o.User.Env
 	}
 	pw := auth.PasswordIn(serviceEnv)
 	if pw == "" && userEnv != "" {

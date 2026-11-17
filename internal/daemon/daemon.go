@@ -47,13 +47,16 @@ import (
 // Options configure a daemon.
 type Options struct {
 	ProfilePath string
-	DataDir     string
-	Backend     string // mihomo | xray | sing-box; empty keeps the last one used
-	KernelBin   string // empty means the installed kernel
-	SidecarBin  string // trojan-go; empty means the installed one
-	Offline     bool   // never download subscriptions or rule lists
-	Log         io.Writer
-	DelayURL    string // what delay tests request; empty means DelayURL
+	// DataDir holds every file of the daemon that Places does not put
+	// elsewhere, as the system service keeps them.
+	DataDir    string
+	Places     Places
+	Backend    string // mihomo | xray | sing-box; empty keeps the last one used
+	KernelBin  string // empty means the installed kernel
+	SidecarBin string // trojan-go; empty means the installed one
+	Offline    bool   // never download subscriptions or rule lists
+	Log        io.Writer
+	DelayURL   string // what delay tests request; empty means DelayURL
 	// Service means the daemon runs as a system service. It cannot change
 	// per-user settings then: `conch agent` sets the system proxy in
 	// each desktop session instead.
@@ -62,6 +65,48 @@ type Options struct {
 	// kernel: the run goes on, so the system proxy, TUN and mode
 	// switches stay as they were, and clients keep getting events.
 	SwitchedFrom *Daemon
+}
+
+// Places are where a daemon keeps each of its files, as conch run by a
+// user resolves them (internal/paths). Each one left empty is in DataDir.
+type Places struct {
+	State         string // state.json
+	Certs         string // certs.json
+	Kernels       string // the installed kernels (kernels.Current's dir)
+	Homes         string // the kernels' working directories, one per kernel
+	Lists         string // downloaded rule lists
+	Subscriptions string // downloaded subscriptions
+	Run           string // sockets and pid files
+	// OldRun are where earlier versions kept pid files: kernels a daemon of
+	// theirs left running are ended too.
+	OldRun []string
+}
+
+func (o Options) place(p, name string) string {
+	if p != "" {
+		return p
+	}
+	return filepath.Join(o.DataDir, name)
+}
+
+func (o Options) statePath() string  { return o.place(o.Places.State, "state.json") }
+func (o Options) certsPath() string  { return o.place(o.Places.Certs, "certs.json") }
+func (o Options) kernelsDir() string { return o.place(o.Places.Kernels, "kernels") }
+func (o Options) homesDir() string   { return o.place(o.Places.Homes, "home") }
+func (o Options) listsDir() string   { return o.place(o.Places.Lists, "lists") }
+func (o Options) subsDir() string    { return o.place(o.Places.Subscriptions, "subscriptions") }
+
+// KernelsDir is where the daemon finds kernels and installs missing ones.
+func (o Options) KernelsDir() string { return o.kernelsDir() }
+
+// KernelHome is the working directory of a kernel, where its geodata is.
+func (o Options) KernelHome(kernel string) string { return filepath.Join(o.homesDir(), kernel) }
+
+func (o Options) runDir() string {
+	if o.Places.Run != "" {
+		return socketDir(o.Places.Run, o.Places.Run)
+	}
+	return socketDir(filepath.Join(o.DataDir, "run"), o.DataDir)
 }
 
 // Daemon owns one kernel process.
@@ -129,7 +174,7 @@ func New(opts Options) (*Daemon, error) {
 	if opts.Log == nil {
 		opts.Log = io.Discard
 	}
-	st, err := loadState(filepath.Join(opts.DataDir, "state.json"))
+	st, err := loadState(opts.statePath())
 	if err != nil {
 		return nil, fmt.Errorf("读取 state.json：%w", err)
 	}
@@ -145,12 +190,12 @@ func New(opts Options) (*Daemon, error) {
 		backend:  b,
 		state:    st,
 		sup:      kernel.NewSupervisor(),
-		home:     filepath.Join(opts.DataDir, "home", name),
-		lists:    &lists.Store{Dir: filepath.Join(opts.DataDir, "lists"), Offline: opts.Offline, Log: opts.Log},
-		subs:     &subscription.Store{Dir: filepath.Join(opts.DataDir, "subscriptions"), Offline: opts.Offline, Log: opts.Log},
+		home:     filepath.Join(opts.homesDir(), name),
+		lists:    &lists.Store{Dir: opts.listsDir(), Offline: opts.Offline, Log: opts.Log},
+		subs:     &subscription.Store{Dir: opts.subsDir(), Offline: opts.Offline, Log: opts.Log},
 		subInfo:  map[string]*subscription.Info{},
 		subRetry: map[string]subRetry{},
-		certs:    certpin.Open(certsPath(opts.DataDir)),
+		certs:    certpin.Open(opts.certsPath()),
 		pinRetry: map[string]pinRetry{},
 	}
 	d.lists.Proxy, d.subs.Proxy = d.kernelProxy, d.kernelProxy
@@ -166,25 +211,31 @@ func New(opts Options) (*Daemon, error) {
 	}
 	// The kernel API is unauthenticated on this socket: keep it in a
 	// directory only this user can enter.
-	runDir := socketDir(opts.DataDir)
+	runDir := opts.runDir()
 	if err := os.MkdirAll(runDir, 0o700); err != nil {
 		return nil, err
 	}
 	os.Chmod(runDir, 0o700)
 	// A daemon that died may have left its kernel running, on the ports
-	// this one needs; also another kernel, from before a switch.
-	for _, k := range []string{"mihomo", "xray", "sing-box"} {
-		if kernel.KillOrphan(filepath.Join(runDir, k+".pid")) {
-			fmt.Fprintf(opts.Log, "已结束上次没有退出的 %s 内核\n", k)
+	// this one needs; also another kernel, from before a switch, or a
+	// daemon of an earlier version, which kept its pid files elsewhere.
+	for _, dir := range append([]string{runDir}, opts.Places.OldRun...) {
+		for _, k := range []string{"mihomo", "xray", "sing-box"} {
+			if kernel.KillOrphan(filepath.Join(dir, k+".pid")) {
+				fmt.Fprintf(opts.Log, "已结束上次没有退出的 %s 内核\n", k)
+			}
 		}
 	}
 	d.socket = filepath.Join(runDir, name+".sock")
+	if err := os.MkdirAll(opts.homesDir(), 0o700); err != nil { // and conch's cache directory, if this is the first thing in it
+		return nil, err
+	}
 	if err := os.MkdirAll(d.home, 0o755); err != nil {
 		return nil, err
 	}
 	d.bin = opts.KernelBin
 	if d.bin == "" {
-		inst, err := kernels.Current(opts.DataDir, name, kernels.Host().OS)
+		inst, err := kernels.Current(opts.kernelsDir(), name, kernels.Host().OS)
 		if err != nil {
 			return nil, err
 		}
@@ -253,7 +304,7 @@ func cmpOr(vs ...string) string {
 	return ""
 }
 
-func (d *Daemon) statePath() string   { return filepath.Join(d.opts.DataDir, "state.json") }
+func (d *Daemon) statePath() string   { return d.opts.statePath() }
 func (d *Daemon) managedPath() string { return ManagedPath(d.opts.ProfilePath) }
 
 // Stop ends the kernel and its sidecars.
@@ -784,15 +835,14 @@ func fileHash(path string) [32]byte {
 	return sha256.Sum256(data)
 }
 
-// socketDir is where the kernels' unix sockets go: in the data directory,
-// unless their paths would be too long for a socket (about 100 bytes on
-// every OS), as a deep data directory makes them. Then in a directory of
-// the user's temporary directory named after it.
-func socketDir(dataDir string) string {
-	dir := filepath.Join(dataDir, "run")
+// socketDir is where the kernels' unix sockets go: in dir, unless their
+// paths would be too long for a socket (about 100 bytes on every OS), as a
+// deep directory makes them. Then in a directory of the user's temporary
+// directory named after seed.
+func socketDir(dir, seed string) string {
 	if len(filepath.Join(dir, "xray-probe-0.sock")) <= 100 {
 		return dir
 	}
-	sum := sha256.Sum256([]byte(dataDir))
+	sum := sha256.Sum256([]byte(seed))
 	return filepath.Join(os.TempDir(), "conch-"+hex.EncodeToString(sum[:4]))
 }

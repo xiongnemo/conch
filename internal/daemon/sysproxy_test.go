@@ -121,11 +121,11 @@ func TestRepairAfterCrash(t *testing.T) {
 	d := testDaemon(t, 7890)
 	d.SetSysProxy(true)
 	// The daemon died without restoring; doctor --fix repairs it.
-	repaired, err := RepairSysProxy(d.opts.DataDir)
+	repaired, err := RepairSysProxy(d.statePath())
 	if err != nil || !repaired || os.port != 0 {
 		t.Fatalf("repair: %v %v, OS %d", repaired, err, os.port)
 	}
-	if again, _ := RepairSysProxy(d.opts.DataDir); again {
+	if again, _ := RepairSysProxy(d.statePath()); again {
 		t.Error("repairing twice should find nothing to do")
 	}
 }

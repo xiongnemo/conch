@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net/netip"
 	"net/url"
-	"path/filepath"
 
 	"github.com/xiongnemo/conch/internal/platform/sysdns"
 )
@@ -82,9 +81,8 @@ func (d *Daemon) releaseDNS() {
 }
 
 // RepairDNS restores a system resolver left redirected by a daemon that
-// is no longer running. It is for `conch doctor --fix`.
-func RepairDNS(dataDir string) (bool, error) {
-	path := filepath.Join(dataDir, "state.json")
+// is no longer running, by its state file. It is for `conch doctor --fix`.
+func RepairDNS(path string) (bool, error) {
 	st, err := loadState(path)
 	if err != nil || st.DNS == nil || !st.DNS.Applied {
 		return false, err
@@ -97,7 +95,7 @@ func RepairDNS(dataDir string) (bool, error) {
 }
 
 // DNSLeftover reports whether a stopped daemon left the resolver redirected.
-func DNSLeftover(dataDir string) bool {
-	st, err := loadState(filepath.Join(dataDir, "state.json"))
+func DNSLeftover(statePath string) bool {
+	st, err := loadState(statePath)
 	return err == nil && st.DNS != nil && st.DNS.Applied
 }

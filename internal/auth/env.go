@@ -29,16 +29,17 @@ type Settings struct {
 
 const DefaultListen = "127.0.0.1:9277"
 
-// EnvFiles lists the .env files in lookup order: the current directory
-// first, then the config directory.
-func EnvFiles(cwd, configDir string) []string {
-	return []string{filepath.Join(cwd, ".env"), filepath.Join(configDir, ".env")}
+// EnvFiles lists the .env files in lookup order: the current directory's
+// first, a deliberate override for a profile kept in a directory of its
+// own, then envFile, the user's own in the configuration directory.
+func EnvFiles(cwd, envFile string) []string {
+	return []string{filepath.Join(cwd, ".env"), envFile}
 }
 
 // Load reads settings. For each key the process environment wins, then the
 // .env files in order.
-func Load(cwd, configDir string) (Settings, error) {
-	files := EnvFiles(cwd, configDir)
+func Load(cwd, envFile string) (Settings, error) {
+	files := EnvFiles(cwd, envFile)
 	values := map[string]string{}
 	from := map[string]string{}
 	for i := len(files) - 1; i >= 0; i-- { // later files first, earlier override
@@ -100,25 +101,20 @@ func IsLoopback(host string) bool {
 	return ip != nil && ip.IsLoopback()
 }
 
-// Ensure creates a password when authentication is on and none is set. It
-// is appended to ./.env, or to the config directory's .env when the
-// current directory is not writable. It returns the file it wrote to, or
-// "" when nothing was needed.
-func Ensure(s *Settings, cwd, configDir string) (string, error) {
+// Ensure creates a password when authentication is on and none is set,
+// appended to envFile, the user's .env in the configuration directory
+// (earlier versions wrote it to the current directory's). It returns
+// the file it wrote to, or "" when nothing was needed.
+func Ensure(s *Settings, envFile string) (string, error) {
 	if !s.Auth || s.Password != "" {
 		return "", nil
 	}
 	s.Password = NewPassword()
-	var lastErr error
-	for _, f := range EnvFiles(cwd, configDir) {
-		if err := appendEnv(f, "CONCH_PASSWORD", s.Password); err != nil {
-			lastErr = err
-			continue
-		}
-		s.PasswordFile = f
-		return f, nil
+	if err := appendEnv(envFile, "CONCH_PASSWORD", s.Password); err != nil {
+		return "", fmt.Errorf("无法保存生成的密码：%w", err)
 	}
-	return "", fmt.Errorf("无法保存生成的密码：%w", lastErr)
+	s.PasswordFile = envFile
+	return envFile, nil
 }
 
 // SetPassword replaces CONCH_PASSWORD in an .env file, keeping the

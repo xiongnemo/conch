@@ -17,12 +17,12 @@ import (
 // commands instead of running them.
 func TestInstallSystemd(t *testing.T) {
 	root, home := t.TempDir(), t.TempDir()
-	userConfig, userData := paths.UserDirs(home)
+	userConfig, userCache := paths.ForUser(home).Dir(paths.Config), paths.ForUser(home).Dir(paths.Cache)
 	os.MkdirAll(userConfig, 0o700)
 	profile := filepath.Join(userConfig, "profile.yaml")
 	os.WriteFile(profile, []byte("routes: { default: DIRECT }\n"), 0o644)
 	os.WriteFile(filepath.Join(userConfig, ".env"), []byte("CONCH_PASSWORD=users-own\n"), 0o600)
-	kernel := filepath.Join(userData, "kernels", "mihomo", "v1.19.32", "mihomo")
+	kernel := filepath.Join(userCache, "kernels", "mihomo", "v1.19.32", "mihomo")
 	os.MkdirAll(filepath.Dir(kernel), 0o755)
 	os.WriteFile(kernel, []byte("kernel"), 0o755)
 	exe := filepath.Join(t.TempDir(), "conch")
@@ -43,7 +43,8 @@ func TestInstallSystemd(t *testing.T) {
 	}
 	var log bytes.Buffer
 	l := SystemLayout()
-	o := Options{Layout: l, User: &User{Name: "alice", UID: "1000", Home: home, ConfigDir: userConfig, DataDir: userData},
+	alice := paths.ForUser(home)
+	o := Options{Layout: l, User: &User{Name: "alice", UID: "1000", Home: home, Env: alice.EnvFile(), Kernels: alice.Kernels()},
 		Run: run, Log: &log, Profile: profile, Exe: exe, Root: root}
 	if err := Install(o); err != nil {
 		t.Fatal(err)
@@ -94,17 +95,20 @@ func TestInstallSystemd(t *testing.T) {
 // Without a password anywhere, one is made for both the service and the user.
 func TestInstallMakesPassword(t *testing.T) {
 	root, home := t.TempDir(), t.TempDir()
-	userConfig, userData := paths.UserDirs(home)
+	userEnv := paths.ForUser(home).EnvFile()
 	defer func(old func(string) (*user.User, error)) { lookupUser = old }(lookupUser)
 	lookupUser = func(string) (*user.User, error) { return &user.User{}, nil }
 	exe := filepath.Join(t.TempDir(), "conch")
 	os.WriteFile(exe, []byte("x"), 0o755)
-	o := Options{Layout: SystemLayout(), User: &User{Name: "bob", ConfigDir: userConfig, DataDir: userData}, NoAgent: true,
+	o := Options{Layout: SystemLayout(), User: &User{Name: "bob", Env: userEnv, Kernels: paths.ForUser(home).Kernels()}, NoAgent: true,
 		Run: func(string, ...string) (string, error) { return "", nil }, Exe: exe, Root: root}
 	if err := Install(o); err != nil {
 		t.Fatal(err)
 	}
-	service, users := auth.PasswordIn(filepath.Join(root, "/etc/conch/.env")), auth.PasswordIn(filepath.Join(userConfig, ".env"))
+	if userEnv != filepath.Join(home, ".config", "conch", ".env") {
+		t.Errorf("a new user .env goes to %s", userEnv)
+	}
+	service, users := auth.PasswordIn(filepath.Join(root, "/etc/conch/.env")), auth.PasswordIn(userEnv)
 	if service == "" || service != users {
 		t.Errorf("passwords: service %q, user %q", service, users)
 	}

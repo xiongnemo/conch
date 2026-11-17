@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -51,6 +52,39 @@ func TestAutostartSystemdUser(t *testing.T) {
 	}
 	if err := DisableAutostart(a); !errors.Is(err, ErrAutostartOff) {
 		t.Errorf("off again: %v", err)
+	}
+}
+
+// conch migrate reads what is registered and writes it again with the
+// profile's new place, in the same place, starting nothing.
+func TestRewriteAutostart(t *testing.T) {
+	for _, systemd := range []bool{true, false} {
+		a, calls := testAutostart(t, systemd)
+		if err := EnableAutostart(a); err != nil {
+			t.Fatal(err)
+		}
+		r, err := ReadAutostart(a)
+		if err != nil || r.Profile() != a.Profile || r.Args[0] != a.Bin {
+			t.Fatalf("read %+v, %v", r, err)
+		}
+		*calls = nil
+		moved := filepath.Join(t.TempDir(), ".config", "conch", "profile.yaml")
+		if err := RewriteAutostart(r.Autostart(a, moved, ""), r); err != nil {
+			t.Fatal(err)
+		}
+		again, err := ReadAutostart(a)
+		if err != nil || again.Profile() != moved || again.Where != r.Where || !slices.Contains(again.Args, filepath.Dir(moved)) {
+			t.Errorf("after rewriting: %+v, %v", again, err)
+		}
+		for _, c := range *calls {
+			if strings.Contains(c, "start") || strings.Contains(c, "enable") {
+				t.Errorf("rewriting ran %q", c)
+			}
+		}
+	}
+	a, _ := testAutostart(t, true)
+	if _, err := ReadAutostart(a); !errors.Is(err, ErrAutostartOff) {
+		t.Errorf("nothing registered: %v", err)
 	}
 }
 

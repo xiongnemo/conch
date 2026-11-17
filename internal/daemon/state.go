@@ -102,18 +102,19 @@ func (s *State) prune(now time.Time) (next time.Time, changed bool) {
 	return next, changed
 }
 
-// LastBackend returns the backend the daemon used last, or "mihomo".
-func LastBackend(dataDir string) string {
-	if st, err := loadState(filepath.Join(dataDir, "state.json")); err == nil && st.Backend != "" {
+// LastBackend returns the backend the daemon with the state file
+// statePath (its Places.State) used last, or "mihomo".
+func LastBackend(statePath string) string {
+	if st, err := loadState(statePath); err == nil && st.Backend != "" {
 		return st.Backend
 	}
 	return "mihomo"
 }
 
-// SysProxyLeftover reports whether state.json says the system proxy still
-// points at conch.
-func SysProxyLeftover(dataDir string) (bool, int) {
-	st, err := loadState(filepath.Join(dataDir, "state.json"))
+// SysProxyLeftover reports whether the state file says the system proxy
+// still points at conch.
+func SysProxyLeftover(statePath string) (bool, int) {
+	st, err := loadState(statePath)
 	if err != nil || st.SysProxy == nil || !st.SysProxy.Applied {
 		return false, 0
 	}

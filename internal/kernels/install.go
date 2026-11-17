@@ -24,7 +24,7 @@ type InstallOptions struct {
 	Version string // empty = recommended release
 	Asset   string // empty = chosen from Target
 	Mirror  string // URL prefix put in front of github.com download links; empty means $CONCH_MIRROR
-	Dir     string // data directory
+	Dir     string // where kernels are installed: <Dir>/<kernel>/<version>/
 	Target  Target
 	HTTP    *http.Client
 	Log     io.Writer
@@ -37,7 +37,7 @@ type Installed struct {
 }
 
 // Install downloads, verifies and unpacks a kernel into
-// <Dir>/kernels/<kernel>/<version>/ and marks it as current.
+// <Dir>/<kernel>/<version>/ and marks it as current.
 func Install(ctx context.Context, o InstallOptions) (*Installed, error) {
 	m, err := Embedded()
 	if err != nil {
@@ -85,7 +85,10 @@ func Install(ctx context.Context, o InstallOptions) (*Installed, error) {
 		return nil, fmt.Errorf("%s %s 没有 %s 这个安装包（可以用 --asset 指定）", o.Kernel, version, asset.Name)
 	}
 
-	dest := filepath.Join(o.Dir, "kernels", o.Kernel, version)
+	dest := filepath.Join(o.Dir, o.Kernel, version)
+	if err := os.MkdirAll(o.Dir, 0o700); err != nil { // and conch's cache directory, if this is the first thing in it
+		return nil, err
+	}
 	if err := os.MkdirAll(dest, 0o755); err != nil {
 		return nil, err
 	}
@@ -110,7 +113,7 @@ func Install(ctx context.Context, o InstallOptions) (*Installed, error) {
 	if err := unpack(tmp.Name(), asset, dest, bin); err != nil {
 		return nil, fmt.Errorf("解压 %s：%w", asset.Name, err)
 	}
-	if err := os.WriteFile(filepath.Join(o.Dir, "kernels", o.Kernel, "current"), []byte(version+"\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(o.Dir, o.Kernel, "current"), []byte(version+"\n"), 0o644); err != nil {
 		return nil, err
 	}
 	return &Installed{Kernel: o.Kernel, Version: version, Path: filepath.Join(dest, bin)}, nil
@@ -137,9 +140,10 @@ func (e *NotInstalledError) Error() string {
 	return fmt.Sprintf("还没有安装 %s，请先运行 conch kernel install %s", e.Kernel, e.Kernel)
 }
 
-// Current returns the path of the kernel marked as current.
+// Current returns the path of the kernel marked as current in dir, where
+// Install puts kernels.
 func Current(dir, kernel, goos string) (*Installed, error) {
-	data, err := os.ReadFile(filepath.Join(dir, "kernels", kernel, "current"))
+	data, err := os.ReadFile(filepath.Join(dir, kernel, "current"))
 	if errors.Is(err, os.ErrNotExist) {
 		return nil, &NotInstalledError{Kernel: kernel}
 	}
@@ -150,7 +154,7 @@ func Current(dir, kernel, goos string) (*Installed, error) {
 	return &Installed{
 		Kernel:  kernel,
 		Version: version,
-		Path:    filepath.Join(dir, "kernels", kernel, version, BinaryName(kernel, goos)),
+		Path:    filepath.Join(dir, kernel, version, BinaryName(kernel, goos)),
 	}, nil
 }
 

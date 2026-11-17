@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"os/user"
-	"path/filepath"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -75,7 +74,7 @@ func newKernelInstallCmd() *cobra.Command {
 			if len(args) == 1 {
 				o.Kernel = args[0]
 			}
-			o.Dir = paths.DataDir()
+			o.Dir = paths.Kernels()
 			o.Log = cmd.ErrOrStderr()
 			inst, err := kernels.Install(cmd.Context(), o)
 			if err != nil {
@@ -110,7 +109,7 @@ func newKernelPathCmd() *cobra.Command {
 			if len(args) == 1 {
 				kernel = args[0]
 			}
-			inst, err := kernels.Current(paths.DataDir(), kernel, kernels.Host().OS)
+			inst, err := kernels.Current(paths.Kernels(), kernel, kernels.Host().OS)
 			if err != nil {
 				return err
 			}
@@ -158,16 +157,16 @@ func newKernelSetcapCmd() *cobra.Command {
 			if len(args) == 1 {
 				kernel = args[0]
 			}
-			dataDir := paths.DataDir()
+			dir := paths.Kernels()
 			// Under sudo, the kernel is the invoking user's, not root's.
 			if name := os.Getenv("SUDO_USER"); os.Geteuid() == 0 && name != "" && os.Getenv("CONCH_DATA_DIR") == "" {
 				u, err := user.Lookup(name)
 				if err != nil {
 					return err
 				}
-				dataDir = filepath.Join(u.HomeDir, ".local", "share", "conch")
+				dir = paths.ForUser(u.HomeDir).Kernels()
 			}
-			inst, err := kernels.Current(dataDir, kernel, kernels.Host().OS)
+			inst, err := kernels.Current(dir, kernel, kernels.Host().OS)
 			if err != nil {
 				return err
 			}

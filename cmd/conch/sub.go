@@ -40,7 +40,7 @@ func newSubCmd() *cobra.Command {
 					return err
 				}
 			}
-			store := &subscription.Store{Dir: paths.SubscriptionsDir(), Offline: !update, Log: cmd.ErrOrStderr()}
+			store := &subscription.Store{Dir: paths.Subscriptions(), Offline: !update, Log: cmd.ErrOrStderr()}
 			failed := false
 			for _, sub := range p.Subscriptions {
 				if len(args) > 0 && !slices.Contains(args, sub.Name) {

@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"os"
 	"path/filepath"
@@ -100,9 +101,12 @@ Linux 用 systemd 用户服务（没有的话用桌面的自启动项），macOS
 
 // autostartOptions is autostart for the user running conch.
 func autostartOptions(cmd *cobra.Command) (service.Autostart, error) {
-	a := service.Autostart{Run: service.Exec, Log: cmd.OutOrStdout()}
-	if runtime.GOOS != "windows" && os.Geteuid() == 0 {
-		return a, errors.New("自动启动是每个用户自己的设置，不要用 sudo 运行；需要以 root 开机运行请用 sudo conch service install")
+	a, err := autostartPlaces(cmd.OutOrStdout())
+	if err != nil {
+		return a, err
+	}
+	if runtime.GOOS != "linux" { // Linux has the journal
+		a.LogFile = paths.DaemonLog()
 	}
 	exe, err := os.Executable()
 	if err != nil {
@@ -113,23 +117,31 @@ func autostartOptions(cmd *cobra.Command) (service.Autostart, error) {
 	if tmp, err := filepath.EvalSymlinks(os.TempDir()); err == nil && strings.HasPrefix(exe, tmp) || strings.HasPrefix(exe, os.TempDir()) {
 		return a, errors.New("这个 conch 在临时目录里（例如 go run 编译出来的），下次登录时可能已经不在了；请用安装好的 conch 运行")
 	}
+	return a, nil
+}
+
+// autostartPlaces is where the OS keeps what starts at login for the user
+// running conch. Those places are the OS's own, not conch's: the systemd
+// user units' directory, ~/Library/LaunchAgents, the Run key.
+func autostartPlaces(log io.Writer) (service.Autostart, error) {
+	a := service.Autostart{Run: service.Exec, Log: log}
+	if runtime.GOOS != "windows" && os.Geteuid() == 0 {
+		return a, errors.New("自动启动是每个用户自己的设置，不要用 sudo 运行；需要以 root 开机运行请用 sudo conch service install")
+	}
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return a, err
 	}
 	switch runtime.GOOS {
 	case "linux":
-		config, err := os.UserConfigDir()
+		config, err := os.UserConfigDir() // where systemd and the desktop look
 		if err != nil {
 			return a, err
 		}
 		a.Dir, a.AutostartDir = filepath.Join(config, "systemd", "user"), filepath.Join(config, "autostart")
 	case "darwin":
 		a.Dir = filepath.Join(home, "Library", "LaunchAgents")
-		a.LogFile = filepath.Join(home, "Library", "Logs", "conch", "daemon.log")
 		a.UID = strconv.Itoa(os.Getuid())
-	case "windows":
-		a.LogFile = filepath.Join(paths.DataDir(), "daemon.log")
 	}
 	return a, nil
 }

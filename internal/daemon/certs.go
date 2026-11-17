@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"path/filepath"
 	"time"
 
 	"github.com/xiongnemo/conch/internal/certpin"
@@ -13,13 +12,11 @@ import (
 	"github.com/xiongnemo/conch/internal/sidecar"
 )
 
-// LearnedCerts finds the certificate pins a daemon with dataDir learned,
-// for configs compiled outside it.
-func LearnedCerts(dataDir string) certpin.Lookup {
-	return certpin.Open(certsPath(dataDir)).Lookup
+// LearnedCerts finds the certificate pins a daemon learned into the file
+// certsPath (its Places.Certs), for configs compiled outside it.
+func LearnedCerts(certsPath string) certpin.Lookup {
+	return certpin.Open(certsPath).Lookup
 }
-
-func certsPath(dataDir string) string { return filepath.Join(dataDir, "certs.json") }
 
 // pinRetry is when a certificate pin that could not be learned is tried next.
 type pinRetry struct {

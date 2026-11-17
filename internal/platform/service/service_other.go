@@ -19,3 +19,7 @@ func EnableAutostart(Autostart) error { return errUnsupported }
 func DisableAutostart(Autostart) error { return errUnsupported }
 
 func AutostartStatus(Autostart) (string, error) { return "", errUnsupported }
+
+func ReadAutostart(Autostart) (Registered, error) { return Registered{}, ErrAutostartOff }
+
+func RewriteAutostart(Autostart, Registered) error { return errUnsupported }

@@ -656,7 +656,7 @@ func (d *Daemon) Kernels() []KernelChoice {
 	var out []KernelChoice
 	for _, name := range Backends {
 		k := KernelChoice{Name: name, Current: name == d.backend.Name()}
-		if inst, err := kernels.Current(d.opts.DataDir, name, kernels.Host().OS); err == nil {
+		if inst, err := kernels.Current(d.opts.kernelsDir(), name, kernels.Host().OS); err == nil {
 			k.Version, k.Installed, k.Unverified = inst.Version, true, !kernels.IsVerified(name, inst.Version)
 		}
 		k.Installed = k.Installed || k.Current

@@ -10,7 +10,7 @@ func (a Autostart) plistPath() string { return filepath.Join(a.Dir, LaunchdUser+
 // EnableAutostart starts the daemon at login with a launch agent of the
 // user's own, and starts it now.
 func EnableAutostart(a Autostart) error {
-	if err := os.MkdirAll(filepath.Dir(a.LogFile), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(a.LogFile), 0o700); err != nil {
 		return err
 	}
 	if err := writeFile(a.plistPath(), []byte(LaunchdUserPlist(a)), 0o644); err != nil {
@@ -36,6 +36,25 @@ func DisableAutostart(a Autostart) error {
 	}
 	a.logf("已关闭登录时自动启动，并停止了它启动的 conch daemon")
 	return nil
+}
+
+// ReadAutostart reads what the user's launch agent starts.
+func ReadAutostart(a Autostart) (Registered, error) {
+	data, err := os.ReadFile(a.plistPath())
+	if err != nil {
+		return Registered{}, ErrAutostartOff
+	}
+	args, log := parsePlist(string(data))
+	return Registered{Args: args, LogFile: log, Where: a.plistPath()}, nil
+}
+
+// RewriteAutostart writes the launch agent again for a. launchd reads it
+// at the next login, or when it is bootstrapped again.
+func RewriteAutostart(a Autostart, r Registered) error {
+	if err := os.MkdirAll(filepath.Dir(a.LogFile), 0o700); err != nil {
+		return err
+	}
+	return writeFile(r.Where, []byte(LaunchdUserPlist(a)), 0o644)
 }
 
 // AutostartStatus describes autostart in a line.

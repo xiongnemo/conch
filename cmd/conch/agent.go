@@ -3,7 +3,6 @@ package main
 import (
 	"os"
 	"os/signal"
-	"path/filepath"
 	"syscall"
 
 	"github.com/spf13/cobra"
@@ -23,7 +22,9 @@ func newAgentCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt, syscall.SIGTERM)
 			defer stop()
-			a := &agent.Agent{Client: daemonClient(), StatePath: filepath.Join(paths.DataDir(), "agent.json"), Log: quietConsole(cmd.ErrOrStderr(), "agent.log")}
+			log := quietConsole(cmd.ErrOrStderr(), paths.AgentLog)
+			paths.SetNotices(log)
+			a := &agent.Agent{Client: daemonClient(), StatePath: paths.AgentState(), Log: log}
 			return a.Run(ctx)
 		},
 	}

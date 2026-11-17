@@ -56,6 +56,36 @@ func DisableAutostart(a Autostart) error {
 	return nil
 }
 
+// ReadAutostart reads what autostart starts: the systemd user unit, or
+// the desktop's autostart entry.
+func ReadAutostart(a Autostart) (Registered, error) {
+	for _, f := range []struct{ path, key string }{{filepath.Join(a.Dir, userUnit), "ExecStart"}, {filepath.Join(a.AutostartDir, "conch.desktop"), "Exec"}} {
+		data, err := os.ReadFile(f.path)
+		if err != nil {
+			continue
+		}
+		v, _ := keyLine(string(data), f.key)
+		if f.key == "Exec" {
+			return Registered{Args: parseDesktopExec(v), Where: f.path}, nil
+		}
+		return Registered{Args: parseSystemdExec(v), Where: f.path}, nil
+	}
+	return Registered{}, ErrAutostartOff
+}
+
+// RewriteAutostart writes what r was registered as again for a, in the
+// same place. It starts nothing: a unit takes effect at its next start.
+func RewriteAutostart(a Autostart, r Registered) error {
+	if filepath.Base(r.Where) == "conch.desktop" {
+		return writeFile(r.Where, []byte(DesktopEntry(a)), 0o644)
+	}
+	if err := writeFile(r.Where, []byte(SystemdUserUnit(a)), 0o644); err != nil {
+		return err
+	}
+	_, err := a.Run("systemctl", "--user", "daemon-reload")
+	return err
+}
+
 // AutostartStatus describes autostart in a line.
 func AutostartStatus(a Autostart) (string, error) {
 	if exists(filepath.Join(a.Dir, userUnit)) {

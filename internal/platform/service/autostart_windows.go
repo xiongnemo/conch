@@ -55,6 +55,35 @@ func DisableAutostart(a Autostart) error {
 	return nil
 }
 
+// ReadAutostart reads the command the user's Run key starts.
+func ReadAutostart(a Autostart) (Registered, error) {
+	k, err := registry.OpenKey(registry.CURRENT_USER, runKey, registry.QUERY_VALUE)
+	if err != nil {
+		return Registered{}, ErrAutostartOff
+	}
+	defer k.Close()
+	line, _, err := k.GetStringValue(autostartValue)
+	if err != nil {
+		return Registered{}, ErrAutostartOff
+	}
+	args, err := windows.DecomposeCommandLine(line)
+	if err != nil {
+		return Registered{}, err
+	}
+	return Registered{Args: args, Where: `HKCU\` + runKey + `\` + autostartValue}, nil
+}
+
+// RewriteAutostart sets the Run key's command again for a. It takes effect
+// at the next login.
+func RewriteAutostart(a Autostart, _ Registered) error {
+	k, err := registry.OpenKey(registry.CURRENT_USER, runKey, registry.SET_VALUE)
+	if err != nil {
+		return err
+	}
+	defer k.Close()
+	return k.SetStringValue(autostartValue, windows.ComposeCommandLine(a.Args()))
+}
+
 // AutostartStatus describes autostart in a line.
 func AutostartStatus(a Autostart) (string, error) {
 	k, err := registry.OpenKey(registry.CURRENT_USER, runKey, registry.QUERY_VALUE)

@@ -19,6 +19,7 @@ import (
 	"github.com/xiongnemo/conch/internal/api"
 	"github.com/xiongnemo/conch/internal/daemon"
 	"github.com/xiongnemo/conch/internal/kernels"
+	"github.com/xiongnemo/conch/internal/migrate"
 	"github.com/xiongnemo/conch/internal/paths"
 	"github.com/xiongnemo/conch/internal/platform/privilege"
 	"github.com/xiongnemo/conch/internal/platform/service"
@@ -51,12 +52,12 @@ func newDoctorCmd() *cobra.Command {
 					d.ok("profile 没有问题（%s）", pl.profilePath)
 					port, tunWanted = res.Settings.MixedPort, res.Settings.TUN.Enable
 					trojanSS := false
-					if b, err := lookupBackend(cmpOr(daemon.LastBackend(paths.DataDir()), "mihomo")); err == nil {
+					if b, err := lookupBackend(cmpOr(daemon.LastBackend(paths.StateFile()), "mihomo")); err == nil {
 						trojanSS = b.Capabilities().TrojanSS
 					}
 					for _, p := range res.Proxies {
 						if sidecar.Needs(p, trojanSS) {
-							if _, err := kernels.Current(paths.DataDir(), sidecar.Kernel, kernels.Host().OS); err != nil {
+							if _, err := kernels.Current(paths.Kernels(), sidecar.Kernel, kernels.Host().OS); err != nil {
 								d.bad("节点 %q 要用 trojan-go 程序：运行 conch kernel install trojan-go", p.Node.Name)
 							}
 							break
@@ -65,8 +66,8 @@ func newDoctorCmd() *cobra.Command {
 				}
 			}
 
-			backend := daemon.LastBackend(paths.DataDir())
-			if inst, err := kernels.Current(paths.DataDir(), backend, kernels.Host().OS); err != nil {
+			backend := daemon.LastBackend(paths.StateFile())
+			if inst, err := kernels.Current(paths.Kernels(), backend, kernels.Host().OS); err != nil {
 				d.bad("%v", err)
 			} else {
 				if kernels.IsVerified(backend, inst.Version) {
@@ -85,6 +86,9 @@ func newDoctorCmd() *cobra.Command {
 			}
 			if s, err := service.Status(service.Options{Layout: service.SystemLayout(), Run: service.Exec}); err == nil {
 				d.note("%s", s)
+			}
+			if n := migrate.Pending(paths.System()); n > 0 {
+				d.note("有 %d 处文件还在旧版本用的位置（仍然能用）；conch migrate --dry-run 查看，conch migrate 移到新的位置", n)
 			}
 			if backend == "xray" && !kernels.HasGeodata("xray", paths.KernelHome("xray")) {
 				d.bad("xray 的 geodata 不完整，请运行 conch kernel geodata xray")
@@ -109,9 +113,9 @@ func newDoctorCmd() *cobra.Command {
 			}
 
 			if !running {
-				if leftover, p := daemon.SysProxyLeftover(paths.DataDir()); leftover {
+				if leftover, p := daemon.SysProxyLeftover(paths.StateFile()); leftover {
 					if fix {
-						if _, err := daemon.RepairSysProxy(paths.DataDir()); err != nil {
+						if _, err := daemon.RepairSysProxy(paths.StateFile()); err != nil {
 							d.bad("系统代理还指向 127.0.0.1:%d，但恢复失败：%v", p, err)
 						} else {
 							d.ok("已恢复系统代理设置（之前指向已经停止的 conch 127.0.0.1:%d）", p)
@@ -121,12 +125,12 @@ func newDoctorCmd() *cobra.Command {
 					}
 				}
 				if fix {
-					if repaired, err := daemon.RepairDNS(paths.DataDir()); err != nil {
+					if repaired, err := daemon.RepairDNS(paths.StateFile()); err != nil {
 						d.bad("系统 DNS 还指向 TUN 用的地址，恢复失败：%v", err)
 					} else if repaired {
 						d.ok("已恢复系统 DNS 设置（之前为 TUN 改过）")
 					}
-				} else if daemon.DNSLeftover(paths.DataDir()) {
+				} else if daemon.DNSLeftover(paths.StateFile()) {
 					d.bad("系统 DNS 还是 conch 为 TUN 改过的设置；运行 conch doctor --fix 恢复")
 				}
 				for _, addr := range []string{net.JoinHostPort("127.0.0.1", strconv.Itoa(port)), settings.Listen} {

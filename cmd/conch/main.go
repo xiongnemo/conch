@@ -32,7 +32,7 @@ func main() {
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}
-	root.AddCommand(newInitCmd(), newDaemonCmd(), newTUICmd(), newPairCmd(), newEditCmd(), newServiceCmd(), newAutostartCmd(), newAgentCmd(), newStatusCmd(), newRouteCmd(), newNodeCmd(), newGroupCmd(), newChainCmd(), newSubCmd(), newImportCmd(), newCompileCmd(), newKernelCmd(), newPasswdCmd(), newSysProxyCmd(), newTUNCmd(), newDoctorCmd(), newEnvCmd(), newRunCmd(), &cobra.Command{
+	root.AddCommand(newInitCmd(), newDaemonCmd(), newTUICmd(), newPairCmd(), newEditCmd(), newServiceCmd(), newAutostartCmd(), newAgentCmd(), newStatusCmd(), newRouteCmd(), newNodeCmd(), newGroupCmd(), newChainCmd(), newSubCmd(), newImportCmd(), newCompileCmd(), newKernelCmd(), newPasswdCmd(), newSysProxyCmd(), newTUNCmd(), newDoctorCmd(), newMigrateCmd(), newEnvCmd(), newRunCmd(), &cobra.Command{
 		Use:   "version",
 		Short: "显示版本",
 		Run:   func(cmd *cobra.Command, _ []string) { fmt.Fprintln(cmd.OutOrStdout(), version.Describe()) },
@@ -62,5 +62,5 @@ func loginHint(err error) string {
 	if rec, ok := readAPIRecord(); ok && rec.Env != "" && rec.Env != s.PasswordFile {
 		return fmt.Sprintf("提示：daemon 用的是 %s 里的 CONCH_PASSWORD，这里读到的是 %s", rec.Env, cmp.Or(s.PasswordFile, "（没有找到密码）"))
 	}
-	return fmt.Sprintf("提示：密码是 .env 里的 CONCH_PASSWORD，先找当前目录，再找 %s；也可以用环境变量 CONCH_PASSWORD", paths.ConfigDir())
+	return fmt.Sprintf("提示：密码是 .env 里的 CONCH_PASSWORD，先找当前目录，再找 %s；也可以用环境变量 CONCH_PASSWORD", paths.EnvFile())
 }

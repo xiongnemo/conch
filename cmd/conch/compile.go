@@ -54,7 +54,7 @@ func (pl *pipeline) resolve() error {
 
 func (pl *pipeline) listLoader(ctx context.Context) backend.ListLoader {
 	if pl.lists == nil {
-		pl.lists = &lists.Store{Dir: paths.ListsDir(), Offline: pl.offline, Log: pl.log}
+		pl.lists = &lists.Store{Dir: paths.Lists(), Offline: pl.offline, Log: pl.log}
 	}
 	return func(p route.Provider) ([]lists.Entry, []string, error) {
 		return pl.lists.Load(ctx, p)
@@ -77,7 +77,7 @@ func (pl *pipeline) compile(ctx context.Context) (*compile.Result, diag.List, er
 
 // compileProfile compiles a loaded profile with its subscriptions.
 func (pl *pipeline) compileProfile(ctx context.Context, p *model.Profile) (*compile.Result, diag.List) {
-	subs := &subscription.Store{Dir: paths.SubscriptionsDir(), Offline: pl.offline, Log: pl.log}
+	subs := &subscription.Store{Dir: paths.Subscriptions(), Offline: pl.offline, Log: pl.log}
 	var diags diag.List
 	snaps := map[string]*subscription.Snapshot{}
 	for _, sub := range p.Subscriptions {
@@ -106,7 +106,7 @@ func newCompileCmd() *cobra.Command {
 		Short: "把 profile 编译成内核配置（不启动内核）",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			b, err := lookupBackend(cmpOr(backendName, daemon.LastBackend(paths.DataDir())))
+			b, err := lookupBackend(cmpOr(backendName, daemon.LastBackend(paths.StateFile())))
 			if err != nil {
 				return err
 			}
@@ -118,7 +118,7 @@ func newCompileCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			opts.Lists, opts.Certs = pl.listLoader(cmd.Context()), daemon.LearnedCerts(paths.DataDir())
+			opts.Lists, opts.Certs = pl.listLoader(cmd.Context()), daemon.LearnedCerts(paths.Certs())
 			art, more := encode(res, b, opts, diags)
 			printDiags(cmd.ErrOrStderr(), more)
 			if art == nil {

@@ -46,7 +46,7 @@ func newServiceCmd() *cobra.Command {
 			if u := o.User; u != nil {
 				if p, err := resolveProfile(""); err == nil {
 					o.Profile = p
-				} else if p := filepath.Join(u.ConfigDir, "profile.yaml"); fileExists(p) {
+				} else if p := paths.ForUser(u.Home).Profile(); fileExists(p) {
 					o.Profile = p
 				}
 			}
@@ -117,8 +117,11 @@ func serviceOptions(cmd *cobra.Command) (service.Options, error) {
 		return o, err
 	}
 	if u != nil {
-		config, data := paths.UserDirs(u.HomeDir)
-		o.User = &service.User{Name: u.Username, UID: u.Uid, Home: u.HomeDir, ConfigDir: config, DataDir: data}
+		e := paths.ForUser(u.HomeDir) // sudo leaves little of the user's environment
+		if runtime.GOOS == "windows" {
+			e = paths.System() // elevated, but the user themselves
+		}
+		o.User = &service.User{Name: u.Username, UID: u.Uid, Home: u.HomeDir, Env: e.EnvFile(), Kernels: e.Kernels()}
 	}
 	return o, nil
 }

@@ -41,13 +41,19 @@ func TestMergeEntries(t *testing.T) {
 // Unix socket paths may not be much longer than 100 bytes on any OS.
 func TestSocketDir(t *testing.T) {
 	base := filepath.Join(string(filepath.Separator)+"home", "u", "conch")
-	if got := socketDir(base); got != filepath.Join(base, "run") {
-		t.Errorf("socketDir(%s) = %s", base, got)
+	if got := (Options{DataDir: base}).runDir(); got != filepath.Join(base, "run") {
+		t.Errorf("run directory of %s = %s", base, got)
+	}
+	if run := filepath.Join(base, "state", "run"); (Options{DataDir: base, Places: Places{Run: run}}).runDir() != run {
+		t.Errorf("Places.Run %s not used", run)
 	}
 	deep := filepath.Join(append([]string{base}, slices.Repeat([]string{"deep"}, 20)...)...)
-	got := socketDir(deep)
-	if len(filepath.Join(got, "xray-probe-4.sock")) > 100 || got != socketDir(deep) || strings.HasPrefix(got, deep) {
-		t.Errorf("socketDir(%s) = %s", deep, got)
+	got := (Options{DataDir: deep}).runDir()
+	if len(filepath.Join(got, "xray-probe-4.sock")) > 100 || got != (Options{DataDir: deep}).runDir() || strings.HasPrefix(got, deep) {
+		t.Errorf("run directory of %s = %s", deep, got)
+	}
+	if got := (Options{Places: Places{Run: deep}}).runDir(); len(filepath.Join(got, "xray-probe-4.sock")) > 100 || strings.HasPrefix(got, deep) {
+		t.Errorf("deep Places.Run %s = %s", deep, got)
 	}
 }
 
